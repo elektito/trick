@@ -133,7 +133,9 @@ def compile_lisp_letrec(expr, env):
 
     bindings = expr[1]
     for pair in bindings:
-        if not isinstance(pair, list) or len(pair) != 2 or not isinstance(pair[0], Symbol):
+        if not isinstance(pair, list) or \
+           len(pair) != 2 or \
+           not isinstance(pair[0], Symbol):
             raise CompileError(f'Invalid letrec binding: {pair}')
 
     vars = [x for x, y in bindings]
