@@ -1,77 +1,19 @@
 #!/usr/bin/env python3
 
+import argparse
 import sys
+import sexpr
 
 
-class Dummy:
+dummy_frame = object()
+
+
+class CompileError(Exception):
     pass
-dummy_frame = Dummy()
 
 
-def error(msg):
-    print(msg, file=sys.stderr)
-    sys.exit(1)
-
-
-pending = ''
-def getc():
-    global pending
-    if pending:
-        c, pending = pending[:1], pending[1:]
-        return c
-    return sys.stdin.read(1)
-
-
-def ungetc(c):
-    global pending
-    pending += c
-
-
-def read_token():
-    while True:
-        c = getc()
-        if c == '':
-            return ''
-        if not c.isspace():
-            break
-
-    if c in '()':
-        return c
-
-    tok = ''
-    while True:
-        if c == '':
-            return tok
-        if c in '()' or c.isspace():
-            ungetc(c)
-            return tok
-        tok += c
-        c = getc()
-
-
-def read_list():
-    items = []
-    while True:
-        value = read()
-        if value == '':
-            error('EOF while reading list.')
-        if value == ')':
-            return items
-        items.append(value)
-
-
-def read():
-    tok = read_token()
-    if tok == '':
-        error('EOF while parsing input.')
-    if tok == '(':
-        return read_list()
-    if tok == ')':
-        return tok
-    try:
-        return int(tok)
-    except ValueError:
-        return tok
+class RunError(Exception):
+    pass
 
 
 class Secd:
@@ -216,7 +158,7 @@ class Halt(Instr):
     def execute(self, machine):
         exit_code = machine.s.pop()
         if not isinstance(exit_code, int):
-            error(f'Non-numeric exit code: {exit_code}')
+            raise RunError(f'Non-numeric exit code: {exit_code}')
         machine.halt(exit_code)
 
 
@@ -225,7 +167,7 @@ class Add(Instr):
         arg1 = machine.s.pop()
         arg2 = machine.s.pop()
         if not isinstance(arg1, int) or not isinstance(arg2, int):
-            error('+ arguments must be integers.')
+            raise RunError('"add" arguments must be integers.')
         machine.s.append(arg2 + arg1)
 
 
@@ -234,7 +176,7 @@ class Sub(Instr):
         arg1 = machine.s.pop()
         arg2 = machine.s.pop()
         if not isinstance(arg1, int) or not isinstance(arg2, int):
-            error('+ arguments must be integers.')
+            raise RunError('"sub" arguments must be integers.')
         machine.s.append(arg2 - arg1)
 
 
@@ -243,7 +185,7 @@ class Lt(Instr):
         arg1 = machine.s.pop()
         arg2 = machine.s.pop()
         if not isinstance(arg1, int) or not isinstance(arg2, int):
-            error('+ arguments must be integers.')
+            raise RunError('"lt" arguments must be integers.')
         machine.s.append(1 if arg2 < arg1 else 0)
 
 
@@ -259,7 +201,7 @@ class Rap(Instr):
         machine.d.append((machine.s, machine.e, machine.c[machine.ip:]))
         new_code, new_env = closure
         if new_env[0] != dummy_frame:
-            error('No dummy frame.')
+            raise RunError('No dummy frame.')
 
         # replace dummy frame with actual frame
         new_env[0] = args
@@ -268,266 +210,108 @@ class Rap(Instr):
         machine.ip = 0
 
 
-def compile(sexpr):
+def compile(input):
     code = []
     i = 0
-    while i < len(sexpr):
-        instr = sexpr[i]
-        if instr == 'nil':
-            code.append(Nil())
-        elif instr == 'cons':
-            code.append(Cons())
+    while i < len(input):
+        instr = input[i]
+        if not isinstance(instr, sexpr.Symbol):
+            raise CompileError(f'Invalid SECD instruction: {instr}')
+
+        instr = instr.name
+
+        no_arg_instrs = {
+            'nil': Nil,
+            'cons': Cons,
+            'join': Join,
+            'ap': Ap,
+            'ret': Ret,
+            'dum': Dum,
+            'rap': Rap,
+            'printn': Printn,
+            'printc': Printc,
+            'halt': Halt,
+            'add': Add,
+            'sub': Sub,
+            'lt': Lt,
+        }
+        if instr in no_arg_instrs:
+            klass = no_arg_instrs[instr]
+            code.append(klass())
         elif instr == 'ldc':
             i += 1
-            if i >= len(sexpr): error('Unexpected eof when compiling.')
-            value = sexpr[i]
+            if i >= len(input):
+                raise CompileError('Missing ldc argument')
+            value = input[i]
             code.append(Ldc(value))
         elif instr == 'ld':
             i += 1
-            if i >= len(sexpr): error('Unexpected eof when compiling.')
-            value = sexpr[i]
+            if i >= len(input):
+                raise CompileError('Missing ld argument')
+            value = input[i]
             if not isinstance(value, list) or len(value) != 2:
-                error('ld expects a list of size 2.')
+                raise CompileError('ld expects a list of size 2.')
             frame, index = value
             code.append(Ld(frame, index))
         elif instr == 'sel':
             i += 1
-            if i >= len(sexpr): error('Unexpected eof when compiling.')
-            value1 = sexpr[i]
+            if i >= len(input):
+                raise CompileError('Missing sel arguments')
+            value1 = input[i]
             i += 1
-            if i >= len(sexpr): error('Unexpected eof when compiling.')
-            value2 = sexpr[i]
+            if i >= len(input):
+                raise CompileError('Mising sel argument')
+            value2 = input[i]
             if not isinstance(value1, list) or not isinstance(value2, list):
-                error('SEL expects two lists')
+                raise CompileError('SEL expects two lists')
             value1 = compile(value1)
             value2 = compile(value2)
             code.append(Sel(value1, value2))
-        elif instr == 'join':
-            code.append(Join())
         elif instr == 'ldf':
             i += 1
-            if i >= len(sexpr): error('Unexpected eof when compiling.')
-            value = sexpr[i]
+            if i >= len(input):
+                raise CompileError('Missing ldf argument')
+            value = input[i]
             if not isinstance(value, list):
-                error('ldf expects a list.')
+                raise CompileError('ldf expects a list')
             value = compile(value)
             code.append(Ldf(value))
-        elif instr == 'ap':
-            code.append(Ap())
-        elif instr == 'ret':
-            code.append(Ret())
-        elif instr == 'dum':
-            code.append(Dum())
-        elif instr == 'rap':
-            code.append(Rap())
-        elif instr == 'printn':
-            code.append(Printn())
-        elif instr == 'printc':
-            code.append(Printc())
-        elif instr == 'halt':
-            code.append(Halt())
-        elif instr == 'add':
-            code.append(Add())
-        elif instr == 'sub':
-            code.append(Sub())
-        elif instr == 'lt':
-            code.append(Lt())
         else:
-            error(f'Unknown instruction when compiling: {instr}')
+            raise CompileError(f'Unknown instruction: {instr}')
         i += 1
 
     return code
 
 
-def compile_lisp_int(expr, env):
-    return ['ldc', expr]
+def main():
+    parser = argparse.ArgumentParser(
+        description='Run SECD instructions written in sexpr form.')
 
+    parser.add_argument(
+        'input', default='-', nargs='?',
+        help='Input file. Stdin is used if not specified or a dash (-) '
+        'is passed instead. Defaults to reading from stdin.')
 
-def compile_lisp_printn(expr, env):
-    if len(expr) != 2:
-        error(f'Invalid number of arguments for printn: {expr}')
-    code = compile_lisp(expr[1], env)
-    return code + ['printn']
+    args = parser.parse_args()
 
-
-def compile_lisp_printc(expr, env):
-    if len(expr) != 2:
-        error(f'Invalid number of arguments for printc: {expr}')
-    code = compile_lisp(expr[1], env)
-    return code + ['printc']
-
-
-def compile_lisp_halt(expr, env):
-    if len(expr) != 2:
-        error(f'Invalid number of arguments for halt: {expr}')
-    code = compile_lisp(expr[1], env)
-    return code + ['halt']
-
-
-def compile_lisp_if(expr, env):
-    if len(expr) != 4:
-        error(f'Invalid number of arguments for if: {expr}')
-
-    cond_code = compile_lisp(expr[1], env)
-    true_code = compile_lisp(expr[2], env) + ['join']
-    false_code = compile_lisp(expr[3], env) + ['join']
-    return cond_code + ['sel'] + [true_code] + [false_code]
-
-
-def compile_lisp_add(expr, env):
-    if len(expr) != 3:
-        error(f'Invalid number of arguments for +: {expr}')
-
-    arg1 = compile_lisp(expr[1], env)
-    arg2 = compile_lisp(expr[2], env)
-    return arg1 + arg2 + ['add']
-
-
-def compile_lisp_sub(expr, env):
-    if len(expr) != 3:
-        error(f'Invalid number of arguments for -: {expr}')
-
-    arg1 = compile_lisp(expr[1], env)
-    arg2 = compile_lisp(expr[2], env)
-    return arg1 + arg2 + ['sub']
-
-
-def compile_lisp_lt(expr, env):
-    if len(expr) != 3:
-        error(f'Invalid number of arguments for <: {expr}')
-
-    arg1 = compile_lisp(expr[1], env)
-    arg2 = compile_lisp(expr[2], env)
-    return arg1 + arg2 + ['lt']
-
-
-def compile_lisp_lambda(expr, env):
-    if len(expr) < 3:
-        error(f'Invalid number of arguments for lambda: {expr}')
-
-    params = expr[1]
-    new_env = [params] + env
-
-    code = []
-    for e in expr[2:]:
-        code += compile_lisp(e, new_env)
-
-    return ['ldf'] + [code + ['ret']]
-
-
-def compile_lisp_symbol(expr, env):
-    sym = expr
-    for i, frame in enumerate(env):
-        if sym in frame:
-            return ['ld', [i, frame.index(sym)]]
-    error(f'Unknown symbol: {sym}')
-
-
-def compile_lisp_let(expr, env):
-    if len(expr) < 2:
-        error(f'Invalid number of arguments for let: {expr}')
-
-    if not isinstance(expr[1], list):
-        error(f'Invalid bindings list for let: {expr[1]}')
-
-    bindings = expr[1]
-    for pair in bindings:
-        if not isinstance(pair, list) or len(pair) != 2 or not isinstance(pair[0], str):
-            error(f'Invalid let binding: {pair}')
-
-    params = [x for x, y in bindings]
-    args = [y for x, y in bindings]
-    body = expr[2:]
-
-    # transform let to a lambda call and compile that instead
-    new_expr = [['lambda', params] + body] + args
-    return compile_lisp(new_expr, env)
-
-
-def compile_lisp_letrec(expr, env):
-    if len(expr) < 2:
-        error(f'Invalid number of arguments for let: {expr}')
-
-    if not isinstance(expr[1], list):
-        error(f'Invalid bindings list for let: {expr[1]}')
-
-    bindings = expr[1]
-    for pair in bindings:
-        if not isinstance(pair, list) or len(pair) != 2 or not isinstance(pair[0], str):
-            error(f'Invalid let binding: {pair}')
-
-    vars = [x for x, y in bindings]
-    values = [y for x, y in bindings]
-    body = expr[2:]
-
-    secd_code = ['dum', 'nil']
-    for v in values:
-        secd_code += compile_lisp(v, [vars] + env) + ['cons']
-
-    lambda_form = ['lambda', vars] + body
-    secd_code += compile_lisp(lambda_form, env)
-
-    secd_code += ['rap']
-
-    return secd_code
-
-
-def compile_lisp(expr, env):
-    if expr == 'nil':
-        secd_code = ['nil']
-    elif isinstance(expr, list) and expr[0] == 'if':
-        secd_code = compile_lisp_if(expr, env)
-    elif isinstance(expr, list) and expr[0] == '+':
-        secd_code = compile_lisp_add(expr, env)
-    elif isinstance(expr, list) and expr[0] == '-':
-        secd_code = compile_lisp_sub(expr, env)
-    elif isinstance(expr, list) and expr[0] == '<':
-        secd_code = compile_lisp_lt(expr, env)
-    elif isinstance(expr, list) and expr[0] == 'lambda':
-        secd_code = compile_lisp_lambda(expr, env)
-    elif isinstance(expr, list) and expr[0] == 'let':
-        secd_code = compile_lisp_let(expr, env)
-    elif isinstance(expr, list) and expr[0] == 'letrec':
-        secd_code = compile_lisp_letrec(expr, env)
-    elif isinstance(expr, list) and expr[0] == 'printn':
-        secd_code = compile_lisp_printn(expr, env)
-    elif isinstance(expr, list) and expr[0] == 'printc':
-        secd_code = compile_lisp_printc(expr, env)
-    elif isinstance(expr, list) and expr[0] == 'halt':
-        secd_code = compile_lisp_halt(expr, env)
-    elif isinstance(expr, int):
-        secd_code = compile_lisp_int(expr, env)
-    elif isinstance(expr, list):
-        secd_code = ['nil']
-        for arg in expr[1:]:
-            secd_code += compile_lisp(arg, env)
-            secd_code += ['cons']
-        secd_code += compile_lisp(expr[0], env)
-        secd_code += ['ap']
+    if args.input == '-':
+        text = sys.stdin.read()
     else:
-        secd_code = compile_lisp_symbol(expr, env)
+        with open(args.input) as f:
+            text = f.read()
 
-    return secd_code
+    try:
+        expr = sexpr.read(text)
+    except sexpr.ParseError as e:
+        print(f'Parse error: {e}')
+        sys.exit(1)
 
+    try:
+        code = compile(expr)
+    except CompileError as e:
+        print(f'Compile error: {e}')
+        sys.exit(1)
 
-def print_sexpr(value):
-    if isinstance(value, list):
-        print('(', end='')
-        for i in range(len(value)):
-            print_sexpr(value[i])
-            if i != len(value) - 1:
-                print(' ', end='')
-        print(')', end='')
-    else:
-        print(value, end='')
-
-
-
-def compile_and_run_secd(sexpr):
-    code = compile(sexpr)
-    print('Code:', code)
-
-    print('==== running ====')
     m = Secd(code)
     m.run()
     exit_code = m.halt_code
@@ -535,20 +319,6 @@ def compile_and_run_secd(sexpr):
         print('Code exhausted.')
     else:
         print('Machine halted with code:', exit_code)
-    print('==== done ====')
-
-
-def main():
-    sexpr = read()
-    if not isinstance(sexpr, list):
-        error('Input is not a list.')
-
-    if len(sys.argv) > 1 and sys.argv[1] == 'compile':
-        secd_code = compile_lisp(sexpr, [])
-        print_sexpr(secd_code)
-        print()
-    else:
-        compile_and_run_secd(sexpr)
 
 
 if __name__ == '__main__':
