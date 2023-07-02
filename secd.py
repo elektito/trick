@@ -74,37 +74,222 @@ def read():
         return tok
 
 
+class Secd:
+    def __init__(self, code):
+        self.s = []
+        self.e = []
+        self.c = code
+        self.d = []
+        self.ip = 0
+        self.halt_code = False
+
+
+    def run(self):
+        self.halt_code = None
+        self.ip = 0
+        while self.ip < len(self.c) and self.halt_code is None:
+            instr = self.c[self.ip]
+            self.ip += 1
+            instr.execute(self)
+
+
+    def halt(self, halt_code):
+        self.halt_code = halt_code
+
+
+class Instr:
+    def __repr__(self):
+        return f'{self.__class__.__name__.lower()}'
+
+
+class Nil(Instr):
+    def execute(self, machine):
+        machine.s.append([])
+
+
+class Cons(Instr):
+    def execute(self, machine):
+        v = machine.s.pop()
+        l = machine.s.pop()
+        machine.s.append(l + [v])
+
+
+class Ldc(Instr):
+    def __init__(self, value):
+        self.value = value
+
+    def execute(self, machine):
+        machine.s.append(self.value)
+
+    def __repr__(self):
+        return f'ldc {self.value}'
+
+
+class Ld(Instr):
+    def __init__(self, frame, index ):
+        self.frame = frame
+        self.index = index
+
+    def execute(self, machine):
+        frame = machine.e[self.frame]
+        value = frame[self.index]
+        machine.s.append(value)
+
+    def __repr__(self):
+        return f'ld ({self.frame} {self.index})'
+
+
+class Sel(Instr):
+    def __init__(self, true_body, false_body):
+        self.true_body = true_body
+        self.false_body = false_body
+
+    def execute(self, machine):
+        cond = machine.s.pop()
+        machine.d.append(machine.c[machine.ip:])
+        if cond != 0:
+            machine.c = self.true_body
+        else:
+            machine.c = self.false_body
+        machine.ip = 0
+
+    def __repr__(self):
+        true_body = ' '.join(repr(i) for i in self.true_body)
+        false_body = ' '.join(repr(i) for i in self.false_body)
+        return f'sel ({true_body}) ({false_body})'
+
+
+class Join(Instr):
+    def execute(self, machine):
+        machine.c = machine.d.pop()
+        machine.ip = 0
+
+
+class Ldf(Instr):
+    def __init__(self, body):
+        self.body = body
+
+    def execute(self, machine):
+        closure = (self.body, machine.e)
+        machine.s.append(closure)
+
+    def __repr__(self):
+        body = ' '.join(repr(i) for i in self.body)
+        return f'ldf ({body})'
+
+
+class Ap(Instr):
+    def execute(self, machine):
+        closure = machine.s.pop()
+        args = machine.s.pop()
+        machine.d.append((machine.s, machine.e, machine.c[machine.ip:]))
+        new_code, new_env = closure
+        machine.c, machine.e = new_code, [args] + new_env
+        machine.s = []
+        machine.ip = 0
+
+
+class Ret(Instr):
+    def execute(self, machine):
+        if len(machine.s) > 0:
+            retval = machine.s.pop()
+        else:
+            retval = [] # nil
+        machine.s, machine.e, machine.c = machine.d.pop()
+        machine.s.append(retval)
+        machine.ip = 0
+
+
+class Printn(Instr):
+    def execute(self, machine):
+        n = machine.s.pop()
+        print(n)
+
+
+class Printc(Instr):
+    def execute(self, machine):
+        n = machine.s.pop()
+        print(chr(n), end='')
+
+
+class Halt(Instr):
+    def execute(self, machine):
+        exit_code = machine.s.pop()
+        if not isinstance(exit_code, int):
+            error(f'Non-numeric exit code: {exit_code}')
+        machine.halt(exit_code)
+
+
+class Add(Instr):
+    def execute(self, machine):
+        arg1 = machine.s.pop()
+        arg2 = machine.s.pop()
+        if not isinstance(arg1, int) or not isinstance(arg2, int):
+            error('+ arguments must be integers.')
+        machine.s.append(arg2 + arg1)
+
+
+class Sub(Instr):
+    def execute(self, machine):
+        arg1 = machine.s.pop()
+        arg2 = machine.s.pop()
+        if not isinstance(arg1, int) or not isinstance(arg2, int):
+            error('+ arguments must be integers.')
+        machine.s.append(arg2 - arg1)
+
+
+class Lt(Instr):
+    def execute(self, machine):
+        arg1 = machine.s.pop()
+        arg2 = machine.s.pop()
+        if not isinstance(arg1, int) or not isinstance(arg2, int):
+            error('+ arguments must be integers.')
+        machine.s.append(1 if arg2 < arg1 else 0)
+
+
+class Dum(Instr):
+    def execute(self, machine):
+        machine.e = [dummy_frame] + machine.e
+
+
+class Rap(Instr):
+    def execute(self, machine):
+        closure = machine.s.pop()
+        args = machine.s.pop()
+        machine.d.append((machine.s, machine.e, machine.c[machine.ip:]))
+        new_code, new_env = closure
+        if new_env[0] != dummy_frame:
+            error('No dummy frame.')
+
+        # replace dummy frame with actual frame
+        new_env[0] = args
+
+        machine.s, machine.e, machine.c = [], new_env, new_code
+        machine.ip = 0
+
+
 def compile(sexpr):
     code = []
     i = 0
     while i < len(sexpr):
         instr = sexpr[i]
         if instr == 'nil':
-            code.append({
-                'op': 'nil',
-            })
+            code.append(Nil())
         elif instr == 'cons':
-            code.append({
-                'op': 'cons',
-            })
+            code.append(Cons())
         elif instr == 'ldc':
             i += 1
             if i >= len(sexpr): error('Unexpected eof when compiling.')
             value = sexpr[i]
-            code.append({
-                'op': 'ldc',
-                'value': value,
-            })
+            code.append(Ldc(value))
         elif instr == 'ld':
             i += 1
             if i >= len(sexpr): error('Unexpected eof when compiling.')
             value = sexpr[i]
             if not isinstance(value, list) or len(value) != 2:
                 error('ld expects a list of size 2.')
-            code.append({
-                'op': 'ld',
-                'value': value,
-            })
+            frame, index = value
+            code.append(Ld(frame, index))
         elif instr == 'sel':
             i += 1
             if i >= len(sexpr): error('Unexpected eof when compiling.')
@@ -116,15 +301,9 @@ def compile(sexpr):
                 error('SEL expects two lists')
             value1 = compile(value1)
             value2 = compile(value2)
-            code.append({
-                'op': 'sel',
-                'value1': value1,
-                'value2': value2,
-            })
+            code.append(Sel(value1, value2))
         elif instr == 'join':
-            code.append({
-                'op': 'join',
-            })
+            code.append(Join())
         elif instr == 'ldf':
             i += 1
             if i >= len(sexpr): error('Unexpected eof when compiling.')
@@ -132,163 +311,32 @@ def compile(sexpr):
             if not isinstance(value, list):
                 error('ldf expects a list.')
             value = compile(value)
-            code.append({
-                'op': 'ldf',
-                'value': value,
-            })
+            code.append(Ldf(value))
         elif instr == 'ap':
-            code.append({
-                'op': 'ap',
-            })
+            code.append(Ap())
         elif instr == 'ret':
-            code.append({
-                'op': 'ret',
-            })
+            code.append(Ret())
         elif instr == 'dum':
-            code.append({
-                'op': 'dum',
-            })
+            code.append(Dum())
         elif instr == 'rap':
-            code.append({
-                'op': 'rap',
-            })
+            code.append(Rap())
         elif instr == 'printn':
-            code.append({
-                'op': 'printn',
-            })
+            code.append(Printn())
         elif instr == 'printc':
-            code.append({
-                'op': 'printc',
-            })
+            code.append(Printc())
         elif instr == 'halt':
-            code.append({
-                'op': 'halt',
-            })
+            code.append(Halt())
         elif instr == 'add':
-            code.append({
-                'op': 'add',
-            })
+            code.append(Add())
         elif instr == 'sub':
-            code.append({
-                'op': 'sub',
-            })
+            code.append(Sub())
         elif instr == 'lt':
-            code.append({
-                'op': 'lt',
-            })
+            code.append(Lt())
         else:
             error(f'Unknown instruction when compiling: {instr}')
         i += 1
 
     return code
-
-
-def run(code, s=None, e=None, d=None):
-    if s is None:
-        s = []
-    if e is None:
-        e = []
-    if d is None:
-        d = []
-
-    i = 0
-    while i < len(code):
-        #import time; time.sleep(0.2)
-        instr = code[i]
-        #print('iii', i, instr)
-        i += 1
-
-        if instr['op'] == 'nil':
-            s.append([])
-        elif instr['op'] == 'cons':
-            v = s.pop()
-            l = s.pop()
-            s.append(l + [v])
-        elif instr['op'] == 'ldc':
-            s.append(instr['value'])
-        elif instr['op'] == 'ld':
-            f, n = instr['value']
-            frame = e[f]
-            value = frame[n]
-            s.append(value)
-        elif instr['op'] == 'sel':
-            cond = s.pop()
-            d.append(code[i:])
-            if cond != 0:
-                code = instr['value1']
-            else:
-                code = instr['value2']
-            i = 0
-        elif instr['op'] == 'join':
-            code = d.pop()
-            i = 0
-        elif instr['op'] == 'ldf':
-            closure = (instr['value'], e)
-            s.append(closure)
-        elif instr['op'] == 'ap':
-            closure = s.pop()
-            args = s.pop()
-            d.append((s, e, code[i:]))
-            new_code, new_env = closure
-            code, e = new_code, [args] + new_env
-            s = []
-            i = 0
-        elif instr['op'] == 'ret':
-            if len(s) > 0:
-                retval = s.pop()
-            else:
-                retval = [] # nil
-            s, e, code = d.pop()
-            s.append(retval)
-            i = 0
-        elif instr['op'] == 'printn':
-            n = s.pop()
-            print(n)
-        elif instr['op'] == 'printc':
-            c = chr(s.pop())
-            print(c, end='')
-        elif instr['op'] == 'halt':
-            exit_code = s.pop()
-            if not isinstance(exit_code, int):
-                error(f'Non-numeric exit code: {exit_code}')
-            return exit_code
-        elif instr['op'] == 'add':
-            arg1 = s.pop()
-            arg2 = s.pop()
-            if not isinstance(arg1, int) or not isinstance(arg2, int):
-                error('+ arguments must be integers.')
-            s.append(arg2 + arg1)
-        elif instr['op'] == 'sub':
-            arg1 = s.pop()
-            arg2 = s.pop()
-            if not isinstance(arg1, int) or not isinstance(arg2, int):
-                error('+ arguments must be integers.')
-            s.append(arg2 - arg1)
-        elif instr['op'] == 'lt':
-            arg1 = s.pop()
-            arg2 = s.pop()
-            if not isinstance(arg1, int) or not isinstance(arg2, int):
-                error('+ arguments must be integers.')
-            s.append(1 if arg2 < arg1 else 0)
-        elif instr['op'] == 'dum':
-            e = [dummy_frame] + e
-        elif instr['op'] == 'rap':
-            closure = s.pop()
-            args = s.pop()
-            d.append((s, e, code[i:]))
-            new_code, new_env = closure
-            if new_env[0] != dummy_frame:
-                error('No dummy frame.')
-
-            # replace dummy frame with actual frame
-            new_env[0] = args
-
-            s, e, code = [], new_env, new_code
-            i = 0
-        else:
-            error(f'Unknown code: {instr}')
-
-    return None
 
 
 def compile_lisp_int(expr, env):
@@ -480,7 +528,9 @@ def compile_and_run_secd(sexpr):
     print('Code:', code)
 
     print('==== running ====')
-    exit_code = run(code)
+    m = Secd(code)
+    m.run()
+    exit_code = m.halt_code
     if exit_code is None:
         print('Code exhausted.')
     else:
