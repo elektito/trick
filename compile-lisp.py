@@ -91,6 +91,8 @@ def compile_lisp_lambda(expr, env):
 
 def compile_lisp_symbol(expr, env):
     sym = expr.name
+    if sym == 'nil':
+        return ['nil']
     for i, frame in enumerate(env):
         if sym in frame:
             return ['ld', [i, frame.index(sym)]]
@@ -192,9 +194,7 @@ def compile_list(expr, env):
 
 
 def compile_lisp(expr, env):
-    if expr == 'nil':
-        secd_code = ['nil']
-    elif isinstance(expr, list):
+    if isinstance(expr, list):
         secd_code = compile_list(expr, env)
     elif isinstance(expr, int):
         secd_code = compile_lisp_int(expr, env)
