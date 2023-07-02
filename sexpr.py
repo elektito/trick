@@ -6,6 +6,7 @@ class ParseError(Exception):
 
 class Symbol:
     def __init__(self, name):
+        assert isinstance(name, str)
         self.name = name
 
     def __str__(self):
