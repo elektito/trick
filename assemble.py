@@ -110,7 +110,7 @@ def main():
             text = f.read()
 
     try:
-        expr = read(text)
+        expr, _ = read(text)
     except ParseError as e:
         print(f'Parse error: {e}', file=sys.stderr)
         sys.exit(1)

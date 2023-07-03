@@ -16,21 +16,21 @@ def compile_lisp_int(expr, env):
 def compile_lisp_printn(expr, env):
     if len(expr) != 2:
         raise CompileError(f'Invalid number of arguments for printn: {expr}')
-    code = compile_lisp(expr[1], env)
+    code = compile_form(expr[1], env)
     return code + ['printn']
 
 
 def compile_lisp_printc(expr, env):
     if len(expr) != 2:
         raise CompileError(f'Invalid number of arguments for printc: {expr}')
-    code = compile_lisp(expr[1], env)
+    code = compile_form(expr[1], env)
     return code + ['printc']
 
 
 def compile_lisp_halt(expr, env):
     if len(expr) != 2:
         raise CompileError(f'Invalid number of arguments for halt: {expr}')
-    code = compile_lisp(expr[1], env)
+    code = compile_form(expr[1], env)
     return code + ['halt']
 
 
@@ -38,9 +38,9 @@ def compile_lisp_if(expr, env):
     if len(expr) != 4:
         raise CompileError(f'Invalid number of arguments for if: {expr}')
 
-    cond_code = compile_lisp(expr[1], env)
-    true_code = compile_lisp(expr[2], env) + ['join']
-    false_code = compile_lisp(expr[3], env) + ['join']
+    cond_code = compile_form(expr[1], env)
+    true_code = compile_form(expr[2], env) + ['join']
+    false_code = compile_form(expr[3], env) + ['join']
     return cond_code + ['sel'] + [true_code] + [false_code]
 
 
@@ -48,8 +48,8 @@ def compile_lisp_add(expr, env):
     if len(expr) != 3:
         raise CompileError(f'Invalid number of arguments for +: {expr}')
 
-    arg1 = compile_lisp(expr[1], env)
-    arg2 = compile_lisp(expr[2], env)
+    arg1 = compile_form(expr[1], env)
+    arg2 = compile_form(expr[2], env)
     return arg1 + arg2 + ['add']
 
 
@@ -57,8 +57,8 @@ def compile_lisp_sub(expr, env):
     if len(expr) != 3:
         raise CompileError(f'Invalid number of arguments for -: {expr}')
 
-    arg1 = compile_lisp(expr[1], env)
-    arg2 = compile_lisp(expr[2], env)
+    arg1 = compile_form(expr[1], env)
+    arg2 = compile_form(expr[2], env)
     return arg1 + arg2 + ['sub']
 
 
@@ -66,8 +66,8 @@ def compile_lisp_lt(expr, env):
     if len(expr) != 3:
         raise CompileError(f'Invalid number of arguments for <: {expr}')
 
-    arg1 = compile_lisp(expr[1], env)
-    arg2 = compile_lisp(expr[2], env)
+    arg1 = compile_form(expr[1], env)
+    arg2 = compile_form(expr[2], env)
     return arg1 + arg2 + ['lt']
 
 
@@ -88,7 +88,7 @@ def compile_lisp_lambda(expr, env):
 
     body_code = []
     for i, e in enumerate(body):
-        body_code += compile_lisp(e, new_env)
+        body_code += compile_form(e, new_env)
         if i < len(body) - 1:
             body_code.append('drop')
 
@@ -133,7 +133,7 @@ def compile_lisp_let(expr, env):
 
     # transform let to a lambda call and compile that instead
     new_expr = [[Symbol('lambda'), params] + body] + args
-    return compile_lisp(new_expr, env)
+    return compile_form(new_expr, env)
 
 
 def compile_lisp_letrec(expr, env):
@@ -160,10 +160,10 @@ def compile_lisp_letrec(expr, env):
 
     secd_code = ['dum', 'nil']
     for v in values:
-        secd_code += compile_lisp(v, [[v.name for v in vars]] + env) + ['cons']
+        secd_code += compile_form(v, [[v.name for v in vars]] + env) + ['cons']
 
     lambda_form = [Symbol('lambda'), vars] + body
-    secd_code += compile_lisp(lambda_form, env)
+    secd_code += compile_form(lambda_form, env)
 
     secd_code += ['rap']
 
@@ -173,9 +173,9 @@ def compile_lisp_letrec(expr, env):
 def compile_func_call(expr, env):
     secd_code = ['nil']
     for arg in expr[1:]:
-        secd_code += compile_lisp(arg, env)
+        secd_code += compile_form(arg, env)
         secd_code += ['cons']
-    secd_code += compile_lisp(expr[0], env)
+    secd_code += compile_form(expr[0], env)
     secd_code += ['ap']
     return secd_code
 
@@ -207,7 +207,7 @@ def compile_list(expr, env):
         return compile_func_call(expr, env)
 
 
-def compile_lisp(expr, env):
+def compile_form(expr, env):
     if isinstance(expr, list):
         secd_code = compile_list(expr, env)
     elif isinstance(expr, int):
@@ -218,6 +218,18 @@ def compile_lisp(expr, env):
         raise CompileError(f'Invalid value: {expr}')
 
     return secd_code
+
+
+def compile_toplevel(text):
+    offset = 0
+    code = []
+    while offset < len(text):
+        form, offset = read(text, offset)
+        if form is None:  # eof
+            break
+        code += compile_form(form, [])
+
+    return code
 
 
 def main():
@@ -238,15 +250,14 @@ def main():
             text = f.read()
 
     try:
-        expr = read(text)
+        secd_code = compile_toplevel(text)
     except ParseError as e:
         print(f'Parse error: {e}', file=sys.stderr)
         sys.exit(1)
+    except CompileError as e:
+        print(f'Compile error: {e}', file=sys.stderr)
+        sys.exit(1)
 
-    if not isinstance(expr, list):
-        print('Input is not a list.', file=sys.stderr)
-
-    secd_code = compile_lisp(expr, [])
     print_sexpr(secd_code)
 
 

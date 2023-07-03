@@ -58,20 +58,20 @@ def _read_list(s: str, i: int):
         if s[i] == ')':
             i += 1
             return ls, i
-        value, i = _read(s, i)
+        value, i = read(s, i)
         ls.append(value)
 
     return ls, i
 
 
 
-def _read(s: str, i: int) -> tuple[int | Symbol | list, int]:
+def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list, int]:
     if i >= len(s):
-        raise ParseError('EOF while parsing input')
+        return None, len(s)
 
     i = _skip_whitespace(s, i)
     if i == len(s):
-        raise ParseError('Nothing to read')
+        return None, len(s)
 
     if s[i] == '(':
         return _read_list(s, i)
@@ -83,11 +83,6 @@ def _read(s: str, i: int) -> tuple[int | Symbol | list, int]:
             return int(tok), i
         except ValueError:
             return Symbol(tok), i
-
-
-def read(s: str):
-    value, _ = _read(s, 0)
-    return value
 
 
 def _print_sexpr(sexpr):

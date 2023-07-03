@@ -302,7 +302,7 @@ def main():
             text = f.read()
 
     try:
-        expr = sexpr.read(text)
+        expr, _ = sexpr.read(text)
     except sexpr.ParseError as e:
         print(f'Parse error: {e}')
         sys.exit(1)
