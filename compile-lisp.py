@@ -83,8 +83,10 @@ def compile_lisp_lambda(expr, env):
     new_env = [params] + env
 
     code = []
-    for e in expr[2:]:
+    for i, e in enumerate(expr[2:]):
         code += compile_lisp(e, new_env)
+        if i < len(expr) - 3:
+            code.append('drop')
 
     body = code + ['ret']
     if body[-2] == 'ap':

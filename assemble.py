@@ -38,6 +38,7 @@ def assemble(expr, start_offset: int) -> bytes:
             'dum': 0x0c,
             'rap': 0x0d,
             'tap': 0x0e,
+            'drop': 0x0f,
         }
         opcode = single_byte_instrs.get(instr)
         if opcode is not None:
@@ -84,6 +85,8 @@ def assemble(expr, start_offset: int) -> bytes:
             body_code = assemble(body, start_offset + len(code) + 4)
             code += len(body_code).to_bytes(length=4, byteorder='big', signed=False)
             code += body_code
+        else:
+            raise AssembleError(f'Unknown instruction: {instr}')
 
     return code
 

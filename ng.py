@@ -36,6 +36,7 @@ class Secd:
             0x0c: self.run_dum,
             0x0d: self.run_rap,
             0x0e: self.run_tap,
+            0x0f: self.run_drop,
             0x20: self.run_ldc,
             0x21: self.run_ld,
             0x22: self.run_sel,
@@ -121,10 +122,7 @@ class Secd:
         self.s, self.e, self.c = [], [args] + new_e, new_c
 
     def run_ret(self):
-        if len(self.s) > 0:
-            retval = self.s.pop()
-        else:
-            retval = [] # nil
+        retval = self.s.pop()
         self.s, self.e, self.c = self.d.pop()
         self.s.append(retval)
         if self.debug: print(f'ret retval={retval}')
@@ -133,16 +131,19 @@ class Secd:
         n = self.s.pop()
         if self.debug: print(f'printn {n}')
         print(n)
+        self.s.append([])  # return nil
 
     def run_printc(self):
         n = self.s.pop()
         if self.debug: print(f'printc {n}')
         print(chr(n), end='')
+        self.s.append([])  # return nil
 
     def run_halt(self):
         self.halt_code = self.s.pop()
         if not isinstance(self.halt_code, int):
             raise RunError(f'Non-numeric halt code: {self.halt_code}')
+        self.s.append([])  # return nil
         if self.debug: print(f'halt {self.halt_code}')
 
     def run_add(self):
@@ -193,6 +194,10 @@ class Secd:
         new_c, new_e = closure
         if self.debug: print(f'tap {self.c} => {new_c}')
         self.s, self.e, self.c = [], [args] + new_e, new_c
+
+    def run_drop(self):
+        value = self.s.pop()
+        if self.debug: print(f'drop {value}')
 
 
 def main():
