@@ -240,11 +240,11 @@ def main():
     try:
         expr = read(text)
     except ParseError as e:
-        print(f'Parse error: {e}')
+        print(f'Parse error: {e}', file=sys.stderr)
         sys.exit(1)
 
     if not isinstance(expr, list):
-        raise CompileError('Input is not a list.')
+        print('Input is not a list.', file=sys.stderr)
 
     secd_code = compile_lisp(expr, [])
     print_sexpr(secd_code)

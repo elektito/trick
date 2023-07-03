@@ -112,13 +112,13 @@ def main():
     try:
         expr = read(text)
     except ParseError as e:
-        print(f'Parse error: {e}')
+        print(f'Parse error: {e}', file=sys.stderr)
         sys.exit(1)
 
     try:
         code = assemble(expr, 0)
     except AssembleError as e:
-        print(f'Assemble error: {e}')
+        print(f'Assemble error: {e}', file=sys.stderr)
         sys.exit(1)
 
     sys.stdout.buffer.write(code)

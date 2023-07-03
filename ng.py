@@ -222,13 +222,13 @@ def main():
     try:
         m.run()
     except RunError as e:
-        print(f'Run error: {e}')
+        print(f'Run error: {e}', file=sys.stderr)
         sys.exit(1)
 
     if m.halt_code is None:
-        print('Code exhausted.')
+        print('Code exhausted.', file=sys.stderr)
     else:
-        print('Machine halted with code:', m.halt_code)
+        print('Machine halted with code:', m.halt_code, file=sys.stderr)
 
 
 if __name__ == '__main__':
