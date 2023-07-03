@@ -86,7 +86,13 @@ def compile_lisp_lambda(expr, env):
     for e in expr[2:]:
         code += compile_lisp(e, new_env)
 
-    return ['ldf'] + [code + ['ret']]
+    body = code + ['ret']
+    if body[-2] == 'ap':
+        body[-2:] = ['tap']
+
+    code = ['ldf', body]
+
+    return code
 
 
 def compile_lisp_symbol(expr, env):

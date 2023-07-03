@@ -35,6 +35,7 @@ class Secd:
             0x0b: self.run_lt,
             0x0c: self.run_dum,
             0x0d: self.run_rap,
+            0x0e: self.run_tap,
             0x20: self.run_ldc,
             0x21: self.run_ld,
             0x22: self.run_sel,
@@ -185,6 +186,13 @@ class Secd:
 
         if self.debug: print(f'rap {self.c} => {new_c}')
         self.s, self.e, self.c = [], new_e, new_c
+
+    def run_tap(self):
+        closure = self.s.pop()
+        args = self.s.pop()
+        new_c, new_e = closure
+        if self.debug: print(f'tap {self.c} => {new_c}')
+        self.s, self.e, self.c = [], [args] + new_e, new_c
 
 
 def main():
