@@ -72,7 +72,7 @@ def compile_lisp_lt(expr, env):
 
 
 def compile_lisp_lambda(expr, env):
-    if len(expr) < 3:
+    if len(expr) < 2:
         raise CompileError(f'Invalid number of arguments for lambda: {expr}')
 
     params = expr[1]
@@ -82,17 +82,21 @@ def compile_lisp_lambda(expr, env):
     params = [p.name for p in params]
     new_env = [params] + env
 
-    code = []
-    for i, e in enumerate(expr[2:]):
-        code += compile_lisp(e, new_env)
-        if i < len(expr) - 3:
-            code.append('drop')
+    body = expr[2:]
+    if len(body) == 0:
+        body = [Symbol('nil')]
 
-    body = code + ['ret']
-    if body[-2] == 'ap':
-        body[-2:] = ['tap']
+    body_code = []
+    for i, e in enumerate(body):
+        body_code += compile_lisp(e, new_env)
+        if i < len(body) - 1:
+            body_code.append('drop')
 
-    code = ['ldf', body]
+    body_code = body_code + ['ret']
+    if body_code[-2] == 'ap':
+        body_code[-2:] = ['tap']
+
+    code = ['ldf', body_code]
 
     return code
 
