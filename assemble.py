@@ -49,7 +49,7 @@ def assemble(expr, start_offset: int) -> bytes:
             if not isinstance(value, int):
                 raise AssembleError(f'Invalid argument for ldc: {value}')
             code += bytes([0x20])
-            code += value.to_bytes(length=4, byteorder='big', signed=True)
+            code += value.to_bytes(length=4, byteorder='little', signed=True)
         elif instr == 'ld':
             if not isinstance(expr[i], list) or \
                len(expr[i]) != 2 or \
@@ -59,8 +59,8 @@ def assemble(expr, start_offset: int) -> bytes:
             frame, index = expr[i]
             i += 1
             code += bytes([0x21])
-            code += frame.to_bytes(length=2, byteorder='big', signed=False)
-            code += index.to_bytes(length=2, byteorder='big', signed=False)
+            code += frame.to_bytes(length=2, byteorder='little', signed=False)
+            code += index.to_bytes(length=2, byteorder='little', signed=False)
         elif instr == 'sel':
             if not isinstance(expr[i], list) or not isinstance(expr[i + 1], list):
                 raise AssembleError(f'Invalid argument for sel: {expr[j]}')
@@ -70,8 +70,8 @@ def assemble(expr, start_offset: int) -> bytes:
             true_body = assemble(expr[i], start_offset + 8)
             false_body = assemble(expr[i + 1], start_offset + len(code) + 8 + len(true_body))
 
-            code += len(true_body).to_bytes(length=4, byteorder='big', signed=False)
-            code += len(false_body).to_bytes(length=4, byteorder='big', signed=False)
+            code += len(true_body).to_bytes(length=4, byteorder='little', signed=False)
+            code += len(false_body).to_bytes(length=4, byteorder='little', signed=False)
             code += true_body
             code += false_body
 
@@ -83,7 +83,7 @@ def assemble(expr, start_offset: int) -> bytes:
             i += 1
             code += bytes([0x23])
             body_code = assemble(body, start_offset + len(code) + 4)
-            code += len(body_code).to_bytes(length=4, byteorder='big', signed=False)
+            code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
             code += body_code
         else:
             raise AssembleError(f'Unknown instruction: {instr}')

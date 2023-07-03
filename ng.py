@@ -67,7 +67,7 @@ class Secd:
     def run_ldc(self):
         value = self.code[self.c:self.c+4]
         self.c += 4
-        value = int.from_bytes(value, byteorder='big', signed=True)
+        value = int.from_bytes(value, byteorder='little', signed=True)
         self.s.append(value)
         if self.debug: print(f'ldc {value}')
 
@@ -76,8 +76,8 @@ class Secd:
         index = self.code[self.c+2:self.c+4]
         self.c += 4
 
-        frame_idx = int.from_bytes(frame_idx, byteorder='big', signed=False)
-        index = int.from_bytes(index, byteorder='big', signed=False)
+        frame_idx = int.from_bytes(frame_idx, byteorder='little', signed=False)
+        index = int.from_bytes(index, byteorder='little', signed=False)
 
         frame = self.e[frame_idx]
         value = frame[index]
@@ -86,11 +86,11 @@ class Secd:
 
     def run_sel(self):
         true_len = self.code[self.c:self.c+4]
-        true_len = int.from_bytes(true_len, byteorder='big', signed=False)
+        true_len = int.from_bytes(true_len, byteorder='little', signed=False)
         self.c += 4
 
         false_len = self.code[self.c:self.c+4]
-        false_len = int.from_bytes(false_len, byteorder='big', signed=False)
+        false_len = int.from_bytes(false_len, byteorder='little', signed=False)
         self.c += 4
 
         cond = self.s.pop()
@@ -106,7 +106,7 @@ class Secd:
 
     def run_ldf(self):
         body_size = self.code[self.c:self.c+4]
-        body_size = int.from_bytes(body_size, byteorder='big', signed=False)
+        body_size = int.from_bytes(body_size, byteorder='little', signed=False)
         self.c += 4
         closure = (self.c, self.e)
         self.s.append(closure)
