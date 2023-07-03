@@ -13,28 +13,28 @@ def compile_lisp_int(expr, env):
     return ['ldc', expr]
 
 
-def compile_lisp_printn(expr, env):
+def compile_printn(expr, env):
     if len(expr) != 2:
         raise CompileError(f'Invalid number of arguments for printn: {expr}')
     code = compile_form(expr[1], env)
     return code + ['printn']
 
 
-def compile_lisp_printc(expr, env):
+def compile_printc(expr, env):
     if len(expr) != 2:
         raise CompileError(f'Invalid number of arguments for printc: {expr}')
     code = compile_form(expr[1], env)
     return code + ['printc']
 
 
-def compile_lisp_halt(expr, env):
+def compile_halt(expr, env):
     if len(expr) != 2:
         raise CompileError(f'Invalid number of arguments for halt: {expr}')
     code = compile_form(expr[1], env)
     return code + ['halt']
 
 
-def compile_lisp_if(expr, env):
+def compile_if(expr, env):
     if len(expr) != 4:
         raise CompileError(f'Invalid number of arguments for if: {expr}')
 
@@ -44,7 +44,7 @@ def compile_lisp_if(expr, env):
     return cond_code + ['sel'] + [true_code] + [false_code]
 
 
-def compile_lisp_add(expr, env):
+def compile_add(expr, env):
     if len(expr) != 3:
         raise CompileError(f'Invalid number of arguments for +: {expr}')
 
@@ -53,7 +53,7 @@ def compile_lisp_add(expr, env):
     return arg1 + arg2 + ['add']
 
 
-def compile_lisp_sub(expr, env):
+def compile_sub(expr, env):
     if len(expr) != 3:
         raise CompileError(f'Invalid number of arguments for -: {expr}')
 
@@ -62,7 +62,7 @@ def compile_lisp_sub(expr, env):
     return arg1 + arg2 + ['sub']
 
 
-def compile_lisp_lt(expr, env):
+def compile_lt(expr, env):
     if len(expr) != 3:
         raise CompileError(f'Invalid number of arguments for <: {expr}')
 
@@ -71,7 +71,7 @@ def compile_lisp_lt(expr, env):
     return arg1 + arg2 + ['lt']
 
 
-def compile_lisp_lambda(expr, env):
+def compile_lambda(expr, env):
     if len(expr) < 2:
         raise CompileError(f'Invalid number of arguments for lambda: {expr}')
 
@@ -111,7 +111,7 @@ def compile_lisp_symbol(expr, env):
     raise CompileError(f'Unknown symbol: {sym}')
 
 
-def compile_lisp_let(expr, env):
+def compile_let(expr, env):
     if len(expr) < 2:
         raise CompileError(f'Invalid number of arguments for let: {expr}')
 
@@ -136,7 +136,7 @@ def compile_lisp_let(expr, env):
     return compile_form(new_expr, env)
 
 
-def compile_lisp_letrec(expr, env):
+def compile_letrec(expr, env):
     if len(expr) < 2:
         raise CompileError(f'Invalid number of arguments for letrec: {expr}')
 
@@ -187,16 +187,16 @@ def compile_list(expr, env):
     if isinstance(expr[0], Symbol):
         name = expr[0].name
         primitives = {
-            'if': compile_lisp_if,
-            '+': compile_lisp_add,
-            '-': compile_lisp_sub,
-            '<': compile_lisp_lt,
-            'lambda': compile_lisp_lambda,
-            'let': compile_lisp_let,
-            'letrec': compile_lisp_letrec,
-            'printn': compile_lisp_printn,
-            'printc': compile_lisp_printc,
-            'halt': compile_lisp_halt,
+            'if': compile_if,
+            '+': compile_add,
+            '-': compile_sub,
+            '<': compile_lt,
+            'lambda': compile_lambda,
+            'let': compile_let,
+            'letrec': compile_letrec,
+            'printn': compile_printn,
+            'printc': compile_printc,
+            'halt': compile_halt,
         }
         compile_func = primitives.get(name)
         if compile_func is not None:
