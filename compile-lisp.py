@@ -79,7 +79,7 @@ def compile_lambda(expr, env):
     for p in params:
         if not isinstance(p, Symbol):
             raise CompileError(f'Invalid parameter name: {p}')
-    params = [p.name for p in params]
+    params = [p for p in params]
     new_env = [params] + env
 
     body = expr[2:]
@@ -101,9 +101,8 @@ def compile_lambda(expr, env):
     return code
 
 
-def compile_lisp_symbol(expr, env):
-    sym = expr.name
-    if sym == 'nil':
+def compile_lisp_symbol(sym: Symbol, env):
+    if sym.name == 'nil':
         return ['nil']
     for i, frame in enumerate(env):
         if sym in frame:
@@ -160,7 +159,7 @@ def compile_letrec(expr, env):
 
     secd_code = ['dum', 'nil']
     for v in values:
-        secd_code += compile_form(v, [[v.name for v in vars]] + env) + ['cons']
+        secd_code += compile_form(v, [[v for v in vars]] + env) + ['cons']
 
     lambda_form = [Symbol('lambda'), vars] + body
     secd_code += compile_form(lambda_form, env)
