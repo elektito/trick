@@ -29,7 +29,8 @@ class Secd:
     def run(self):
         self.halt_code = None
         self.ip = 0
-        while self.ip < len(self.c) and self.halt_code is None:
+        c_len = len(self.c)
+        while self.ip < c_len and self.halt_code is None:
             instr = self.c[self.ip]
             self.ip += 1
             instr.execute(self)
