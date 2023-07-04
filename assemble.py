@@ -29,7 +29,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             'join': 0x03,
             'ap': 0x04,
             'ret': 0x05,
-            'printn': 0x06,
+            'print': 0x06,
             'printc': 0x07,
             'halt': 0x08,
             'add': 0x09,

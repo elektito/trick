@@ -2,7 +2,8 @@
 
 import sys
 import argparse
-from machinetypes import Bool
+from machinetypes import Bool, Symbol
+from sexpr import print_sexpr
 
 
 class RunError(Exception):
@@ -28,7 +29,7 @@ class Secd:
             0x03: self.run_join,
             0x04: self.run_ap,
             0x05: self.run_ret,
-            0x06: self.run_printn,
+            0x06: self.run_print,
             0x07: self.run_printc,
             0x08: self.run_halt,
             0x09: self.run_add,
@@ -147,11 +148,11 @@ class Secd:
         self.s.append(retval)
         if self.debug: print(f'ret retval={retval}')
 
-    def run_printn(self):
-        n = self.s.pop()
-        if self.debug: print(f'printn {n}')
-        print(n)
-        self.s.append([])  # return nil
+    def run_print(self):
+        v = self.s.pop()
+        if self.debug: print(f'print {v}')
+        print_value(v)
+        self.s.append(v)  # return nil
 
     def run_printc(self):
         n = self.s.pop()
@@ -270,6 +271,19 @@ def main():
         print('Code exhausted.', file=sys.stderr)
     else:
         print('Machine halted with code:', m.halt_code, file=sys.stderr)
+
+
+def print_value(v):
+    if isinstance(v, Symbol):
+        print(v.name)
+    elif isinstance(v, int):
+        print(v)
+    elif isinstance(v, Bool):
+        print('#t' if v else '#f')
+    elif isinstance(v, list):
+        print_sexpr(v)
+    else:
+        raise RunError(f'Unknown type to print: {v}')
 
 
 if __name__ == '__main__':

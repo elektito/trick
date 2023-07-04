@@ -14,11 +14,11 @@ def compile_lisp_int(expr, env):
     return ['ldc', expr]
 
 
-def compile_printn(expr, env):
+def compile_print(expr, env):
     if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for printn: {expr}')
+        raise CompileError(f'Invalid number of arguments for print: {expr}')
     code = compile_form(expr[1], env)
-    return code + ['printn']
+    return code + ['print']
 
 
 def compile_printc(expr, env):
@@ -219,7 +219,7 @@ def compile_list(expr, env):
             'lambda': compile_lambda,
             'let': compile_let,
             'letrec': compile_letrec,
-            'printn': compile_printn,
+            'print': compile_print,
             'printc': compile_printc,
             'halt': compile_halt,
         }
