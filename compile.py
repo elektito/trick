@@ -2,7 +2,7 @@
 
 import sys
 import argparse
-from sexpr import read, ParseError, print_sexpr
+from read import read, ParseError, print_sexpr
 from machinetypes import Symbol
 
 

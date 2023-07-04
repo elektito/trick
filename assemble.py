@@ -2,7 +2,8 @@
 
 import sys
 import argparse
-from sexpr import read, ParseError, Symbol
+from read import read, ParseError
+from machinetypes import Symbol
 
 
 class AssembleError(Exception):

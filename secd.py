@@ -3,7 +3,7 @@
 import sys
 import argparse
 from machinetypes import Bool, Symbol
-from sexpr import print_sexpr
+from read import print_sexpr
 
 
 class RunError(Exception):
