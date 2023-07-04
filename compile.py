@@ -226,7 +226,21 @@ def compile_list(expr, env):
         return compile_func_call(expr, env)
 
 
-def compile_form(expr, env):
+def symbolize(code):
+    "recursively convert all strings in the given list to symbols."
+    ret = []
+    for i in code:
+        if isinstance(i, str):
+            ret.append(Symbol(i))
+        elif isinstance(i, list):
+            ret.append(symbolize(i))
+        elif isinstance(i, (int, Symbol)):
+            ret.append(i)
+        else:
+            raise CompileError(f'Internal error: bad secd code: {code}')
+    return ret
+
+
 def compile_form(expr, env=None):
     if env is None:
         # a single nil frame
@@ -240,6 +254,8 @@ def compile_form(expr, env=None):
         secd_code = compile_lisp_symbol(expr, env)
     else:
         raise CompileError(f'Invalid value: {expr}')
+
+    secd_code = symbolize(secd_code)
 
     return secd_code
 
