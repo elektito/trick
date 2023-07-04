@@ -2,6 +2,7 @@
 
 import sys
 import argparse
+from machinetypes import Bool
 
 
 class RunError(Exception):
@@ -39,6 +40,8 @@ class Secd:
             0x0f: self.run_drop,
             0x10: self.run_xp,
             0x11: self.run_dup,
+            0x12: self.run_true,
+            0x13: self.run_false,
             0x20: self.run_ldc,
             0x21: self.run_ld,
             0x22: self.run_sel,
@@ -109,8 +112,10 @@ class Secd:
         self.c += 4
 
         cond = self.s.pop()
+        if not isinstance(cond, Bool):
+            raise RunError(f'Condition value is not a boolean: {cond}')
         self.d.append(self.c + true_len + false_len)
-        if cond == 0:
+        if not cond:
             self.c += true_len
 
         if self.debug: print(f'sel cond={cond}')
@@ -182,7 +187,7 @@ class Secd:
         arg2 = self.s.pop()
         if not isinstance(arg1, int) or not isinstance(arg2, int):
             raise RunError('"lt" arguments must be integers.')
-        self.s.append(1 if arg2 < arg1 else 0)
+        self.s.append(Bool(True) if arg2 < arg1 else Bool(False))
         if self.debug: print(f'lt {arg2} < {arg1}')
 
     def run_dum(self):
@@ -226,6 +231,14 @@ class Secd:
     def run_dup(self):
         self.s.append(self.s[-1])
         if self.debug: print(f'dup {self.s[-1]}')
+
+    def run_true(self):
+        self.s.append(Bool(True))
+        if self.debug: print(f'true')
+
+    def run_false(self):
+        self.s.append(Bool(False))
+        if self.debug: print(f'false')
 
 
 def main():

@@ -1,27 +1,10 @@
 #!/usr/bin/env python3
 
+from machinetypes import Symbol, Bool
+
+
 class ParseError(Exception):
     pass
-
-
-class Symbol:
-    def __init__(self, name):
-        assert isinstance(name, str)
-        self.name = name
-
-    def __eq__(self, other):
-        if not isinstance(other, Symbol):
-            return False
-        return self.name == other.name
-
-    def __hash__(self):
-        return hash(self.name)
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return f'<Symbol {self}>'
 
 
 def _skip_whitespace(s: str, i: int) -> int:
@@ -85,6 +68,10 @@ def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list, int]:
         return _read_list(s, i)
     elif s[i] == ')':
         raise ParseError('Unbalanced parentheses')
+    elif s == '#f':
+        return Bool(False)
+    elif s == '#t':
+        return Bool(True)
     else:
         tok, i = _read_token(s, i)
         try:

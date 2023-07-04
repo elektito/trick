@@ -2,7 +2,8 @@
 
 import sys
 import argparse
-from sexpr import read, ParseError, Symbol, print_sexpr
+from sexpr import read, ParseError, print_sexpr
+from machinetypes import Symbol
 
 
 class CompileError(Exception):
@@ -104,6 +105,11 @@ def compile_lambda(expr, env):
 def compile_lisp_symbol(sym: Symbol, env):
     if sym.name == 'nil':
         return ['nil']
+    elif sym.name == '#f':
+        return ['false']
+    elif sym.name == '#t':
+        return ['true']
+
     for i, frame in enumerate(env):
         if sym in frame:
             return ['ld', [i, frame.index(sym)]]
