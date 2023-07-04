@@ -177,10 +177,15 @@ class Secd:
     def run_rap(self):
         closure = self.s.pop()
         args = self.s.pop()
-        self.d.append((self.s, self.e, self.c))
+
         new_c, new_e = closure
         if new_e[0] != self.dummy_frame:
             raise RunError('No dummy frame.')
+
+        # note that we don't store e[0] on d, since it contains the dummy frame.
+        # in normal 'ap' that does not exist, so we can store the entire
+        # contents of e.
+        self.d.append((self.s, self.e[1:], self.c))
 
         # replace dummy frame with actual frame
         new_e[0] = args
