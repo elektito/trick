@@ -38,6 +38,7 @@ class Secd:
             0x0e: self.run_tap,
             0x0f: self.run_drop,
             0x10: self.run_xp,
+            0x11: self.run_dup,
             0x20: self.run_ldc,
             0x21: self.run_ld,
             0x22: self.run_sel,
@@ -221,6 +222,10 @@ class Secd:
     def run_xp(self):
         self.e[0].append([])  # expand frame by adding a nil value to it
         if self.debug: print(f'xp')
+
+    def run_dup(self):
+        self.s.append(self.s[-1])
+        if self.debug: print(f'dup {self.s[-1]}')
 
 
 def main():

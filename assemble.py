@@ -40,6 +40,7 @@ def assemble(expr, start_offset: int) -> bytes:
             'tap': 0x0e,
             'drop': 0x0f,
             'xp': 0x10,
+            'dup': 0x11,
         }
         opcode = single_byte_instrs.get(instr)
         if opcode is not None:

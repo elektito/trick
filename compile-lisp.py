@@ -190,7 +190,11 @@ def compile_define(expr, env):
     env[0].append(name)
     code = ['xp']
     code += compile_form(value, env)
-    code += ['st', [0, len(env[0]) - 1]]
+
+    # the "dup" instructions makes sure "define" leaves its value on the stack
+    # (because all primitive forms are supposed to have a return value)
+    code += ['dup', 'st', [0, len(env[0]) - 1]]
+
     return code
 
 
