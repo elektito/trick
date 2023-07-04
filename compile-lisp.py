@@ -179,6 +179,21 @@ def compile_func_call(expr, env):
     return secd_code
 
 
+def compile_define(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for define.')
+
+    if not isinstance(expr[1], Symbol):
+        raise CompileError(f'Variable name not a symbol.')
+
+    name, value = expr[1:]
+    env[0].append(name)
+    code = ['xp']
+    code += compile_form(value, env)
+    code += ['st', [0, len(env[0]) - 1]]
+    return code
+
+
 def compile_list(expr, env):
     if len(expr) == 0:
         return ['nil']
@@ -186,6 +201,7 @@ def compile_list(expr, env):
     if isinstance(expr[0], Symbol):
         name = expr[0].name
         primitives = {
+            'define': compile_define,
             'if': compile_if,
             '+': compile_add,
             '-': compile_sub,
@@ -222,11 +238,17 @@ def compile_form(expr, env):
 def compile_toplevel(text):
     offset = 0
     code = []
+    toplevel_env = [[]]
+    first = True
     while offset < len(text):
         form, offset = read(text, offset)
         if form is None:  # eof
             break
-        code += compile_form(form, [])
+        code += compile_form(form, toplevel_env)
+        if first:
+            first = False
+        else:
+            code += ['drop']
 
     return code
 

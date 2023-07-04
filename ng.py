@@ -13,7 +13,7 @@ class Secd:
         self.code = code
 
         self.s = []
-        self.e = []
+        self.e = [[]]
         self.c = 0
         self.d = []
         self.halt_code = None
@@ -37,10 +37,12 @@ class Secd:
             0x0d: self.run_rap,
             0x0e: self.run_tap,
             0x0f: self.run_drop,
+            0x10: self.run_xp,
             0x20: self.run_ldc,
             0x21: self.run_ld,
             0x22: self.run_sel,
             0x23: self.run_ldf,
+            0x24: self.run_st,
         }
         code_len = len(self.code)
         while self.c < code_len and self.halt_code is None:
@@ -83,6 +85,18 @@ class Secd:
         value = frame[index]
         self.s.append(value)
         if self.debug: print(f'ld [{frame_idx}, {index}] -- frame={frame} value={value}')
+
+    def run_st(self):
+        frame_idx = self.code[self.c:self.c+2]
+        index = self.code[self.c+2:self.c+4]
+        self.c += 4
+
+        frame_idx = int.from_bytes(frame_idx, byteorder='little', signed=False)
+        index = int.from_bytes(index, byteorder='little', signed=False)
+
+        value = self.s.pop()
+        self.e[frame_idx][index] = value
+        if self.debug: print(f'st {value} => [{frame_idx}, {index}]')
 
     def run_sel(self):
         true_len = self.code[self.c:self.c+4]
@@ -203,6 +217,10 @@ class Secd:
     def run_drop(self):
         value = self.s.pop()
         if self.debug: print(f'drop {value}')
+
+    def run_xp(self):
+        self.e[0].append([])  # expand frame by adding a nil value to it
+        if self.debug: print(f'xp')
 
 
 def main():

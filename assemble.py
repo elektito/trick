@@ -39,6 +39,7 @@ def assemble(expr, start_offset: int) -> bytes:
             'rap': 0x0d,
             'tap': 0x0e,
             'drop': 0x0f,
+            'xp': 0x10,
         }
         opcode = single_byte_instrs.get(instr)
         if opcode is not None:
@@ -85,6 +86,17 @@ def assemble(expr, start_offset: int) -> bytes:
             body_code = assemble(body, start_offset + len(code) + 4)
             code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
             code += body_code
+        elif instr == 'st':
+            if not isinstance(expr[i], list) or \
+               len(expr[i]) != 2 or \
+               not isinstance(expr[i][0], int) or \
+               not isinstance(expr[i][1], int):
+                raise AssembleError(f'Invalid argument for st: {expr[i]}')
+            frame, index = expr[i]
+            i += 1
+            code += bytes([0x24])
+            code += frame.to_bytes(length=2, byteorder='little', signed=False)
+            code += index.to_bytes(length=2, byteorder='little', signed=False)
         else:
             raise AssembleError(f'Unknown instruction: {instr}')
 
