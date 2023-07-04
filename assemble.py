@@ -9,7 +9,7 @@ class AssembleError(Exception):
     pass
 
 
-def assemble(expr, start_offset: int) -> bytes:
+def assemble(expr, start_offset: int = 0) -> bytes:
     if not isinstance(expr, list):
         raise AssembleError('Input not a list')
 

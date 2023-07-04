@@ -227,6 +227,11 @@ def compile_list(expr, env):
 
 
 def compile_form(expr, env):
+def compile_form(expr, env=None):
+    if env is None:
+        # a single nil frame
+        env = [[]]
+
     if isinstance(expr, list):
         secd_code = compile_list(expr, env)
     elif isinstance(expr, int):
