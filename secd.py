@@ -1,15 +1,7 @@
 #!/usr/bin/env python3
 
-import argparse
 import sys
-import sexpr
-
-
-dummy_frame = object()
-
-
-class CompileError(Exception):
-    pass
+import argparse
 
 
 class RunError(Exception):
@@ -18,275 +10,227 @@ class RunError(Exception):
 
 class Secd:
     def __init__(self, code):
-        self.s = []
-        self.e = []
-        self.c = code
-        self.d = []
-        self.ip = 0
-        self.halt_code = False
+        self.code = code
 
+        self.s = []
+        self.e = [[]]
+        self.c = 0
+        self.d = []
+        self.halt_code = None
+        self.dummy_frame = object()
+        self.debug = False
 
     def run(self):
-        self.halt_code = None
-        self.ip = 0
-        c_len = len(self.c)
-        while self.ip < c_len and self.halt_code is None:
-            instr = self.c[self.ip]
-            self.ip += 1
-            instr.execute(self)
+        funcs = {
+            0x01: self.run_nil,
+            0x02: self.run_cons,
+            0x03: self.run_join,
+            0x04: self.run_ap,
+            0x05: self.run_ret,
+            0x06: self.run_printn,
+            0x07: self.run_printc,
+            0x08: self.run_halt,
+            0x09: self.run_add,
+            0x0a: self.run_sub,
+            0x0b: self.run_lt,
+            0x0c: self.run_dum,
+            0x0d: self.run_rap,
+            0x0e: self.run_tap,
+            0x0f: self.run_drop,
+            0x10: self.run_xp,
+            0x11: self.run_dup,
+            0x20: self.run_ldc,
+            0x21: self.run_ld,
+            0x22: self.run_sel,
+            0x23: self.run_ldf,
+            0x24: self.run_st,
+        }
+        code_len = len(self.code)
+        while self.c < code_len and self.halt_code is None:
+            opcode = self.code[self.c]
+            self.c += 1
 
+            try:
+                func = funcs[opcode]
+            except KeyError:
+                raise RunError(f'Invalid op-code: {opcode}')
 
-    def halt(self, halt_code):
-        self.halt_code = halt_code
+            func()
 
+    def run_nil(self):
+        self.s.append([])
+        if self.debug: print('nil')
 
-class Instr:
-    def __repr__(self):
-        return f'{self.__class__.__name__.lower()}'
+    def run_cons(self):
+        v = self.s.pop()
+        l = self.s.pop()
+        self.s.append(l + [v])
+        if self.debug: print(f'cons {v} onto {l}')
 
+    def run_ldc(self):
+        value = self.code[self.c:self.c+4]
+        self.c += 4
+        value = int.from_bytes(value, byteorder='little', signed=True)
+        self.s.append(value)
+        if self.debug: print(f'ldc {value}')
 
-class Nil(Instr):
-    def execute(self, machine):
-        machine.s.append([])
+    def run_ld(self):
+        frame_idx = self.code[self.c:self.c+2]
+        index = self.code[self.c+2:self.c+4]
+        self.c += 4
 
+        frame_idx = int.from_bytes(frame_idx, byteorder='little', signed=False)
+        index = int.from_bytes(index, byteorder='little', signed=False)
 
-class Cons(Instr):
-    def execute(self, machine):
-        v = machine.s.pop()
-        l = machine.s.pop()
-        machine.s.append(l + [v])
+        frame = self.e[frame_idx]
+        value = frame[index]
+        self.s.append(value)
+        if self.debug: print(f'ld [{frame_idx}, {index}] -- frame={frame} value={value}')
 
+    def run_st(self):
+        frame_idx = self.code[self.c:self.c+2]
+        index = self.code[self.c+2:self.c+4]
+        self.c += 4
 
-class Ldc(Instr):
-    def __init__(self, value):
-        self.value = value
+        frame_idx = int.from_bytes(frame_idx, byteorder='little', signed=False)
+        index = int.from_bytes(index, byteorder='little', signed=False)
 
-    def execute(self, machine):
-        machine.s.append(self.value)
+        value = self.s.pop()
+        self.e[frame_idx][index] = value
+        if self.debug: print(f'st {value} => [{frame_idx}, {index}]')
 
-    def __repr__(self):
-        return f'ldc {self.value}'
+    def run_sel(self):
+        true_len = self.code[self.c:self.c+4]
+        true_len = int.from_bytes(true_len, byteorder='little', signed=False)
+        self.c += 4
 
+        false_len = self.code[self.c:self.c+4]
+        false_len = int.from_bytes(false_len, byteorder='little', signed=False)
+        self.c += 4
 
-class Ld(Instr):
-    def __init__(self, frame, index ):
-        self.frame = frame
-        self.index = index
+        cond = self.s.pop()
+        self.d.append(self.c + true_len + false_len)
+        if cond == 0:
+            self.c += true_len
 
-    def execute(self, machine):
-        frame = machine.e[self.frame]
-        value = frame[self.index]
-        machine.s.append(value)
+        if self.debug: print(f'sel cond={cond}')
 
-    def __repr__(self):
-        return f'ld ({self.frame} {self.index})'
+    def run_join(self):
+        self.c = self.d.pop()
+        if self.debug: print(f'join')
 
+    def run_ldf(self):
+        body_size = self.code[self.c:self.c+4]
+        body_size = int.from_bytes(body_size, byteorder='little', signed=False)
+        self.c += 4
+        closure = (self.c, self.e)
+        self.s.append(closure)
+        self.c += body_size
+        if self.debug: print(f'ldf body_size={body_size}')
 
-class Sel(Instr):
-    def __init__(self, true_body, false_body):
-        self.true_body = true_body
-        self.false_body = false_body
+    def run_ap(self):
+        closure = self.s.pop()
+        args = self.s.pop()
+        self.d.append((self.s, self.e, self.c))
+        new_c, new_e = closure
+        if self.debug: print(f'ap {self.c} => {new_c}')
+        self.s, self.e, self.c = [], [args] + new_e, new_c
 
-    def execute(self, machine):
-        cond = machine.s.pop()
-        machine.d.append(machine.c[machine.ip:])
-        if cond != 0:
-            machine.c = self.true_body
-        else:
-            machine.c = self.false_body
-        machine.ip = 0
+    def run_ret(self):
+        retval = self.s.pop()
+        self.s, self.e, self.c = self.d.pop()
+        self.s.append(retval)
+        if self.debug: print(f'ret retval={retval}')
 
-    def __repr__(self):
-        true_body = ' '.join(repr(i) for i in self.true_body)
-        false_body = ' '.join(repr(i) for i in self.false_body)
-        return f'sel ({true_body}) ({false_body})'
-
-
-class Join(Instr):
-    def execute(self, machine):
-        machine.c = machine.d.pop()
-        machine.ip = 0
-
-
-class Ldf(Instr):
-    def __init__(self, body):
-        self.body = body
-
-    def execute(self, machine):
-        closure = (self.body, machine.e)
-        machine.s.append(closure)
-
-    def __repr__(self):
-        body = ' '.join(repr(i) for i in self.body)
-        return f'ldf ({body})'
-
-
-class Ap(Instr):
-    def execute(self, machine):
-        closure = machine.s.pop()
-        args = machine.s.pop()
-        machine.d.append((machine.s, machine.e, machine.c[machine.ip:]))
-        new_code, new_env = closure
-        machine.c, machine.e = new_code, [args] + new_env
-        machine.s = []
-        machine.ip = 0
-
-
-class Ret(Instr):
-    def execute(self, machine):
-        if len(machine.s) > 0:
-            retval = machine.s.pop()
-        else:
-            retval = [] # nil
-        machine.s, machine.e, machine.c = machine.d.pop()
-        machine.s.append(retval)
-        machine.ip = 0
-
-
-class Printn(Instr):
-    def execute(self, machine):
-        n = machine.s.pop()
+    def run_printn(self):
+        n = self.s.pop()
+        if self.debug: print(f'printn {n}')
         print(n)
+        self.s.append([])  # return nil
 
-
-class Printc(Instr):
-    def execute(self, machine):
-        n = machine.s.pop()
+    def run_printc(self):
+        n = self.s.pop()
+        if self.debug: print(f'printc {n}')
         print(chr(n), end='')
+        self.s.append([])  # return nil
 
+    def run_halt(self):
+        self.halt_code = self.s.pop()
+        if not isinstance(self.halt_code, int):
+            raise RunError(f'Non-numeric halt code: {self.halt_code}')
+        self.s.append([])  # return nil
+        if self.debug: print(f'halt {self.halt_code}')
 
-class Halt(Instr):
-    def execute(self, machine):
-        exit_code = machine.s.pop()
-        if not isinstance(exit_code, int):
-            raise RunError(f'Non-numeric exit code: {exit_code}')
-        machine.halt(exit_code)
-
-
-class Add(Instr):
-    def execute(self, machine):
-        arg1 = machine.s.pop()
-        arg2 = machine.s.pop()
+    def run_add(self):
+        arg1 = self.s.pop()
+        arg2 = self.s.pop()
         if not isinstance(arg1, int) or not isinstance(arg2, int):
             raise RunError('"add" arguments must be integers.')
-        machine.s.append(arg2 + arg1)
+        self.s.append(arg2 + arg1)
+        if self.debug: print(f'add {arg2} + {arg1}')
 
-
-class Sub(Instr):
-    def execute(self, machine):
-        arg1 = machine.s.pop()
-        arg2 = machine.s.pop()
-        if not isinstance(arg1, int) or not isinstance(arg2, int):
-            raise RunError('"sub" arguments must be integers.')
-        machine.s.append(arg2 - arg1)
-
-
-class Lt(Instr):
-    def execute(self, machine):
-        arg1 = machine.s.pop()
-        arg2 = machine.s.pop()
+    def run_sub(self):
+        arg1 = self.s.pop()
+        arg2 = self.s.pop()
         if not isinstance(arg1, int) or not isinstance(arg2, int):
             raise RunError('"lt" arguments must be integers.')
-        machine.s.append(1 if arg2 < arg1 else 0)
+        self.s.append(arg2 - arg1)
+        if self.debug: print(f'sub {arg2} - {arg1}')
 
+    def run_lt(self):
+        arg1 = self.s.pop()
+        arg2 = self.s.pop()
+        if not isinstance(arg1, int) or not isinstance(arg2, int):
+            raise RunError('"lt" arguments must be integers.')
+        self.s.append(1 if arg2 < arg1 else 0)
+        if self.debug: print(f'lt {arg2} < {arg1}')
 
-class Dum(Instr):
-    def execute(self, machine):
-        machine.e = [dummy_frame] + machine.e
+    def run_dum(self):
+        self.e = [self.dummy_frame] + self.e
+        if self.debug: print(f'dum')
 
+    def run_rap(self):
+        closure = self.s.pop()
+        args = self.s.pop()
 
-class Rap(Instr):
-    def execute(self, machine):
-        closure = machine.s.pop()
-        args = machine.s.pop()
-        machine.d.append((machine.s, machine.e, machine.c[machine.ip:]))
-        new_code, new_env = closure
-        if new_env[0] != dummy_frame:
+        new_c, new_e = closure
+        if new_e[0] != self.dummy_frame:
             raise RunError('No dummy frame.')
 
+        # note that we don't store e[0] on d, since it contains the dummy frame.
+        # in normal 'ap' that does not exist, so we can store the entire
+        # contents of e.
+        self.d.append((self.s, self.e[1:], self.c))
+
         # replace dummy frame with actual frame
-        new_env[0] = args
+        new_e[0] = args
 
-        machine.s, machine.e, machine.c = [], new_env, new_code
-        machine.ip = 0
+        if self.debug: print(f'rap {self.c} => {new_c}')
+        self.s, self.e, self.c = [], new_e, new_c
 
+    def run_tap(self):
+        closure = self.s.pop()
+        args = self.s.pop()
+        new_c, new_e = closure
+        if self.debug: print(f'tap {self.c} => {new_c}')
+        self.s, self.e, self.c = [], [args] + new_e, new_c
 
-def compile(input):
-    code = []
-    i = 0
-    while i < len(input):
-        instr = input[i]
-        if not isinstance(instr, sexpr.Symbol):
-            raise CompileError(f'Invalid SECD instruction: {instr}')
+    def run_drop(self):
+        value = self.s.pop()
+        if self.debug: print(f'drop {value}')
 
-        instr = instr.name
+    def run_xp(self):
+        self.e[0].append([])  # expand frame by adding a nil value to it
+        if self.debug: print(f'xp')
 
-        no_arg_instrs = {
-            'nil': Nil,
-            'cons': Cons,
-            'join': Join,
-            'ap': Ap,
-            'ret': Ret,
-            'dum': Dum,
-            'rap': Rap,
-            'printn': Printn,
-            'printc': Printc,
-            'halt': Halt,
-            'add': Add,
-            'sub': Sub,
-            'lt': Lt,
-        }
-        if instr in no_arg_instrs:
-            klass = no_arg_instrs[instr]
-            code.append(klass())
-        elif instr == 'ldc':
-            i += 1
-            if i >= len(input):
-                raise CompileError('Missing ldc argument')
-            value = input[i]
-            code.append(Ldc(value))
-        elif instr == 'ld':
-            i += 1
-            if i >= len(input):
-                raise CompileError('Missing ld argument')
-            value = input[i]
-            if not isinstance(value, list) or len(value) != 2:
-                raise CompileError('ld expects a list of size 2.')
-            frame, index = value
-            code.append(Ld(frame, index))
-        elif instr == 'sel':
-            i += 1
-            if i >= len(input):
-                raise CompileError('Missing sel arguments')
-            value1 = input[i]
-            i += 1
-            if i >= len(input):
-                raise CompileError('Mising sel argument')
-            value2 = input[i]
-            if not isinstance(value1, list) or not isinstance(value2, list):
-                raise CompileError('SEL expects two lists')
-            value1 = compile(value1)
-            value2 = compile(value2)
-            code.append(Sel(value1, value2))
-        elif instr == 'ldf':
-            i += 1
-            if i >= len(input):
-                raise CompileError('Missing ldf argument')
-            value = input[i]
-            if not isinstance(value, list):
-                raise CompileError('ldf expects a list')
-            value = compile(value)
-            code.append(Ldf(value))
-        else:
-            raise CompileError(f'Unknown instruction: {instr}')
-        i += 1
-
-    return code
+    def run_dup(self):
+        self.s.append(self.s[-1])
+        if self.debug: print(f'dup {self.s[-1]}')
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Run SECD instructions written in sexpr form.')
+        description='Run binary SECD instructions.')
 
     parser.add_argument(
         'input', default='-', nargs='?',
@@ -296,30 +240,23 @@ def main():
     args = parser.parse_args()
 
     if args.input == '-':
-        text = sys.stdin.read()
+        code = sys.stdin.buffer.read()
     else:
-        with open(args.input) as f:
-            text = f.read()
-
-    try:
-        expr, _ = sexpr.read(text)
-    except sexpr.ParseError as e:
-        print(f'Parse error: {e}')
-        sys.exit(1)
-
-    try:
-        code = compile(expr)
-    except CompileError as e:
-        print(f'Compile error: {e}')
-        sys.exit(1)
+        with open(args.input, 'rb') as f:
+            code = f.read()
 
     m = Secd(code)
-    m.run()
-    exit_code = m.halt_code
-    if exit_code is None:
-        print('Code exhausted.')
+    # m.debug = True
+    try:
+        m.run()
+    except RunError as e:
+        print(f'Run error: {e}', file=sys.stderr)
+        sys.exit(1)
+
+    if m.halt_code is None:
+        print('Code exhausted.', file=sys.stderr)
     else:
-        print('Machine halted with code:', exit_code)
+        print('Machine halted with code:', m.halt_code, file=sys.stderr)
 
 
 if __name__ == '__main__':
