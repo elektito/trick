@@ -3,7 +3,11 @@
 import sys
 import argparse
 from read import read, ParseError, print_sexpr
-from machinetypes import Symbol
+from machinetypes import Symbol, String
+
+
+# strtab has an implied empty string in the 0th position
+strtab = [String('')]
 
 
 class CompileError(Exception):
@@ -126,6 +130,16 @@ def compile_symbol(sym: Symbol, env):
         if sym in frame:
             return ['ld', [i, frame.index(sym)]]
     raise CompileError(f'Unknown symbol: {sym}')
+
+
+def compile_string(s: String, env):
+    if s not in strtab:
+        strtab.append(s)
+        idx = len(strtab) - 1
+    else:
+        idx = strtab.index(s)
+
+    return ['ldstr', idx]
 
 
 def compile_let(expr, env):
@@ -281,6 +295,8 @@ def compile_form(expr, env=None):
         secd_code = compile_int(expr, env)
     elif isinstance(expr, Symbol):
         secd_code = compile_symbol(expr, env)
+    elif isinstance(expr, String):
+        secd_code = compile_string(expr, env)
     else:
         raise CompileError(f'Invalid value: {expr}')
 
@@ -302,6 +318,9 @@ def compile_toplevel(text):
             code = form_code
         else:
             code += ['drop'] + form_code
+
+    if len(strtab) > 1:
+        code = ['strtab', strtab[1:]] + code  # strip the empty string at 0
 
     return code
 

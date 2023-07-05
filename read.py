@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from machinetypes import Symbol, Bool
+from machinetypes import String, Symbol, Bool
 
 
 class ParseError(Exception):
@@ -55,8 +55,28 @@ def _read_list(s: str, i: int):
     return ls, i
 
 
+def _read_string(s: str, i: int):
+    assert s[i] == '"'
 
-def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list, int]:
+    i += 1
+    read_str = ''
+    escaped = False
+    while i < len(s):
+        if escaped:
+            read_str += s[i]
+            escaped = False
+        elif s[i] == '\\':
+            escaped = True
+        elif s[i] == '"':
+            return String(read_str), i + 1
+        else:
+            read_str += s[i]
+        i += 1
+
+    raise ParseError('String not closed')
+
+
+def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list | Bool | String, int]:
     if i >= len(s):
         return None, len(s)
 
@@ -68,10 +88,12 @@ def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list, int]:
         return _read_list(s, i)
     elif s[i] == ')':
         raise ParseError('Unbalanced parentheses')
+    elif s[i] == '"':
+        return _read_string(s, i)
     elif s == '#f':
-        return Bool(False)
+        return Bool(False), i
     elif s == '#t':
-        return Bool(True)
+        return Bool(True), i
     else:
         tok, i = _read_token(s, i)
         try:

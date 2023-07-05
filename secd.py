@@ -2,7 +2,7 @@
 
 import sys
 import argparse
-from machinetypes import Bool, Symbol
+from machinetypes import Bool, String, Symbol
 from read import print_sexpr
 
 
@@ -37,6 +37,7 @@ class Secd:
         self.halt_code = None
         self.dummy_frame = object()
         self.debug = False
+        self.strtab = [String('')]
 
     def run(self):
         funcs = {
@@ -65,6 +66,8 @@ class Secd:
             0x23: self.run_ldf,
             0x24: self.run_st,
             0x25: self.run_ldfx,
+            0x26: self.run_ldstr,
+            0x27: self.run_strtab,
         }
         code_len = len(self.code)
         while self.c < code_len and self.halt_code is None:
@@ -94,6 +97,14 @@ class Secd:
         value = int.from_bytes(value, byteorder='little', signed=True)
         self.s.append(value)
         if self.debug: print(f'ldc {value}')
+
+    def run_ldstr(self):
+        strnum = self.code[self.c:self.c+4]
+        self.c += 4
+        strnum = int.from_bytes(strnum, byteorder='little', signed=True)
+        s = self.strtab[strnum]
+        self.s.append(s)
+        if self.debug: print(f'ldstr {s}')
 
     def run_ld(self):
         frame_idx = self.code[self.c:self.c+2]
@@ -281,6 +292,22 @@ class Secd:
     def run_false(self):
         self.s.append(Bool(False))
         if self.debug: print(f'false')
+
+    def run_strtab(self):
+        nstrs = self.code[self.c:self.c+4]
+        self.c += 4
+        nstrs = int.from_bytes(nstrs, byteorder='little', signed=False)
+        self.strtab = [String('')]
+        for _ in range(nstrs):
+            length = self.code[self.c:self.c+4]
+            self.c += 4
+            length = int.from_bytes(length, byteorder='little', signed=False)
+            s = self.code[self.c:self.c+length]
+            s = String.from_bytes(s)
+            self.strtab.append(s)
+            self.c += length
+
+        if self.debug: print(f'strtab {nstrs}')
 
 
 def main():

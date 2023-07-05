@@ -3,7 +3,7 @@
 import sys
 import argparse
 from read import read, ParseError
-from machinetypes import Symbol
+from machinetypes import String, Symbol
 
 
 class AssembleError(Exception):
@@ -121,6 +121,25 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             body_code = assemble(body, start_offset + len(code) + 4)
             code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
             code += body_code
+        elif instr == 'ldstr':
+            value = expr[i]
+            i += 1
+            if not isinstance(value, int):
+                raise AssembleError(f'Invalid argument for ldstr: {value}')
+            code += bytes([0x26])
+            code += value.to_bytes(length=4, byteorder='little', signed=True)
+        elif instr == 'strtab':
+            strlist = expr[i]
+            i += 1
+            if not isinstance(strlist, list):
+                raise AssembleError(f'Invalid argument type for strtab: {strlist}')
+            if not all(isinstance(s, String) for s in strlist):
+                raise AssembleError(f'Non-string value passed to strtab: {strlist}')
+            code += bytes([0x27])
+            code += len(strlist).to_bytes(length=4, byteorder='little', signed=False)
+            for s in strlist:
+                code += len(s).to_bytes(length=4, byteorder='little', signed=False)
+                code += s.encode('utf-8')
         else:
             raise AssembleError(f'Unknown instruction: {instr}')
 
