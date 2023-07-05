@@ -248,7 +248,7 @@ def compile_list(expr, env):
         }
         compile_func = primitives.get(name)
         if compile_func is not None:
-            return  compile_func(expr, env)
+            return compile_func(expr, env)
         else:
             return compile_func_call(expr, env)
     else:
