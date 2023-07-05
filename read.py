@@ -81,7 +81,9 @@ def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list, int]:
 
 
 def _print_sexpr(sexpr):
-    if isinstance(sexpr, list):
+    if sexpr == []:
+            print('nil', end='')
+    elif isinstance(sexpr, list):
         print('(', end='')
         for i, v in enumerate(sexpr):
             _print_sexpr(v)
