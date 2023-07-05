@@ -10,6 +10,15 @@ class RunError(Exception):
     pass
 
 
+class Closure:
+    def __init__(self, c, e):
+        self.c = c
+        self.e = e
+
+    def __repr__(self):
+        return f'<Closure c={self.c} e={self.e}>'
+
+
 class Secd:
     def __init__(self, code):
         self.code = code
@@ -129,7 +138,7 @@ class Secd:
         body_size = self.code[self.c:self.c+4]
         body_size = int.from_bytes(body_size, byteorder='little', signed=False)
         self.c += 4
-        closure = (self.c, self.e)
+        closure = Closure(self.c, self.e)
         self.s.append(closure)
         self.c += body_size
         if self.debug: print(f'ldf body_size={body_size}')
@@ -138,9 +147,8 @@ class Secd:
         closure = self.s.pop()
         args = self.s.pop()
         self.d.append((self.s, self.e, self.c))
-        new_c, new_e = closure
-        if self.debug: print(f'ap {self.c} => {new_c}')
-        self.s, self.e, self.c = [], [args] + new_e, new_c
+        if self.debug: print(f'ap {self.c} => {closure.c}')
+        self.s, self.e, self.c = [], [args] + closure.e, closure.c
 
     def run_ret(self):
         retval = self.s.pop()
@@ -199,8 +207,7 @@ class Secd:
         closure = self.s.pop()
         args = self.s.pop()
 
-        new_c, new_e = closure
-        if new_e[0] != self.dummy_frame:
+        if closure.e[0] != self.dummy_frame:
             raise RunError('No dummy frame.')
 
         # note that we don't store e[0] on d, since it contains the dummy frame.
@@ -209,17 +216,16 @@ class Secd:
         self.d.append((self.s, self.e[1:], self.c))
 
         # replace dummy frame with actual frame
-        new_e[0] = args
+        closure.e[0] = args
 
-        if self.debug: print(f'rap {self.c} => {new_c}')
-        self.s, self.e, self.c = [], new_e, new_c
+        if self.debug: print(f'rap {self.c} => {closure.c}')
+        self.s, self.e, self.c = [], closure.e, closure.c
 
     def run_tap(self):
         closure = self.s.pop()
         args = self.s.pop()
-        new_c, new_e = closure
-        if self.debug: print(f'tap {self.c} => {new_c}')
-        self.s, self.e, self.c = [], [args] + new_e, new_c
+        if self.debug: print(f'tap {self.c} => {closure.c}')
+        self.s, self.e, self.c = [], [args] + closure.e, closure.c
 
     def run_drop(self):
         value = self.s.pop()
@@ -282,6 +288,8 @@ def print_value(v):
         print('#t' if v else '#f')
     elif isinstance(v, list):
         print_sexpr(v)
+    elif isinstance(v, Closure):
+        print(v)
     else:
         raise RunError(f'Unknown type to print: {v}')
 
