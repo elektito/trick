@@ -10,7 +10,7 @@ class CompileError(Exception):
     pass
 
 
-def compile_lisp_int(expr, env):
+def compile_int(expr, env):
     return ['ldc', expr]
 
 
@@ -101,7 +101,7 @@ def compile_lambda(expr, env):
     return code
 
 
-def compile_lisp_symbol(sym: Symbol, env):
+def compile_symbol(sym: Symbol, env):
     if sym.name == 'nil':
         return ['nil']
     elif sym.name == '#f':
@@ -265,9 +265,9 @@ def compile_form(expr, env=None):
     if isinstance(expr, list):
         secd_code = compile_list(expr, env)
     elif isinstance(expr, int):
-        secd_code = compile_lisp_int(expr, env)
+        secd_code = compile_int(expr, env)
     elif isinstance(expr, Symbol):
-        secd_code = compile_lisp_symbol(expr, env)
+        secd_code = compile_symbol(expr, env)
     else:
         raise CompileError(f'Invalid value: {expr}')
 
