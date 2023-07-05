@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from compile import compile_form
 from assemble import assemble
 from secd import Secd
