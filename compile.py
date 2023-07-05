@@ -204,6 +204,16 @@ def compile_define(expr, env):
     return code
 
 
+def compile_cons(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for cons.')
+
+    code = compile_form(expr[2], env)
+    code += compile_form(expr[1], env)
+    code += ['cons']
+    return code
+
+
 def compile_list(expr, env):
     if len(expr) == 0:
         return ['nil']
@@ -222,6 +232,7 @@ def compile_list(expr, env):
             'print': compile_print,
             'printc': compile_printc,
             'halt': compile_halt,
+            'cons': compile_cons,
         }
         compile_func = primitives.get(name)
         if compile_func is not None:
