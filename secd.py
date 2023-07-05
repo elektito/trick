@@ -11,12 +11,19 @@ class RunError(Exception):
 
 
 class Closure:
-    def __init__(self, c, e):
+    def __init__(self, c, e, nargs=None):
         self.c = c
         self.e = e
+        self.nargs = nargs
+
+    def has_rest_arg(self):
+        return self.nargs is not None
 
     def __repr__(self):
-        return f'<Closure c={self.c} e={self.e}>'
+        if self.has_rest_arg():
+            return f'<Closure nargs={self.nargs} c={self.c} e={self.e}>'
+        else:
+            return f'<Closure c={self.c} e={self.e}>'
 
 
 class Secd:
@@ -57,6 +64,7 @@ class Secd:
             0x22: self.run_sel,
             0x23: self.run_ldf,
             0x24: self.run_st,
+            0x25: self.run_ldfx,
         }
         code_len = len(self.code)
         while self.c < code_len and self.halt_code is None:
@@ -143,11 +151,26 @@ class Secd:
         self.c += body_size
         if self.debug: print(f'ldf body_size={body_size}')
 
+    def run_ldfx(self):
+        nargs = self.code[self.c]
+        body_size = self.code[self.c+1:self.c+5]
+        body_size = int.from_bytes(body_size, byteorder='little', signed=False)
+        self.c += 5
+        closure = Closure(self.c, self.e, nargs=nargs)
+        self.s.append(closure)
+        self.c += body_size
+        if self.debug: print(f'ldfx nargs={nargs} body_size={body_size}')
+
     def run_ap(self):
         closure = self.s.pop()
         args = self.s.pop()
         self.d.append((self.s, self.e, self.c))
         if self.debug: print(f'ap {self.c} => {closure.c}')
+        if closure.has_rest_arg():
+            if len(args) < closure.nargs:
+                raise RunError(f'Invalid number of function arguments')
+            rest = args[closure.nargs:]
+            args = args[:closure.nargs] + [rest]
         self.s, self.e, self.c = [], [args] + closure.e, closure.c
 
     def run_ret(self):
@@ -210,6 +233,9 @@ class Secd:
         if closure.e[0] != self.dummy_frame:
             raise RunError('No dummy frame.')
 
+        if closure.has_rest_arg():
+            raise RunError('rap does not support rest arguments')
+
         # note that we don't store e[0] on d, since it contains the dummy frame.
         # in normal 'ap' that does not exist, so we can store the entire
         # contents of e.
@@ -225,6 +251,11 @@ class Secd:
         closure = self.s.pop()
         args = self.s.pop()
         if self.debug: print(f'tap {self.c} => {closure.c}')
+        if closure.has_rest_arg():
+            if len(args) < closure.nargs:
+                raise RunError(f'Invalid number of function arguments')
+            rest = args[closure.nargs:]
+            args = args[:closure.nargs] + [rest]
         self.s, self.e, self.c = [], [args] + closure.e, closure.c
 
     def run_drop(self):

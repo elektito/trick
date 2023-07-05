@@ -101,6 +101,26 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             code += bytes([0x24])
             code += frame.to_bytes(length=2, byteorder='little', signed=False)
             code += index.to_bytes(length=2, byteorder='little', signed=False)
+        elif instr == 'ldfx':
+            if not isinstance(expr[i], list):
+                raise AssembleError(f'Invalid argument for ldfx: {expr[i]}')
+            args = expr[i]
+            i += 1
+
+            if len(args) != 2 or \
+               not isinstance(args[0], int) or \
+               not isinstance(args[1], list):
+                raise AssembleError(f'Invalid argument for ldfx: {expr[i]}')
+
+            nargs, body = args
+            if nargs < 0 or nargs > 255:
+                raise AssembleError(f'Invalid nargs value for ldfx: {nargs}')
+
+            code += bytes([0x25])
+            code += bytes([nargs])
+            body_code = assemble(body, start_offset + len(code) + 4)
+            code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
+            code += body_code
         else:
             raise AssembleError(f'Unknown instruction: {instr}')
 

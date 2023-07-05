@@ -80,6 +80,15 @@ def compile_lambda(expr, env):
     for p in params:
         if not isinstance(p, Symbol):
             raise CompileError(f'Invalid parameter name: {p}')
+
+    rest_param = False
+    if Symbol('&') in params:
+        idx = params.index(Symbol('&'))
+        if idx != len(params) - 2:
+            raise CompileError(f'Bad position for & in parameter list')
+        params = params[:-2] + [params[-1]]
+        rest_param = True
+
     new_env = [params] + env
 
     body = expr[2:]
@@ -96,7 +105,11 @@ def compile_lambda(expr, env):
     if body_code[-2] == 'ap':
         body_code[-2:] = ['tap']
 
-    code = ['ldf', body_code]
+    if rest_param:
+        code = ['ldfx', [len(params) - 1, body_code]]
+    else:
+        code = ['ldf', body_code]
+
 
     return code
 
@@ -280,16 +293,15 @@ def compile_toplevel(text):
     offset = 0
     code = []
     toplevel_env = [[]]
-    first = True
     while offset < len(text):
         form, offset = read(text, offset)
         if form is None:  # eof
             break
-        code += compile_form(form, toplevel_env)
-        if first:
-            first = False
+        form_code = compile_form(form, toplevel_env)
+        if code == []:
+            code = form_code
         else:
-            code += ['drop']
+            code += ['drop'] + form_code
 
     return code
 
