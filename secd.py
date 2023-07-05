@@ -104,7 +104,11 @@ class Secd:
         index = int.from_bytes(index, byteorder='little', signed=False)
 
         frame = self.e[frame_idx]
-        value = frame[index]
+        if frame == self.dummy_frame:
+            raise RunError('Accessing dummy frame')
+        else:
+            value = frame[index]
+
         self.s.append(value)
         if self.debug: print(f'ld [{frame_idx}, {index}] -- frame={frame} value={value}')
 
