@@ -80,7 +80,6 @@ def compile_lambda(expr, env):
     for p in params:
         if not isinstance(p, Symbol):
             raise CompileError(f'Invalid parameter name: {p}')
-    params = [p for p in params]
     new_env = [params] + env
 
     body = expr[2:]
