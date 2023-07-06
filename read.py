@@ -90,6 +90,9 @@ def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list | Bool | String
         raise ParseError('Unbalanced parentheses')
     elif s[i] == '"':
         return _read_string(s, i)
+    elif s[i] == "'":
+        quoted, i = read(s, i + 1)
+        return [Symbol('quote'), quoted], i
     elif s == '#f':
         return Bool(False), i
     elif s == '#t':

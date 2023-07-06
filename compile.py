@@ -353,11 +353,14 @@ def compile_toplevel(text):
         else:
             code += ['drop'] + form_code
 
+    # add the strings for user symbols (those used in quoted values) to the
+    # string table
     for sym in symtab:
         sname = String(sym.name)
         if sname not in strtab:
             strtab.append(sname)
 
+    # add symbol table
     if len(symtab) > 0:
         strnums = [
             strtab.index(String(s.name))
@@ -365,6 +368,7 @@ def compile_toplevel(text):
         ]
         code = ['symtab', strnums] + code
 
+    # add string table
     if len(strtab) > 1:
         code = ['strtab', strtab[1:]] + code  # strip the empty string at 0
 
