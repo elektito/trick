@@ -29,9 +29,14 @@ class Macro:
     def expand(self, args):
         global toplevel_code
 
+        quoted_args = [[Symbol('quote'), a] for a in args]
+
         func = [Symbol('lambda'), self.params] + self.body
-        func_call = [func] + args
-        func_call_code = compile_form(func_call, self.env)
+        func_call = [func] + quoted_args
+        try:
+            func_call_code = compile_form(func_call, self.env)
+        except CompileError as e:
+            raise CompileError(f'During macro expansion of {self.name}: {e}')
 
         code = toplevel_code + func_call_code
         code = add_tables(code)
