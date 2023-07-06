@@ -113,7 +113,10 @@ class Secd:
         symnum = self.code[self.c:self.c+4]
         self.c += 4
         symnum = int.from_bytes(symnum, byteorder='little', signed=True)
-        s = self.symtab[symnum]
+        try:
+            s = self.symtab[symnum]
+        except IndexError:
+            raise RunError(f'Invalid symbol index: {symnum} (symtab size: {len(self.symtab)})')
         self.s.append(s)
         if self.debug: print(f'ldsym {s}')
 
