@@ -21,7 +21,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
         i += 1
 
         if not isinstance(instr, Symbol):
-            raise AssembleError(f'Invalid instruction: {instr}')
+            raise AssembleError(f'Instruction not a symbol: {instr}')
 
         instr = instr.name
         single_byte_instrs = {
