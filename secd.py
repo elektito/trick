@@ -128,10 +128,14 @@ class Secd:
         frame_idx = int.from_bytes(frame_idx, byteorder='little', signed=False)
         index = int.from_bytes(index, byteorder='little', signed=False)
 
+        if frame_idx >= len(self.e):
+            raise RunError(f'Invalid frame number: {frame_idx} (nframes: {len(self.e)})')
         frame = self.e[frame_idx]
         if frame == self.dummy_frame:
             raise RunError('Accessing dummy frame')
         else:
+            if index >= len(frame):
+                raise RunError(f'Invalid variable index: {index} (frame size: {len(frame)})')
             value = frame[index]
 
         self.s.append(value)
