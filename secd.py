@@ -91,7 +91,7 @@ class Secd:
     def run_cons(self):
         v = self.s.pop()
         l = self.s.pop()
-        self.s.append(l + [v])
+        self.s.append([v] + l)
         if self.debug: print(f'cons {v} onto {l}')
 
     def run_ldc(self):

@@ -278,7 +278,7 @@ def compile_letrec(expr, env):
 
 def compile_func_call(expr, env):
     secd_code = ['nil']
-    for arg in expr[1:]:
+    for arg in reversed(expr[1:]):
         secd_code += compile_form(arg, env)
         secd_code += ['cons']
     secd_code += compile_form(expr[0], env)
@@ -315,14 +315,41 @@ def compile_cons(expr, env):
     return code
 
 
+def compile_car(expr, env):
+    if len(expr) != 2:
+        raise CompileError(f'Invalid number of arguments for car.')
+
+    code = compile_form(expr[1], env)
+    code += ['car']
+    return code
+
+
+def compile_cdr(expr, env):
+    if len(expr) != 2:
+        raise CompileError(f'Invalid number of arguments for cdr.')
+
+    code = compile_form(expr[1], env)
+    code += ['cdr']
+    return code
+
+
+def compile_nullp(expr, env):
+    if len(expr) != 2:
+        raise CompileError(f'Invalid number of arguments for null?.')
+
+    code = compile_form(expr[1], env)
+    code += ['nullp']
+    return code
+
+
 def compile_quoted_form(form, env):
     if isinstance(form, list):
         if form == []:
             return ['nil']
         else:
-            last = compile_quoted_form(form[-1], env)
-            butlast = compile_quoted_form(form[:-1], env)
-            return butlast + last + ['cons']
+            first = compile_quoted_form(form[0], env)
+            rest = compile_quoted_form(form[1:], env)
+            return rest + first + ['cons']
     elif isinstance(form, Symbol):
         n = get_symnum(form)
         return ['ldsym', n]
