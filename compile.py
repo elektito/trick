@@ -8,10 +8,19 @@ from machinetypes import Symbol, String
 
 # strtab has an implied empty string in the 0th position
 strtab = [String('')]
+symtab = []
 
 
 class CompileError(Exception):
     pass
+
+
+def get_symnum(sym: Symbol) -> int:
+    try:
+        return symtab.index(sym)
+    except ValueError:
+        symtab.append(sym)
+        return len(symtab) - 1
 
 
 def compile_int(expr, env):
@@ -86,8 +95,9 @@ def compile_lambda(expr, env):
             raise CompileError(f'Invalid parameter name: {p}')
 
     rest_param = False
-    if Symbol('&') in params:
-        idx = params.index(Symbol('&'))
+    amp = Symbol('&')
+    if amp in params:
+        idx = params.index(amp)
         if idx != len(params) - 2:
             raise CompileError(f'Bad position for & in parameter list')
         params = params[:-2] + [params[-1]]
@@ -240,6 +250,29 @@ def compile_cons(expr, env):
     return code
 
 
+def compile_quoted_form(form, env):
+    if isinstance(form, list):
+        if form == []:
+            return ['nil']
+        else:
+            last = compile_quoted_form(form[-1], env)
+            butlast = compile_quoted_form(form[:-1], env)
+            return butlast + last + ['cons']
+    elif isinstance(form, Symbol):
+        n = get_symnum(form)
+        return ['ldsym', n]
+    else:
+        # other atoms evaluate to themselves, quoted or not
+        return compile_form(form, env)
+
+
+def compile_quote(expr, env):
+    if len(expr) != 2:
+        raise CompileError(f'Invalid number of arguments for quote.')
+
+    return compile_quoted_form(expr[1], env)
+
+
 def compile_list(expr, env):
     if len(expr) == 0:
         return ['nil']
@@ -259,6 +292,7 @@ def compile_list(expr, env):
             'printc': compile_printc,
             'halt': compile_halt,
             'cons': compile_cons,
+            'quote': compile_quote,
         }
         compile_func = primitives.get(name)
         if compile_func is not None:
@@ -318,6 +352,18 @@ def compile_toplevel(text):
             code = form_code
         else:
             code += ['drop'] + form_code
+
+    for sym in symtab:
+        sname = String(sym.name)
+        if sname not in strtab:
+            strtab.append(sname)
+
+    if len(symtab) > 0:
+        strnums = [
+            strtab.index(String(s.name))
+            for s in symtab
+        ]
+        code = ['symtab', strnums] + code
 
     if len(strtab) > 1:
         code = ['strtab', strtab[1:]] + code  # strip the empty string at 0

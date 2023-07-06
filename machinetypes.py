@@ -1,15 +1,13 @@
-class Symbol:
-    symtab = []
+from ctypes import ArgumentError
 
+
+DEFAULT_ENCODING = 'ascii'
+
+
+class Symbol:
     def __init__(self, name):
         assert isinstance(name, str)
         self.name = name
-
-        try:
-            self.number = Symbol.symtab.index(self.name)
-        except ValueError:
-            Symbol.symtab.append(name)
-            self.number = len(Symbol.symtab) - 1
 
     def __eq__(self, other):
         if not isinstance(other, Symbol):
@@ -23,7 +21,7 @@ class Symbol:
         return self.name
 
     def __repr__(self):
-        return f'<Symbol {self}>'
+        return f'<Symbol {self.name}>'
 
 
 class Bool:
@@ -41,3 +39,30 @@ class Bool:
 
     def __repr__(self):
         return f'<Bool {str(self.value).lower()}>'
+
+
+class String:
+    def __init__(self, value: str):
+        assert isinstance(value, str)
+        self.value = value
+
+    def __hash__(self):
+        return hash(self.value)
+
+    def __eq__(self, other):
+        if not isinstance(other, String):
+            return False
+        return self.value == other.value
+
+    def __len__(self):
+        return len(self.value)
+
+    def __repr__(self):
+        return f'"{self.value}"'
+
+    def encode(self, encoding=DEFAULT_ENCODING):
+        return self.value.encode(encoding)
+
+    @staticmethod
+    def from_bytes(b: bytes) -> 'String':
+        return String(b.decode(DEFAULT_ENCODING))

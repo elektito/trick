@@ -129,17 +129,35 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             code += bytes([0x26])
             code += value.to_bytes(length=4, byteorder='little', signed=True)
         elif instr == 'strtab':
-            strlist = expr[i]
+            strnums = expr[i]
             i += 1
-            if not isinstance(strlist, list):
-                raise AssembleError(f'Invalid argument type for strtab: {strlist}')
-            if not all(isinstance(s, String) for s in strlist):
-                raise AssembleError(f'Non-string value passed to strtab: {strlist}')
+            if not isinstance(strnums, list):
+                raise AssembleError(f'Invalid argument type for strtab: {strnums}')
+            if not all(isinstance(s, String) for s in strnums):
+                raise AssembleError(f'Non-string value passed to strtab: {strnums}')
             code += bytes([0x27])
-            code += len(strlist).to_bytes(length=4, byteorder='little', signed=False)
-            for s in strlist:
+            code += len(strnums).to_bytes(length=4, byteorder='little', signed=False)
+            for s in strnums:
                 code += len(s).to_bytes(length=4, byteorder='little', signed=False)
                 code += s.encode('utf-8')
+        elif instr == 'ldsym':
+            value = expr[i]
+            i += 1
+            if not isinstance(value, int):
+                raise AssembleError(f'Invalid argument for ldstr: {value}')
+            code += bytes([0x28])
+            code += value.to_bytes(length=4, byteorder='little', signed=True)
+        elif instr == 'symtab':
+            strnums = expr[i]
+            i += 1
+            if not isinstance(strnums, list):
+                raise AssembleError(f'Invalid argument type for symtab: {strnums}')
+            if not all(isinstance(s, int) for s in strnums):
+                raise AssembleError(f'Non-numeric value passed to symtab: {strnums}')
+            code += bytes([0x29])
+            code += len(strnums).to_bytes(length=4, byteorder='little', signed=False)
+            for n in strnums:
+                code += n.to_bytes(length=4, byteorder='little', signed=False)
         else:
             raise AssembleError(f'Unknown instruction: {instr}')
 

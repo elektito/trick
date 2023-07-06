@@ -38,6 +38,7 @@ class Secd:
         self.dummy_frame = object()
         self.debug = False
         self.strtab = [String('')]
+        self.symtab = []
 
     def run(self):
         funcs = {
@@ -68,6 +69,8 @@ class Secd:
             0x25: self.run_ldfx,
             0x26: self.run_ldstr,
             0x27: self.run_strtab,
+            0x28: self.run_ldsym,
+            0x29: self.run_symtab,
         }
         code_len = len(self.code)
         while self.c < code_len and self.halt_code is None:
@@ -105,6 +108,14 @@ class Secd:
         s = self.strtab[strnum]
         self.s.append(s)
         if self.debug: print(f'ldstr {s}')
+
+    def run_ldsym(self):
+        symnum = self.code[self.c:self.c+4]
+        self.c += 4
+        symnum = int.from_bytes(symnum, byteorder='little', signed=True)
+        s = self.symtab[symnum]
+        self.s.append(s)
+        if self.debug: print(f'ldsym {s}')
 
     def run_ld(self):
         frame_idx = self.code[self.c:self.c+2]
@@ -309,6 +320,21 @@ class Secd:
 
         if self.debug: print(f'strtab {nstrs}')
 
+    def run_symtab(self):
+        nsyms = self.code[self.c:self.c+4]
+        self.c += 4
+        nsyms = int.from_bytes(nsyms, byteorder='little', signed=False)
+        self.symtab = []
+        for _ in range(nsyms):
+            strnum = self.code[self.c:self.c+4]
+            self.c += 4
+            strnum = int.from_bytes(strnum, byteorder='little', signed=False)
+            name = self.strtab[strnum]
+            sym = Symbol(name.value)
+            self.symtab.append(sym)
+
+        if self.debug: print(f'symtab {nsyms}')
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -352,6 +378,8 @@ def print_value(v):
         print_sexpr(v)
     elif isinstance(v, Closure):
         print(v)
+    elif isinstance(v, String):
+        print(v.value)
     else:
         raise RunError(f'Unknown type to print: {v}')
 
