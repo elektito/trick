@@ -4,15 +4,64 @@ import sys
 import argparse
 from read import read, ParseError, print_sexpr
 from machinetypes import Symbol, String
+from assemble import assemble
+from secd import RunError, Secd
 
 
 # strtab has an implied empty string in the 0th position
 strtab = [String('')]
 symtab = []
+macros = {}
+toplevel_code = []
 
 
 class CompileError(Exception):
     pass
+
+
+class Macro:
+    def __init__(self, name, params, body, env):
+        self.name = name
+        self.params = params
+        self.body = body
+        self.env = env
+
+    def expand(self, args):
+        global toplevel_code
+
+        func = [Symbol('lambda'), self.params] + self.body
+        func_call = [func] + args
+        func_call_code = compile_form(func_call, self.env)
+
+        code = toplevel_code + func_call_code
+        code = add_tables(code)
+        code = symbolize(code)
+        assembled = assemble(code)
+
+        machine = Secd(assembled)
+
+        try:
+            machine.run()
+        except RunError as e:
+            raise CompileError(f'Run error during macro expansion: {e}')
+
+        if len(machine.s) == 0:
+            raise CompileError(f'Internal error: macro did not return anything')
+
+        expanded = machine.s[-1]
+        return expanded
+
+
+def macro_expand(form):
+    while isinstance(form, list) and \
+          len(form) > 0 and \
+          isinstance(form[0], Symbol):
+        macro = macros.get(form[0].name)
+        if macro is None:
+            break
+        form = macro.expand(form[1:])
+
+    return form
 
 
 def get_symnum(sym: Symbol) -> int:
@@ -21,6 +70,22 @@ def get_symnum(sym: Symbol) -> int:
     except ValueError:
         symtab.append(sym)
         return len(symtab) - 1
+
+
+def process_defmac(expr, env):
+    if len(expr) < 3:
+        raise CompileError('Not enough arguments for defmac')
+
+    name = expr[1].name
+    params = expr[2]
+    body = expr[3:]
+
+    if not all(isinstance(p, Symbol) for p in params):
+        raise CompileError('Bad macro parameter name')
+
+    macros[name] = Macro(name, params, body, env)
+
+    return []
 
 
 def compile_int(expr, env):
@@ -279,8 +344,12 @@ def compile_list(expr, env):
 
     if isinstance(expr[0], Symbol):
         name = expr[0].name
+        if name == 'defmac':
+            raise CompileError('defmac only allowed at top-level')
+
         primitives = {
             'define': compile_define,
+            'defmac': process_defmac,
             'if': compile_if,
             '+': compile_add,
             '-': compile_sub,
@@ -297,6 +366,10 @@ def compile_list(expr, env):
         compile_func = primitives.get(name)
         if compile_func is not None:
             return compile_func(expr, env)
+        elif name in macros:
+            macro = macros[name]
+            new_form = macro.expand(expr[1:])
+            return compile_form(new_form, env)
         else:
             return compile_func_call(expr, env)
     else:
@@ -323,6 +396,8 @@ def compile_form(expr, env=None):
         # a single nil frame
         env = [[]]
 
+    expr = macro_expand(expr)
+
     if isinstance(expr, list):
         secd_code = compile_list(expr, env)
     elif isinstance(expr, int):
@@ -339,20 +414,7 @@ def compile_form(expr, env=None):
     return secd_code
 
 
-def compile_toplevel(text):
-    offset = 0
-    code = []
-    toplevel_env = [[]]
-    while offset < len(text):
-        form, offset = read(text, offset)
-        if form is None:  # eof
-            break
-        form_code = compile_form(form, toplevel_env)
-        if code == []:
-            code = form_code
-        else:
-            code += ['drop'] + form_code
-
+def add_tables(code):
     # add the strings for user symbols (those used in quoted values) to the
     # string table
     for sym in symtab:
@@ -371,6 +433,38 @@ def compile_toplevel(text):
     # add string table
     if len(strtab) > 1:
         code = ['strtab', strtab[1:]] + code  # strip the empty string at 0
+
+    return code
+
+
+def compile_toplevel(text):
+    global toplevel_code
+
+    offset = 0
+    code = []
+    toplevel_env = [[]]
+    while offset < len(text):
+        form, offset = read(text, offset)
+        if form is None:  # eof
+            break
+
+        form = macro_expand(form)
+
+        if isinstance(form, list) and len(form) > 0 and form[0] == Symbol('defmac'):
+            process_defmac(form, toplevel_env)
+            form_code = []
+        elif isinstance(form, list) and len(form) > 0 and form[0] == Symbol('define'):
+            form_code = compile_form(form, toplevel_env)
+            toplevel_code += form_code
+        else:
+            form_code = compile_form(form, toplevel_env)
+
+        if code == []:
+            code = form_code
+        elif form_code != []:
+            code += ['drop'] + form_code
+
+    code = add_tables(code)
 
     return code
 
