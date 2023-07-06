@@ -44,6 +44,9 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             'dup': 0x11,
             'true': 0x12,
             'false': 0x13,
+            'car': 0x14,
+            'cdr': 0x15,
+            'nullp': 0x16,
         }
         opcode = single_byte_instrs.get(instr)
         if opcode is not None:

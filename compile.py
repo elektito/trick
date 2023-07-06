@@ -388,6 +388,9 @@ def compile_list(expr, env):
             'printc': compile_printc,
             'halt': compile_halt,
             'cons': compile_cons,
+            'car': compile_car,
+            'cdr': compile_cdr,
+            'null?': compile_nullp,
             'quote': compile_quote,
         }
         compile_func = primitives.get(name)

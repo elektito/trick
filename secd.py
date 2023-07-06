@@ -61,6 +61,9 @@ class Secd:
             0x11: self.run_dup,
             0x12: self.run_true,
             0x13: self.run_false,
+            0x14: self.run_car,
+            0x15: self.run_cdr,
+            0x16: self.run_nullp,
             0x20: self.run_ldc,
             0x21: self.run_ld,
             0x22: self.run_sel,
@@ -341,6 +344,24 @@ class Secd:
             self.symtab.append(sym)
 
         if self.debug: print(f'symtab {nsyms}')
+
+    def run_car(self):
+        l = self.s.pop()
+        car = l[0]
+        self.s.append(car)
+        if self.debug: print(f'car => {car}')
+
+    def run_cdr(self):
+        l = self.s.pop()
+        cdr = l[1:]
+        self.s.append(cdr)
+        if self.debug: print(f'cdr => {cdr}')
+
+    def run_nullp(self):
+        v = self.s.pop()
+        result = Bool(v == [])
+        self.s.append(result)
+        if self.debug: print(f'nullp => {result}')
 
 
 def main():
