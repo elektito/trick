@@ -311,7 +311,7 @@ def symbolize(code):
             ret.append(Symbol(i))
         elif isinstance(i, list):
             ret.append(symbolize(i))
-        elif isinstance(i, (int, Symbol)):
+        elif isinstance(i, (int, Symbol, String)):
             ret.append(i)
         else:
             raise CompileError(f'Internal error: bad secd code: {code}')
