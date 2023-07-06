@@ -109,12 +109,16 @@ def _print_sexpr(sexpr):
     if sexpr == []:
             print('nil', end='')
     elif isinstance(sexpr, list):
-        print('(', end='')
-        for i, v in enumerate(sexpr):
-            _print_sexpr(v)
-            if i != len(sexpr) - 1:
-                print(' ', end='')
-        print(')', end='')
+        if len(sexpr) == 2 and sexpr[0] == Symbol('quote'):
+            print("'", end='')
+            _print_sexpr(sexpr[1])
+        else:
+            print('(', end='')
+            for i, v in enumerate(sexpr):
+                _print_sexpr(v)
+                if i != len(sexpr) - 1:
+                    print(' ', end='')
+            print(')', end='')
     else:
         print(str(sexpr), end='')
 
