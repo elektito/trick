@@ -63,9 +63,8 @@ class Secd:
             0x13: self.run_false,
             0x14: self.run_car,
             0x15: self.run_cdr,
-            0x16: self.run_nullp,
-            0x17: self.run_type,
-            0x18: self.run_eq,
+            0x16: self.run_type,
+            0x17: self.run_eq,
             0x20: self.run_ldc,
             0x21: self.run_ld,
             0x22: self.run_sel,
@@ -359,22 +358,18 @@ class Secd:
         self.s.append(cdr)
         if self.debug: print(f'cdr => {cdr}')
 
-    def run_nullp(self):
-        v = self.s.pop()
-        result = Bool(v == [])
-        self.s.append(result)
-        if self.debug: print(f'nullp => {result}')
-
     def run_type(self):
         v = self.s.pop()
-        if isinstance(v, Symbol):
+        if v == []:
             result = 1
-        elif isinstance(v, list):
+        elif isinstance(v, Symbol):
             result = 2
-        elif isinstance(v, int):
+        elif isinstance(v, list):
             result = 3
-        elif isinstance(v, String):
+        elif isinstance(v, int):
             result = 4
+        elif isinstance(v, String):
+            result = 5
         else:
             raise RunError('Unknown type: {v}')
         self.s.append(result)

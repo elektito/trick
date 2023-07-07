@@ -338,15 +338,6 @@ def compile_cdr(expr, env):
     return code
 
 
-def compile_nullp(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for null?.')
-
-    code = compile_form(expr[1], env)
-    code += ['nullp']
-    return code
-
-
 def compile_quoted_form(form, env):
     if isinstance(form, list):
         if form == []:
@@ -414,7 +405,6 @@ def compile_list(expr, env):
             'cons': compile_cons,
             'car': compile_car,
             'cdr': compile_cdr,
-            'null?': compile_nullp,
             'quote': compile_quote,
             'type': compile_type,
             'eq?': compile_eq,
