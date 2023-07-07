@@ -271,7 +271,7 @@ def compile_letrec(expr, env):
 
     secd_code = ['dum', 'nil']
     for v in values:
-        secd_code += compile_form(v, [[v for v in vars]] + env) + ['cons']
+        secd_code += compile_form(v, [vars] + env) + ['cons']
 
     lambda_form = [Symbol('lambda'), vars] + body
     secd_code += compile_form(lambda_form, env)
