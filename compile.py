@@ -5,7 +5,7 @@ import argparse
 from read import read, ParseError, print_sexpr
 from machinetypes import Symbol, String
 from assemble import assemble
-from secd import RunError, Secd
+from secd import RunError, Secd, UserError
 
 
 # strtab has an implied empty string in the 0th position
@@ -50,6 +50,14 @@ class Macro:
 
         try:
             machine.run()
+        except UserError:
+            err = machine.s[-1]
+            err_type = assoc(Symbol(':type'), err)
+            msg = f'User error of type {err_type} during macro expansion'
+            err_msg = assoc(Symbol(':msg'), err)
+            if err_msg is not None:
+                msg += f': {err_msg}'
+            raise CompileError(msg)
         except RunError as e:
             raise CompileError(f'Run error during macro expansion: {e}')
 
@@ -70,6 +78,14 @@ def macro_expand(form):
         form = macro.expand(form[1:])
 
     return form
+
+
+def assoc(item, alist):
+    for i in range(0, len(alist), 2):
+        if alist[i] == item:
+            return alist[i + 1]
+
+    return None
 
 
 def get_symnum(sym: Symbol) -> int:
@@ -421,6 +437,33 @@ def compile_eq(expr, env):
     return code
 
 
+def compile_error(expr, env):
+    if len(expr) < 2 or len(expr) % 2 != 0:
+        raise CompileError(f'Invalid number of arguments for error')
+
+    error_sym = expr[1]
+    if not isinstance(error_sym, Symbol):
+        raise CompileError(f'First argument to error must be a symbol')
+
+    error_args = [Symbol(':type'), error_sym]
+    for i in range(2, len(expr), 2):
+        name, value = expr[i:i+2]
+        if not isinstance(name, Symbol):
+            raise CompileError(f'Error argument name not a symbol: {name}')
+        if name == ':type':
+            raise CompileError(f'Error argument name must not be :type')
+        error_args.append(name)
+        error_args.append(value)
+
+    code = ['nil']
+    for arg in reversed(error_args):
+        code += compile_form(arg, env)
+        code += ['cons']
+    code += ['error']
+
+    return code
+
+
 def compile_list(expr, env):
     if len(expr) == 0:
         return ['nil']
@@ -449,6 +492,7 @@ def compile_list(expr, env):
             'quote': compile_quote,
             'type': compile_type,
             'eq?': compile_eq,
+            'error': compile_error,
         }
         compile_func = primitives.get(name)
         if compile_func is not None:

@@ -10,6 +10,10 @@ class RunError(Exception):
     pass
 
 
+class UserError(RunError):
+    pass
+
+
 class Closure:
     def __init__(self, c, e, nargs=None):
         self.c = c
@@ -66,6 +70,7 @@ class Secd:
             0x15: self.run_cdr,
             0x16: self.run_type,
             0x17: self.run_eq,
+            0x18: self.run_error,
             0x20: self.run_ldc,
             0x21: self.run_ld,
             0x22: self.run_sel,
@@ -421,6 +426,9 @@ class Secd:
         self.s.append(value)
 
         if self.debug: print(f'get {symnum} => {value}')
+
+    def run_error(self):
+        raise UserError('User error')
 
 
 def main():

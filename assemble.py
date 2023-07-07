@@ -48,6 +48,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             'cdr': 0x15,
             'type': 0x16,
             'eq': 0x17,
+            'error': 0x18,
         }
         opcode = single_byte_instrs.get(instr)
         if opcode is not None:
