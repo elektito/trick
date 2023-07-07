@@ -614,13 +614,22 @@ def main():
         help='Input file. Stdin is used if not specified or a dash (-) '
         'is passed instead. Defaults to reading from stdin.')
 
+    parser.add_argument(
+        '--lib', '-l', action='append', default=[],
+        help='Add a library file to be loaded before input file.')
+
     args = parser.parse_args()
 
+    text = ''
+    for lib in args.lib:
+        with open(lib) as f:
+            text += f.read()
+
     if args.input == '-':
-        text = sys.stdin.read()
+        text += sys.stdin.read()
     else:
         with open(args.input) as f:
-            text = f.read()
+            text += f.read()
 
     try:
         secd_code = compile_toplevel(text)
