@@ -39,6 +39,7 @@ class Secd:
         self.debug = False
         self.strtab = [String('')]
         self.symtab = []
+        self.symvals = {}
 
     def run(self):
         funcs = {
@@ -75,6 +76,8 @@ class Secd:
             0x27: self.run_strtab,
             0x28: self.run_ldsym,
             0x29: self.run_symtab,
+            0x2a: self.run_set,
+            0x2b: self.run_get,
         }
         code_len = len(self.code)
         while self.c < code_len and self.halt_code is None:
@@ -387,6 +390,37 @@ class Secd:
         result = Bool(result)
         self.s.append(result)
         if self.debug: print(f'eq {result}')
+
+    def run_set(self):
+        symnum = self.code[self.c:self.c+4]
+        self.c += 4
+        symnum = int.from_bytes(symnum, byteorder='little', signed=True)
+
+        # leave the set value on the stack as the return value of set
+        value = self.s[-1]
+        self.symvals[symnum] = value
+
+        if self.debug: print(f'set {symnum} => {value}')
+
+    def run_get(self):
+        symnum = self.code[self.c:self.c+4]
+        self.c += 4
+        symnum = int.from_bytes(symnum, byteorder='little', signed=True)
+
+        try:
+            # leave the set value on the stack as the return value of set
+            value = self.symvals[symnum]
+        except KeyError:
+            try:
+                sym = self.symtab[symnum]
+            except:
+                raise RunError(f'Unknown symbol number set: {symnum}')
+            else:
+                raise RunError(f'Attempt to read unset symbol: {sym}')
+
+        self.s.append(value)
+
+        if self.debug: print(f'get {symnum} => {value}')
 
 
 def main():

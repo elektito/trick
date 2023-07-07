@@ -13,6 +13,9 @@ strtab = [String('')]
 symtab = []
 macros = {}
 toplevel_code = []
+defined_symbols = set()
+set_symbols = set()
+get_symbols = set()
 
 
 class CompileError(Exception):
@@ -209,7 +212,9 @@ def compile_symbol(sym: Symbol, env):
     for i, frame in enumerate(env):
         if sym in frame:
             return ['ld', [i, frame.index(sym)]]
-    raise CompileError(f'Unknown symbol: {sym}')
+
+    get_symbols.add(sym)
+    return ['get', get_symnum(sym)]
 
 
 def compile_string(s: String, env):
@@ -299,13 +304,47 @@ def compile_define(expr, env):
         raise CompileError(f'Variable name not a symbol.')
 
     name, value = expr[1:]
-    env[0].append(name)
-    code = ['xp']
-    code += compile_form(value, env)
 
-    # the "dup" instructions makes sure "define" leaves its value on the stack
-    # (because all primitive forms are supposed to have a return value)
-    code += ['dup', 'st', [0, len(env[0]) - 1]]
+    if env == []:
+        if name in defined_symbols:
+            raise CompileError(f'Duplicate definition: {name}')
+        defined_symbols.add(name)
+
+        code = compile_form(value, env)
+
+        # the "dup" instructions makes sure "define" leaves its value on the
+        # stack (because all primitive forms are supposed to have a return
+        # value)
+        code += ['dup', 'set', get_symnum(name)]
+    else:
+        env[0].append(name)
+        code = ['xp']
+        code += compile_form(value, env)
+        code += ['dup', 'st', [0, len(env[0]) - 1]]
+
+    return code
+
+
+def compile_set(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for set!')
+
+    if not isinstance(expr[1], Symbol):
+        raise CompileError(f'Variable name passed to set! not a symbol')
+
+    name, value = expr[1:]
+    code = compile_form(value, env)
+
+    # leave the value on the stack as return value of set!
+    code += ['dup']
+
+    for i, frame in enumerate(env):
+        if name in frame:
+            code += ['st', [i, frame.index(name)]]
+            break
+    else:
+        code += ['set', get_symnum(name)]
+        set_symbols.add(name)
 
     return code
 
@@ -391,7 +430,7 @@ def compile_list(expr, env):
 
         primitives = {
             'define': compile_define,
-            'defmac': process_defmac,
+            'set!': compile_set,
             'if': compile_if,
             '+': compile_add,
             '-': compile_sub,
@@ -437,11 +476,7 @@ def symbolize(code):
     return ret
 
 
-def compile_form(expr, env=None):
-    if env is None:
-        # a single nil frame
-        env = [[]]
-
+def compile_form(expr, env):
     expr = macro_expand(expr)
 
     if isinstance(expr, list):
@@ -489,7 +524,7 @@ def compile_toplevel(text):
 
     offset = 0
     code = []
-    toplevel_env = [[]]
+    toplevel_env = []
     while offset < len(text):
         form, offset = read(text, offset)
         if form is None:  # eof
@@ -512,6 +547,14 @@ def compile_toplevel(text):
             code += ['drop'] + form_code
 
     code = add_tables(code)
+
+    for sym in set_symbols:
+        if sym not in defined_symbols:
+            raise CompileError(f'Symbol {sym} is set at some point but never defined')
+
+    for sym in get_symbols:
+        if sym not in defined_symbols:
+            raise CompileError(f'Symbol {sym} is read at some point but never defined')
 
     return code
 

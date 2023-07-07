@@ -162,6 +162,20 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             code += len(strnums).to_bytes(length=4, byteorder='little', signed=False)
             for n in strnums:
                 code += n.to_bytes(length=4, byteorder='little', signed=False)
+        elif instr == 'set':
+            symnum = expr[i]
+            i += 1
+            if not isinstance(symnum, int):
+                raise AssembleError(f'Invalid argument type for set: {symnum}')
+            code += bytes([0x2a])
+            code += symnum.to_bytes(length=4, byteorder='little', signed=False)
+        elif instr == 'get':
+            symnum = expr[i]
+            i += 1
+            if not isinstance(symnum, int):
+                raise AssembleError(f'Invalid argument type for get: {symnum}')
+            code += bytes([0x2b])
+            code += symnum.to_bytes(length=4, byteorder='little', signed=False)
         else:
             raise AssembleError(f'Unknown instruction: {instr}')
 
