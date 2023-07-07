@@ -93,6 +93,15 @@ def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list | Bool | String
     elif s[i] == "'":
         quoted, i = read(s, i + 1)
         return [Symbol('quote'), quoted], i
+    elif s[i] == '`':
+        quoted, i = read(s, i + 1)
+        return [Symbol('backquote'), quoted], i
+    elif s[i] == ',' and i < len(s) - 1 and s[i+1] == '@':
+        unquoted, i = read(s, i + 2)
+        return [Symbol('unquote-splicing'), unquoted], i
+    elif s[i] == ',':
+        unquoted, i = read(s, i + 1)
+        return [Symbol('unquote'), unquoted], i
     elif s == '#f':
         return Bool(False), i
     elif s == '#t':
@@ -111,6 +120,15 @@ def _print_sexpr(sexpr):
     elif isinstance(sexpr, list):
         if len(sexpr) == 2 and sexpr[0] == Symbol('quote'):
             print("'", end='')
+            _print_sexpr(sexpr[1])
+        elif len(sexpr) == 2 and sexpr[0] == Symbol('backquote'):
+            print('`', end='')
+            _print_sexpr(sexpr[1])
+        elif len(sexpr) == 2 and sexpr[0] == Symbol('unquote'):
+            print(',', end='')
+            _print_sexpr(sexpr[1])
+        elif len(sexpr) == 2 and sexpr[0] == Symbol('unquote-splicing'):
+            print(',@', end='')
             _print_sexpr(sexpr[1])
         else:
             print('(', end='')
