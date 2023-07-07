@@ -370,6 +370,25 @@ def compile_quote(expr, env):
     return compile_quoted_form(expr[1], env)
 
 
+def compile_type(expr, env):
+    if len(expr) != 2:
+        raise CompileError(f'Invalid number of arguments for type.')
+
+    code = compile_form(expr[1], env)
+    code += ['type']
+    return code
+
+
+def compile_eq(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for eq.')
+
+    code = compile_form(expr[1], env)
+    code += compile_form(expr[2], env)
+    code += ['eq']
+    return code
+
+
 def compile_list(expr, env):
     if len(expr) == 0:
         return ['nil']
@@ -397,6 +416,8 @@ def compile_list(expr, env):
             'cdr': compile_cdr,
             'null?': compile_nullp,
             'quote': compile_quote,
+            'type': compile_type,
+            'eq?': compile_eq,
         }
         compile_func = primitives.get(name)
         if compile_func is not None:
@@ -463,11 +484,12 @@ def add_tables(code):
             strtab.index(String(s.name))
             for s in symtab
         ]
-        code = ['symtab', strnums] + code
+        code = [Symbol('symtab'), strnums] + code
 
     # add string table
     if len(strtab) > 1:
-        code = ['strtab', strtab[1:]] + code  # strip the empty string at 0
+        # strip the empty string at 0
+        code = [Symbol('strtab'), strtab[1:]] + code
 
     return code
 

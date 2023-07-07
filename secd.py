@@ -64,6 +64,8 @@ class Secd:
             0x14: self.run_car,
             0x15: self.run_cdr,
             0x16: self.run_nullp,
+            0x17: self.run_type,
+            0x18: self.run_eq,
             0x20: self.run_ldc,
             0x21: self.run_ld,
             0x22: self.run_sel,
@@ -362,6 +364,34 @@ class Secd:
         result = Bool(v == [])
         self.s.append(result)
         if self.debug: print(f'nullp => {result}')
+
+    def run_type(self):
+        v = self.s.pop()
+        if isinstance(v, Symbol):
+            result = 1
+        elif isinstance(v, list):
+            result = 2
+        elif isinstance(v, int):
+            result = 3
+        elif isinstance(v, String):
+            result = 4
+        else:
+            raise RunError('Unknown type: {v}')
+        self.s.append(result)
+        if self.debug: print(f'type {type(v)} => {result}')
+
+    def run_eq(self):
+        x = self.s.pop()
+        y = self.s.pop()
+        if isinstance(x, int) and isinstance(y, int):
+            result = (x == y)
+        elif isinstance(x, Symbol) and isinstance(y, Symbol):
+            result = (x.name == y.name)
+        else:
+            result = (id(x) == id(y))
+        result = Bool(result)
+        self.s.append(result)
+        if self.debug: print(f'eq {result}')
 
 
 def main():
