@@ -208,6 +208,8 @@ def compile_symbol(sym: Symbol, env):
         return ['false']
     elif sym.name == '#t':
         return ['true']
+    elif sym.name.startswith(':'):
+        return ['ldsym', get_symnum(sym)]
 
     for i, frame in enumerate(env):
         if sym in frame:
