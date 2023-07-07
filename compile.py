@@ -186,7 +186,7 @@ def compile_lambda(expr, env):
             body_code.append('drop')
 
     body_code = body_code + ['ret']
-    if body_code[-2] == 'ap':
+    if body_code[-2] == 'ap' or body_code[-2] == Symbol('ap'):
         body_code[-2:] = ['tap']
 
     if rest_param:
