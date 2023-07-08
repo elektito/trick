@@ -211,6 +211,12 @@ class Secd:
     def run_ap(self):
         closure = self.s.pop()
         args = self.s.pop()
+
+        if not isinstance(closure, Closure):
+            raise RunError(f'Cannot call non-function value: {closure}')
+        if not isinstance(args, list):
+            raise RunError(f'Invalid argument list: {args}')
+
         self.d.append((self.s, self.e, self.c))
         if self.debug: print(f'ap {self.c} => {closure.c}')
         if closure.has_rest_arg():
@@ -277,6 +283,11 @@ class Secd:
         closure = self.s.pop()
         args = self.s.pop()
 
+        if not isinstance(closure, Closure):
+            raise RunError(f'Cannot call non-function value: {closure}')
+        if not isinstance(args, list):
+            raise RunError(f'Invalid argument list: {args}')
+
         if closure.e[0] != self.dummy_frame:
             raise RunError('No dummy frame.')
 
@@ -297,6 +308,12 @@ class Secd:
     def run_tap(self):
         closure = self.s.pop()
         args = self.s.pop()
+
+        if not isinstance(closure, Closure):
+            raise RunError(f'Cannot call non-function value: {closure}')
+        if not isinstance(args, list):
+            raise RunError(f'Invalid argument list: {args}')
+
         if self.debug: print(f'tap {self.c} => {closure.c}')
         if closure.has_rest_arg():
             if len(args) < closure.nargs:
