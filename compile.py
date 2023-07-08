@@ -310,9 +310,7 @@ def compile_func_call(expr, env):
 def compile_apply(expr, env):
     if len(expr) != 3:
         raise CompileError('Invalid number of arguments for apply')
-    secd_code = ['nil']
-    secd_code += compile_form(expr[2], env)
-    secd_code += ['cons']
+    secd_code = compile_form(expr[2], env)
     secd_code += compile_form(expr[1], env)
     secd_code += ['ap']
     return secd_code
