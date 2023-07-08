@@ -307,6 +307,17 @@ def compile_func_call(expr, env):
     return secd_code
 
 
+def compile_apply(expr, env):
+    if len(expr) != 3:
+        raise CompileError('Invalid number of arguments for apply')
+    secd_code = ['nil']
+    secd_code += compile_form(expr[2], env)
+    secd_code += ['cons']
+    secd_code += compile_form(expr[1], env)
+    secd_code += ['ap']
+    return secd_code
+
+
 def compile_define(expr, env):
     if len(expr) != 3:
         raise CompileError(f'Invalid number of arguments for define.')
@@ -494,6 +505,7 @@ def compile_list(expr, env):
             'eq?': compile_eq,
             'error': compile_error,
             'gensym': compile_gensym,
+            'apply': compile_apply,
         }
         compile_func = primitives.get(name)
         if compile_func is not None:
