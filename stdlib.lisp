@@ -31,11 +31,11 @@
 (defun cdar (x) (cdr (car x)))
 (defun cadr (x) (car (cdr x)))
 
-(defun mapf (func args)
+(defun mapcar (func args)
   (if (null? args)
       '()
       (cons (func (car args))
-            (mapf func (cdr args)))))
+            (mapcar func (cdr args)))))
 
 (defmac begin (& body)
   (list (concat (list 'lambda nil) body)))
@@ -101,9 +101,9 @@
 
 (defun bq-process-list (form level)
   (cons 'concat
-        (mapf (lambda (form)
-                (bq-process-list-item form level))
-              form)))
+        (mapcar (lambda (form)
+                  (bq-process-list-item form level))
+                form)))
 
 (defun bq-process (form level)
   (cond ((atom? form)
@@ -135,7 +135,7 @@
         (#t #t)))
 
 (defmac with-gensyms (names & body)
-  `(let ,(mapf (lambda (name) `(,name (gensym))) names)
+  `(let ,(mapcar (lambda (name) `(,name (gensym))) names)
      ,@body))
 
 (defmac and (& forms)
