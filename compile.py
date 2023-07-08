@@ -6,11 +6,12 @@ from read import read, ParseError, print_sexpr
 from machinetypes import Symbol, String
 from assemble import assemble
 from secd import RunError, Secd, UserError
+from symtab import Symtab
 
 
 # strtab has an implied empty string in the 0th position
 strtab = [String('')]
-symtab = []
+symtab = Symtab()
 macros = {}
 toplevel_code = []
 defined_symbols = set()
@@ -32,9 +33,9 @@ class Macro:
     def expand(self, args):
         global toplevel_code
 
-        quoted_args = [[Symbol('quote'), a] for a in args]
+        quoted_args = [[symtab.intern('quote'), a] for a in args]
 
-        func = [Symbol('lambda'), self.params] + self.body
+        func = [symtab.intern('lambda'), self.params] + self.body
         func_call = [func] + quoted_args
         try:
             func_call_code = compile_form(func_call, self.env)
@@ -52,9 +53,9 @@ class Macro:
             machine.run()
         except UserError:
             err = machine.s[-1]
-            err_type = assoc(Symbol(':type'), err)
+            err_type = assoc(symtab.intern(':type'), err)
             msg = f'User error of type {err_type} during macro expansion'
-            err_msg = assoc(Symbol(':msg'), err)
+            err_msg = assoc(symtab.intern(':msg'), err)
             if err_msg is not None:
                 msg += f': {err_msg}'
             raise CompileError(msg)
@@ -86,14 +87,6 @@ def assoc(item, alist):
             return alist[i + 1]
 
     return None
-
-
-def get_symnum(sym: Symbol) -> int:
-    try:
-        return symtab.index(sym)
-    except ValueError:
-        symtab.append(sym)
-        return len(symtab) - 1
 
 
 def process_defmac(expr, env):
@@ -184,7 +177,7 @@ def compile_lambda(expr, env):
             raise CompileError(f'Invalid parameter name: {p}')
 
     rest_param = False
-    amp = Symbol('&')
+    amp = symtab.intern('&')
     if amp in params:
         idx = params.index(amp)
         if idx != len(params) - 2:
@@ -196,7 +189,7 @@ def compile_lambda(expr, env):
 
     body = expr[2:]
     if len(body) == 0:
-        body = [Symbol('nil')]
+        body = [symtab.intern('nil')]
 
     body_code = []
     for i, e in enumerate(body):
@@ -205,7 +198,7 @@ def compile_lambda(expr, env):
             body_code.append('drop')
 
     body_code = body_code + ['ret']
-    if body_code[-2] == 'ap' or body_code[-2] == Symbol('ap'):
+    if body_code[-2] == 'ap' or body_code[-2] == symtab.intern('ap'):
         body_code[-2:] = ['tap']
 
     if rest_param:
@@ -225,14 +218,14 @@ def compile_symbol(sym: Symbol, env):
     elif sym.name == '#t':
         return ['true']
     elif sym.name.startswith(':'):
-        return ['ldsym', get_symnum(sym)]
+        return ['ldsym', sym.interned_form]
 
     for i, frame in enumerate(env):
         if sym in frame:
             return ['ld', [i, frame.index(sym)]]
 
     get_symbols.add(sym)
-    return ['get', get_symnum(sym)]
+    return ['get', sym.interned_form]
 
 
 def compile_string(s: String, env):
@@ -266,7 +259,7 @@ def compile_let(expr, env):
             raise CompileError(f'Invalid let variable: {p}')
 
     # transform let to a lambda call and compile that instead
-    new_expr = [[Symbol('lambda'), params] + body] + args
+    new_expr = [[symtab.intern('lambda'), params] + body] + args
     return compile_form(new_expr, env)
 
 
@@ -296,7 +289,7 @@ def compile_letrec(expr, env):
     for v in values:
         secd_code += compile_form(v, [vars] + env) + ['cons']
 
-    lambda_form = [Symbol('lambda'), vars] + body
+    lambda_form = [symtab.intern('lambda'), vars] + body
     secd_code += compile_form(lambda_form, env)
 
     secd_code += ['rap']
@@ -333,7 +326,7 @@ def compile_define(expr, env):
         # the "dup" instructions makes sure "define" leaves its value on the
         # stack (because all primitive forms are supposed to have a return
         # value)
-        code += ['dup', 'set', get_symnum(name)]
+        code += ['dup', 'set', name.interned_form]
     else:
         env[0].append(name)
         code = ['xp']
@@ -361,7 +354,7 @@ def compile_set(expr, env):
             code += ['st', [i, frame.index(name)]]
             break
     else:
-        code += ['set', get_symnum(name)]
+        code += ['set', name.interned_form]
         set_symbols.add(name)
 
     return code
@@ -404,7 +397,7 @@ def compile_quoted_form(form, env):
             rest = compile_quoted_form(form[1:], env)
             return rest + first + ['cons']
     elif isinstance(form, Symbol):
-        n = get_symnum(form)
+        n = form.interned_form
         return ['ldsym', n]
     else:
         # other atoms evaluate to themselves, quoted or not
@@ -445,7 +438,7 @@ def compile_error(expr, env):
     if not isinstance(error_sym, Symbol):
         raise CompileError(f'First argument to error must be a symbol')
 
-    error_args = [Symbol(':type'), error_sym]
+    error_args = [symtab.intern(':type'), error_sym]
     for i in range(2, len(expr), 2):
         name, value = expr[i:i+2]
         if not isinstance(name, Symbol):
@@ -462,6 +455,13 @@ def compile_error(expr, env):
     code += ['error']
 
     return code
+
+
+def compile_gensym(expr, env):
+    if len(expr) != 1:
+        raise CompileError('Invalid number of arguments for gensym')
+
+    return ['gensym']
 
 
 def compile_list(expr, env):
@@ -493,6 +493,7 @@ def compile_list(expr, env):
             'type': compile_type,
             'eq?': compile_eq,
             'error': compile_error,
+            'gensym': compile_gensym,
         }
         compile_func = primitives.get(name)
         if compile_func is not None:
@@ -512,7 +513,7 @@ def symbolize(code):
     ret = []
     for i in code:
         if isinstance(i, str):
-            ret.append(Symbol(i))
+            ret.append(symtab.intern(i))
         elif isinstance(i, list):
             ret.append(symbolize(i))
         elif isinstance(i, (int, Symbol, String)):
@@ -544,23 +545,23 @@ def compile_form(expr, env):
 def add_tables(code):
     # add the strings for user symbols (those used in quoted values) to the
     # string table
-    for sym in symtab:
-        sname = String(sym.name)
+    for name in symtab.interned_names:
+        sname = String(name)
         if sname not in strtab:
             strtab.append(sname)
 
     # add symbol table
-    if len(symtab) > 0:
+    if len(symtab.interned_names) > 0:
         strnums = [
-            strtab.index(String(s.name))
-            for s in symtab
+            strtab.index(String(name))
+            for name in symtab.interned_names
         ]
-        code = [Symbol('symtab'), strnums] + code
+        code = [symtab.intern('symtab'), strnums] + code
 
     # add string table
     if len(strtab) > 1:
         # strip the empty string at 0
-        code = [Symbol('strtab'), strtab[1:]] + code
+        code = [symtab.intern('strtab'), strtab[1:]] + code
 
     return code
 
@@ -572,16 +573,16 @@ def compile_toplevel(text):
     code = []
     toplevel_env = []
     while offset < len(text):
-        form, offset = read(text, offset)
+        form, offset = read(text, offset, symtab=symtab)
         if form is None:  # eof
             break
 
         form = macro_expand(form)
 
-        if isinstance(form, list) and len(form) > 0 and form[0] == Symbol('defmac'):
+        if isinstance(form, list) and len(form) > 0 and form[0] == symtab.intern('defmac'):
             process_defmac(form, toplevel_env)
             form_code = []
-        elif isinstance(form, list) and len(form) > 0 and form[0] == Symbol('define'):
+        elif isinstance(form, list) and len(form) > 0 and form[0] == symtab.intern('define'):
             form_code = compile_form(form, toplevel_env)
             toplevel_code += form_code
         else:

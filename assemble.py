@@ -4,6 +4,7 @@ import sys
 import argparse
 from read import read, ParseError
 from machinetypes import String, Symbol
+from symtab import Symtab
 
 
 class AssembleError(Exception):
@@ -49,6 +50,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             'type': 0x16,
             'eq': 0x17,
             'error': 0x18,
+            'gensym': 0x19,
         }
         opcode = single_byte_instrs.get(instr)
         if opcode is not None:
@@ -202,7 +204,7 @@ def main():
             text = f.read()
 
     try:
-        expr, _ = read(text)
+        expr, _ = read(text, symtab=Symtab())
     except ParseError as e:
         print(f'Parse error: {e}', file=sys.stderr)
         sys.exit(1)

@@ -4,6 +4,7 @@ import sys
 import argparse
 from machinetypes import Bool, String, Symbol
 from read import print_sexpr
+from symtab import Symtab
 
 
 class RunError(Exception):
@@ -31,8 +32,11 @@ class Closure:
 
 
 class Secd:
-    def __init__(self, code):
+    def __init__(self, code, symtab=None):
         self.code = code
+
+        if symtab is None:
+            symtab = Symtab()
 
         self.s = []
         self.e = [[]]
@@ -42,7 +46,7 @@ class Secd:
         self.dummy_frame = object()
         self.debug = False
         self.strtab = [String('')]
-        self.symtab = []
+        self.symtab = symtab
         self.symvals = {}
 
     def run(self):
@@ -71,6 +75,7 @@ class Secd:
             0x16: self.run_type,
             0x17: self.run_eq,
             0x18: self.run_error,
+            0x19: self.run_gensym,
             0x20: self.run_ldc,
             0x21: self.run_ld,
             0x22: self.run_sel,
@@ -125,9 +130,8 @@ class Secd:
         symnum = self.code[self.c:self.c+4]
         self.c += 4
         symnum = int.from_bytes(symnum, byteorder='little', signed=True)
-        try:
-            s = self.symtab[symnum]
-        except IndexError:
+        s = self.symtab.find_by_number(symnum)
+        if s is None:
             raise RunError(f'Invalid symbol index: {symnum} (symtab size: {len(self.symtab)})')
         self.s.append(s)
         if self.debug: print(f'ldsym {s}')
@@ -175,10 +179,8 @@ class Secd:
         self.c += 4
 
         cond = self.s.pop()
-        if not isinstance(cond, Bool):
-            raise RunError(f'Condition value is not a boolean: {cond}')
         self.d.append(self.c + true_len + false_len)
-        if not cond:
+        if cond == Bool(False):
             self.c += true_len
 
         if self.debug: print(f'sel cond={cond}')
@@ -343,15 +345,14 @@ class Secd:
         nsyms = self.code[self.c:self.c+4]
         self.c += 4
         nsyms = int.from_bytes(nsyms, byteorder='little', signed=False)
-        self.symtab = []
+        strnums = []
         for _ in range(nsyms):
             strnum = self.code[self.c:self.c+4]
             self.c += 4
             strnum = int.from_bytes(strnum, byteorder='little', signed=False)
-            name = self.strtab[strnum]
-            sym = Symbol(name.value)
-            self.symtab.append(sym)
+            strnums.append(strnum)
 
+        self.symtab.load(strnums, self.strtab)
         if self.debug: print(f'symtab {nsyms}')
 
     def run_car(self):
@@ -416,9 +417,8 @@ class Secd:
             # leave the set value on the stack as the return value of set
             value = self.symvals[symnum]
         except KeyError:
-            try:
-                sym = self.symtab[symnum]
-            except:
+            sym = self.symtab.find_by_number(symnum)
+            if sym is None:
                 raise RunError(f'Unknown symbol number set: {symnum}')
             else:
                 raise RunError(f'Attempt to read unset symbol: {sym}')
@@ -428,7 +428,13 @@ class Secd:
         if self.debug: print(f'get {symnum} => {value}')
 
     def run_error(self):
+        if self.debug: print(f'error')
         raise UserError('User error')
+
+    def run_gensym(self):
+        sym = self.symtab.gensym()
+        self.s.append(sym)
+        if self.debug: print(f'gensym {sym}')
 
 
 def main():
