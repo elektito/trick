@@ -166,3 +166,32 @@
         (#t (with-gensyms (xcar)
               `(let ((,xcar ,(car forms)))
                  (if ,xcar ,xcar (or ,@(cdr forms))))))))
+
+;;;;;;;;;;;;;;;;
+
+(defun not (x)
+  (if x #f #t))
+
+(defun any? (values)
+  (if (null? values)
+      #f
+      (if (car values)
+          #t
+          (any? (cdr values)))))
+
+(defun all? (values)
+  (if (null? values)
+      #t
+      (if (car values)
+          (all? (cdr values))
+          #f)))
+
+(defun map1 (func arg-lists)
+  (if (or (null? arg-lists)
+          (any? (mapcar null? arg-lists)))
+      nil
+      (cons (apply func (mapcar car arg-lists))
+            (map1 func (mapcar cdr arg-lists)))))
+
+(defun map (func & arg-lists)
+  (map1 func arg-lists))
