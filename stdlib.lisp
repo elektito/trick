@@ -133,3 +133,21 @@
   (cond ((< x y) #f)
         ((> x y) #f)
         (#t #t)))
+
+(defmac with-gensyms (names & body)
+  `(let ,(mapf (lambda (name) `(,name (gensym))) names)
+     ,@body))
+
+(defmac and (& forms)
+  (cond ((null? forms) '#t)
+        ((null? (cdr forms)) (car forms))
+        (#t `(if ,(car forms)
+                 (and ,@(cdr forms))
+                 '#f))))
+
+(defmac or (& forms)
+  (cond ((null? forms) '#f)
+        ((null? (cdr forms)) (car forms))
+        (#t (with-gensyms (xcar)
+              `(let ((,xcar ,(car forms)))
+                 (if ,xcar ,xcar (or ,@(cdr forms))))))))
