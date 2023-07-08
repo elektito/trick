@@ -619,12 +619,24 @@ def main():
         '--lib', '-l', action='append', default=[],
         help='Add a library file to be loaded before input file.')
 
+    parser.add_argument(
+        '--macro-expand', '-m', metavar='EXPR', dest='macro_expr',
+        help='Macro-expand the given expression (only first term is '
+        'expanded).')
+
     args = parser.parse_args()
 
     text = ''
     for lib in args.lib:
         with open(lib) as f:
             text += f.read()
+
+    if args.macro_expr:
+        compile_toplevel(text)
+        form, _ = read(args.macro_expr, symtab=symtab)
+        result = macro_expand(form)
+        print_sexpr(result)
+        sys.exit(0)
 
     if args.input == '-':
         text += sys.stdin.read()
