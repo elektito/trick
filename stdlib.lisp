@@ -126,6 +126,21 @@
   (bq-simplify
    (bq-process form 1)))
 
+;; allow some primitives to be used like normal functions
+
+(defun cons (x y) (cons x y))
+(defun car (x) (car x))
+(defun cdr (x) (cdr x))
+(defun + (x y) (+ x y))
+(defun - (x y) (- x y))
+(defun < (x y) (< x y))
+(defun print (x) (print x))
+(defun printc (c) (print c))
+(defun halt (n) (halt n))
+(defun type (x) (type x))
+(defun eq? (x y) (eq? x y))
+(defun gensym () (gensym))
+
 ;; everything else
 
 (defun > (x y) (< y x))
