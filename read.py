@@ -103,10 +103,10 @@ def read(s: str, i: int = 0, *, symtab: Symtab) -> tuple[None | int | Symbol | l
     elif s[i] == ',':
         unquoted, i = read(s, i + 1, symtab=symtab)
         return [symtab.intern('unquote'), unquoted], i
-    elif s == '#f':
-        return Bool(False), i
-    elif s == '#t':
-        return Bool(True), i
+    elif i < len(s) - 1 and s[i:i+2] == '#f':
+        return Bool(False), i + 2
+    elif i < len(s) - 1 and s[i:i+2] == '#t':
+        return Bool(True), i + 2
     else:
         tok, i = _read_token(s, i)
         try:

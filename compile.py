@@ -3,7 +3,7 @@
 import sys
 import argparse
 from read import read, ParseError, print_sexpr
-from machinetypes import Symbol, String
+from machinetypes import Bool, Symbol, String
 from assemble import assemble
 from secd import RunError, Secd, UserError
 from symtab import Symtab
@@ -213,10 +213,6 @@ def compile_lambda(expr, env):
 def compile_symbol(sym: Symbol, env):
     if sym.name == 'nil':
         return ['nil']
-    elif sym.name == '#f':
-        return ['false']
-    elif sym.name == '#t':
-        return ['true']
     elif sym.name.startswith(':'):
         return ['ldsym', sym.interned_form]
 
@@ -236,6 +232,13 @@ def compile_string(s: String, env):
         idx = strtab.index(s)
 
     return ['ldstr', idx]
+
+
+def compile_bool(s: Bool, env):
+    if s:
+        return ['true']
+    else:
+        return ['false']
 
 
 def compile_let(expr, env):
@@ -544,6 +547,8 @@ def compile_form(expr, env):
         secd_code = compile_symbol(expr, env)
     elif isinstance(expr, String):
         secd_code = compile_string(expr, env)
+    elif isinstance(expr, Bool):
+        secd_code = compile_bool(expr, env)
     else:
         raise CompileError(f'Invalid value: {expr}')
 
