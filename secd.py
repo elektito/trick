@@ -396,8 +396,12 @@ class Secd:
             result = 4
         elif isinstance(v, String):
             result = 5
+        elif isinstance(v, Closure):
+            result = 6
+        elif isinstance(v, Bool):
+            result = 7
         else:
-            raise RunError('Unknown type: {v}')
+            raise RunError(f'Unknown type: {v}')
         self.s.append(result)
         if self.debug: print(f'type {type(v)} => {result}')
 
