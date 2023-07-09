@@ -707,6 +707,7 @@ def compile_toplevel(text):
         elif form_code != []:
             code += ['drop'] + form_code
 
+    code = symbolize(code)
     code = add_tables(code)
 
     for sym in set_symbols:
