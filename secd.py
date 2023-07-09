@@ -52,42 +52,52 @@ class Secd:
     def run(self):
         funcs = {
             0x01: self.run_nil,
-            0x02: self.run_cons,
-            0x03: self.run_join,
-            0x04: self.run_ap,
-            0x05: self.run_ret,
-            0x06: self.run_print,
-            0x07: self.run_printc,
-            0x08: self.run_halt,
-            0x09: self.run_add,
-            0x0a: self.run_sub,
-            0x0b: self.run_lt,
-            0x0c: self.run_dum,
-            0x0d: self.run_rap,
-            0x0e: self.run_tap,
-            0x0f: self.run_drop,
-            0x10: self.run_xp,
-            0x11: self.run_dup,
-            0x12: self.run_true,
-            0x13: self.run_false,
-            0x14: self.run_car,
-            0x15: self.run_cdr,
-            0x16: self.run_type,
-            0x17: self.run_eq,
-            0x18: self.run_error,
-            0x19: self.run_gensym,
-            0x20: self.run_ldc,
-            0x21: self.run_ld,
-            0x22: self.run_sel,
-            0x23: self.run_ldf,
-            0x24: self.run_st,
-            0x25: self.run_ldfx,
-            0x26: self.run_ldstr,
-            0x27: self.run_strtab,
-            0x28: self.run_ldsym,
-            0x29: self.run_symtab,
-            0x2a: self.run_set,
-            0x2b: self.run_get,
+            0x02: self.run_true,
+            0x03: self.run_false,
+            0x04: self.run_cons,
+            0x05: self.run_car,
+            0x06: self.run_cdr,
+            0x07: self.run_join,
+            0x08: self.run_ap,
+            0x09: self.run_ret,
+            0x0a: self.run_tap,
+            0x0b: self.run_dum,
+            0x0c: self.run_rap,
+            0x0d: self.run_print,
+            0x0e: self.run_printc,
+            0x0f: self.run_halt,
+            0x10: self.run_iadd,
+            0x11: self.run_isub,
+            0x12: self.run_imul,
+            0x13: self.run_idiv,
+            0x14: self.run_shr,
+            0x15: self.run_shl,
+            0x16: self.run_asr,
+            0x17: self.run_bnot,
+            0x18: self.run_band,
+            0x19: self.run_bor,
+            0x1a: self.run_bxor,
+            0x1b: self.run_lt,
+            0x1c: self.run_le,
+            0x1d: self.run_eq,
+            0x1e: self.run_drop,
+            0x1f: self.run_dup,
+            0x20: self.run_xp,
+            0x21: self.run_type,
+            0x22: self.run_error,
+            0x23: self.run_gensym,
+            0x40: self.run_ldc,
+            0x41: self.run_ld,
+            0x42: self.run_sel,
+            0x43: self.run_ldf,
+            0x44: self.run_st,
+            0x45: self.run_ldfx,
+            0x46: self.run_ldstr,
+            0x47: self.run_strtab,
+            0x48: self.run_ldsym,
+            0x49: self.run_symtab,
+            0x4a: self.run_set,
+            0x4b: self.run_get,
         }
         code_len = len(self.code)
         while self.c < code_len and self.halt_code is None:
@@ -251,21 +261,93 @@ class Secd:
         self.s.append([])  # return nil
         if self.debug: print(f'halt {self.halt_code}')
 
-    def run_add(self):
+    def run_iadd(self):
         arg1 = self.s.pop()
         arg2 = self.s.pop()
         if not isinstance(arg1, int) or not isinstance(arg2, int):
-            raise RunError('"add" arguments must be integers.')
+            raise RunError('"iadd" arguments must be integers.')
         self.s.append(arg2 + arg1)
-        if self.debug: print(f'add {arg2} + {arg1}')
+        if self.debug: print(f'iadd {arg2} + {arg1}')
 
-    def run_sub(self):
+    def run_isub(self):
         arg1 = self.s.pop()
         arg2 = self.s.pop()
         if not isinstance(arg1, int) or not isinstance(arg2, int):
-            raise RunError('"lt" arguments must be integers.')
+            raise RunError('"isub" arguments must be integers.')
         self.s.append(arg2 - arg1)
-        if self.debug: print(f'sub {arg2} - {arg1}')
+        if self.debug: print(f'isub {arg2} - {arg1}')
+
+    def run_imul(self):
+        arg1 = self.s.pop()
+        arg2 = self.s.pop()
+        if not isinstance(arg1, int) or not isinstance(arg2, int):
+            raise RunError('"imul" arguments must be integers.')
+        self.s.append(arg2 * arg1)
+        if self.debug: print(f'imul {arg2} * {arg1}')
+
+    def run_idiv(self):
+        arg1 = self.s.pop()
+        arg2 = self.s.pop()
+        if not isinstance(arg1, int) or not isinstance(arg2, int):
+            raise RunError('"idiv" arguments must be integers.')
+        self.s.append(arg2 // arg1)
+        if self.debug: print(f'idiv {arg2} / {arg1}')
+
+    def run_shr(self):
+        shift = self.s.pop()
+        n = self.s.pop()
+        if not isinstance(n, int) or not isinstance(shift, int):
+            raise RunError('"shr" arguments must be integers.')
+        self.s.append((n % 0x100000000) >> shift)  # assuming 32 bits
+        print('xxx', n, shift, (n % 0x100000000), (n % 0x100000000) >> shift)
+        if self.debug: print(f'shr {n} >> {shift}')
+
+    def run_shl(self):
+        shift = self.s.pop()
+        n = self.s.pop()
+        if not isinstance(n, int) or not isinstance(shift, int):
+            raise RunError('"shl" arguments must be integers.')
+        self.s.append(n << shift)
+        if self.debug: print(f'shl {n} << {shift}')
+
+    def run_asr(self):
+        shift = self.s.pop()
+        n = self.s.pop()
+        if not isinstance(n, int) or not isinstance(shift, int):
+            raise RunError('"shl" arguments must be integers.')
+        self.s.append(n >> shift)
+        if self.debug: print(f'asr {n} >> {shift}')
+
+    def run_bnot(self):
+        n = self.s.pop()
+        if not isinstance(n, int):
+            raise RunError('"bnot" argument must be an integer.')
+        self.s.append(~n)
+        if self.debug: print(f'bnot {n} => {~n}')
+
+    def run_band(self):
+        n1 = self.s.pop()
+        n2 = self.s.pop()
+        if not isinstance(n1, int) or not isinstance(n2, int):
+            raise RunError('"band" arguments must be integers.')
+        self.s.append(n1 & n2)
+        if self.debug: print(f'asr {n1} & {n2}')
+
+    def run_bor(self):
+        n1 = self.s.pop()
+        n2 = self.s.pop()
+        if not isinstance(n1, int) or not isinstance(n2, int):
+            raise RunError('"bor" arguments must be integers.')
+        self.s.append(n1 | n2)
+        if self.debug: print(f'bor {n1} | {n2}')
+
+    def run_bxor(self):
+        n1 = self.s.pop()
+        n2 = self.s.pop()
+        if not isinstance(n1, int) or not isinstance(n2, int):
+            raise RunError('"bxor" arguments must be integers.')
+        self.s.append(n1 ^ n2)
+        if self.debug: print(f'bxor {n1} | {n2}')
 
     def run_lt(self):
         arg1 = self.s.pop()
@@ -274,6 +356,14 @@ class Secd:
             raise RunError('"lt" arguments must be integers.')
         self.s.append(Bool(True) if arg2 < arg1 else Bool(False))
         if self.debug: print(f'lt {arg2} < {arg1}')
+
+    def run_le(self):
+        arg1 = self.s.pop()
+        arg2 = self.s.pop()
+        if not isinstance(arg1, int) or not isinstance(arg2, int):
+            raise RunError('"le" arguments must be integers.')
+        self.s.append(Bool(True) if arg2 <= arg1 else Bool(False))
+        if self.debug: print(f'lt {arg2} <= {arg1}')
 
     def run_dum(self):
         self.e = [self.dummy_frame] + self.e

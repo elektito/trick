@@ -140,22 +140,102 @@ def compile_if(expr, env):
     return cond_code + ['sel'] + [true_code] + [false_code]
 
 
-def compile_add(expr, env):
+def compile_iadd(expr, env):
     if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for +: {expr}')
+        raise CompileError(f'Invalid number of arguments for iadd: {expr}')
 
     arg1 = compile_form(expr[1], env)
     arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + ['add']
+    return arg1 + arg2 + ['iadd']
 
 
-def compile_sub(expr, env):
+def compile_isub(expr, env):
     if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for -: {expr}')
+        raise CompileError(f'Invalid number of arguments for isub: {expr}')
 
     arg1 = compile_form(expr[1], env)
     arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + ['sub']
+    return arg1 + arg2 + ['isub']
+
+
+def compile_imul(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for imul: {expr}')
+
+    arg1 = compile_form(expr[1], env)
+    arg2 = compile_form(expr[2], env)
+    return arg1 + arg2 + ['imul']
+
+
+def compile_idiv(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for idiv: {expr}')
+
+    arg1 = compile_form(expr[1], env)
+    arg2 = compile_form(expr[2], env)
+    return arg1 + arg2 + ['idiv']
+
+
+def compile_shr(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for shr: {expr}')
+
+    n = compile_form(expr[1], env)
+    shift = compile_form(expr[2], env)
+    return n + shift + ['shr']
+
+
+def compile_shl(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for shl: {expr}')
+
+    n = compile_form(expr[1], env)
+    shift = compile_form(expr[2], env)
+    return n + shift + ['shl']
+
+
+def compile_asr(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for asr: {expr}')
+
+    n = compile_form(expr[1], env)
+    shift = compile_form(expr[2], env)
+    return n + shift + ['asr']
+
+
+def compile_bnot(expr, env):
+    if len(expr) != 2:
+        raise CompileError(f'Invalid number of arguments for b-not: {expr}')
+
+    n = compile_form(expr[1], env)
+    return n + ['bnot']
+
+
+def compile_band(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for b-and: {expr}')
+
+    n1 = compile_form(expr[1], env)
+    n2 = compile_form(expr[2], env)
+    return n1 + n2 + ['band']
+
+
+def compile_bor(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for b-or: {expr}')
+
+    n1 = compile_form(expr[1], env)
+    n2 = compile_form(expr[2], env)
+    return n1 + n2 + ['bor']
+
+
+def compile_bxor(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for b-xor: {expr}')
+
+    n1 = compile_form(expr[1], env)
+    n2 = compile_form(expr[2], env)
+    return n1 + n2 + ['bxor']
 
 
 def compile_lt(expr, env):
@@ -165,6 +245,15 @@ def compile_lt(expr, env):
     arg1 = compile_form(expr[1], env)
     arg2 = compile_form(expr[2], env)
     return arg1 + arg2 + ['lt']
+
+
+def compile_le(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for <=: {expr}')
+
+    arg1 = compile_form(expr[1], env)
+    arg2 = compile_form(expr[2], env)
+    return arg1 + arg2 + ['le']
 
 
 def compile_lambda(expr, env):
@@ -489,9 +578,19 @@ def compile_list(expr, env):
             'define': compile_define,
             'set!': compile_set,
             'if': compile_if,
-            '+': compile_add,
-            '-': compile_sub,
+            'iadd': compile_iadd,
+            'isub': compile_isub,
+            'imul': compile_imul,
+            'idiv': compile_idiv,
+            'shr': compile_shr,
+            'shl': compile_shl,
+            'asr': compile_asr,
+            'b-not': compile_bnot,
+            'b-and': compile_band,
+            'b-or': compile_bor,
+            'b-xor': compile_bxor,
             '<': compile_lt,
+            '<=': compile_le,
             'lambda': compile_lambda,
             'let': compile_let,
             'letrec': compile_letrec,

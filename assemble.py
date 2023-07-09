@@ -27,30 +27,40 @@ def assemble(expr, start_offset: int = 0) -> bytes:
         instr = instr.name
         single_byte_instrs = {
             'nil': 0x01,
-            'cons': 0x02,
-            'join': 0x03,
-            'ap': 0x04,
-            'ret': 0x05,
-            'print': 0x06,
-            'printc': 0x07,
-            'halt': 0x08,
-            'add': 0x09,
-            'sub': 0x0a,
-            'lt': 0x0b,
-            'dum': 0x0c,
-            'rap': 0x0d,
-            'tap': 0x0e,
-            'drop': 0x0f,
-            'xp': 0x10,
-            'dup': 0x11,
-            'true': 0x12,
-            'false': 0x13,
-            'car': 0x14,
-            'cdr': 0x15,
-            'type': 0x16,
-            'eq': 0x17,
-            'error': 0x18,
-            'gensym': 0x19,
+            'true': 0x02,
+            'false': 0x03,
+            'cons': 0x04,
+            'car': 0x05,
+            'cdr': 0x06,
+            'join': 0x07,
+            'ap': 0x08,
+            'ret': 0x09,
+            'tap': 0x0a,
+            'dum': 0x0b,
+            'rap': 0x0c,
+            'print': 0x0d,
+            'printc': 0x0e,
+            'halt': 0x0f,
+            'iadd': 0x10,
+            'isub': 0x11,
+            'imul': 0x12,
+            'idiv': 0x13,
+            'shr': 0x14,
+            'shl': 0x15,
+            'asr': 0x16,
+            'bnot': 0x17,
+            'band': 0x18,
+            'bor': 0x19,
+            'bxor': 0x1a,
+            'lt': 0x1b,
+            'le': 0x1c,
+            'eq': 0x1d,
+            'drop': 0x1e,
+            'dup': 0x1f,
+            'xp': 0x20,
+            'type': 0x21,
+            'error': 0x22,
+            'gensym': 0x23,
         }
         opcode = single_byte_instrs.get(instr)
         if opcode is not None:
@@ -60,7 +70,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             i += 1
             if not isinstance(value, int):
                 raise AssembleError(f'Invalid argument for ldc: {value}')
-            code += bytes([0x20])
+            code += bytes([0x40])
             code += value.to_bytes(length=4, byteorder='little', signed=True)
         elif instr == 'ld':
             if not isinstance(expr[i], list) or \
@@ -70,14 +80,14 @@ def assemble(expr, start_offset: int = 0) -> bytes:
                 raise AssembleError(f'Invalid argument for ld: {expr[i]}')
             frame, index = expr[i]
             i += 1
-            code += bytes([0x21])
+            code += bytes([0x41])
             code += frame.to_bytes(length=2, byteorder='little', signed=False)
             code += index.to_bytes(length=2, byteorder='little', signed=False)
         elif instr == 'sel':
             if not isinstance(expr[i], list) or not isinstance(expr[i + 1], list):
                 raise AssembleError(f'Invalid argument for sel: {expr[j]}')
 
-            code += bytes([0x22])
+            code += bytes([0x42])
 
             true_body = assemble(expr[i], start_offset + 8)
             false_body = assemble(expr[i + 1], start_offset + len(code) + 8 + len(true_body))
@@ -93,7 +103,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
                 raise AssembleError(f'Invalid argument for ldf: {expr[i]}')
             body = expr[i]
             i += 1
-            code += bytes([0x23])
+            code += bytes([0x43])
             body_code = assemble(body, start_offset + len(code) + 4)
             code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
             code += body_code
@@ -105,7 +115,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
                 raise AssembleError(f'Invalid argument for st: {expr[i]}')
             frame, index = expr[i]
             i += 1
-            code += bytes([0x24])
+            code += bytes([0x44])
             code += frame.to_bytes(length=2, byteorder='little', signed=False)
             code += index.to_bytes(length=2, byteorder='little', signed=False)
         elif instr == 'ldfx':
@@ -123,7 +133,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             if nargs < 0 or nargs > 255:
                 raise AssembleError(f'Invalid nargs value for ldfx: {nargs}')
 
-            code += bytes([0x25])
+            code += bytes([0x45])
             code += bytes([nargs])
             body_code = assemble(body, start_offset + len(code) + 4)
             code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
@@ -133,7 +143,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             i += 1
             if not isinstance(value, int):
                 raise AssembleError(f'Invalid argument for ldstr: {value}')
-            code += bytes([0x26])
+            code += bytes([0x46])
             code += value.to_bytes(length=4, byteorder='little', signed=True)
         elif instr == 'strtab':
             strnums = expr[i]
@@ -142,7 +152,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
                 raise AssembleError(f'Invalid argument type for strtab: {strnums}')
             if not all(isinstance(s, String) for s in strnums):
                 raise AssembleError(f'Non-string value passed to strtab: {strnums}')
-            code += bytes([0x27])
+            code += bytes([0x47])
             code += len(strnums).to_bytes(length=4, byteorder='little', signed=False)
             for s in strnums:
                 code += len(s).to_bytes(length=4, byteorder='little', signed=False)
@@ -152,7 +162,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             i += 1
             if not isinstance(value, int):
                 raise AssembleError(f'Invalid argument for ldstr: {value}')
-            code += bytes([0x28])
+            code += bytes([0x48])
             code += value.to_bytes(length=4, byteorder='little', signed=True)
         elif instr == 'symtab':
             strnums = expr[i]
@@ -161,7 +171,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
                 raise AssembleError(f'Invalid argument type for symtab: {strnums}')
             if not all(isinstance(s, int) for s in strnums):
                 raise AssembleError(f'Non-numeric value passed to symtab: {strnums}')
-            code += bytes([0x29])
+            code += bytes([0x49])
             code += len(strnums).to_bytes(length=4, byteorder='little', signed=False)
             for n in strnums:
                 code += n.to_bytes(length=4, byteorder='little', signed=False)
@@ -170,14 +180,14 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             i += 1
             if not isinstance(symnum, int):
                 raise AssembleError(f'Invalid argument type for set: {symnum}')
-            code += bytes([0x2a])
+            code += bytes([0x4a])
             code += symnum.to_bytes(length=4, byteorder='little', signed=False)
         elif instr == 'get':
             symnum = expr[i]
             i += 1
             if not isinstance(symnum, int):
                 raise AssembleError(f'Invalid argument type for get: {symnum}')
-            code += bytes([0x2b])
+            code += bytes([0x4b])
             code += symnum.to_bytes(length=4, byteorder='little', signed=False)
         else:
             raise AssembleError(f'Unknown instruction: {instr}')
