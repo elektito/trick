@@ -48,10 +48,9 @@
             (cons 'begin (cdar arms))
             (cons 'cond (cdr arms)))))
 
-(defun atom? (x)
-  (cond ((null? x) #t)
-        ((eq? (type x) 3) #f) ; cons
-        (#t #t)))
+(defun atom? (v)
+  ;; everything besides cons (3) is an atom
+  (if (eq? (type v) 3) #f #t))
 
 ;; backquote
 
