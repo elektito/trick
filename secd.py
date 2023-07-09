@@ -142,7 +142,7 @@ class Secd:
         symnum = int.from_bytes(symnum, byteorder='little', signed=True)
         s = self.symtab.find_by_number(symnum)
         if s is None:
-            raise RunError(f'Invalid symbol index: {symnum} (symtab size: {len(self.symtab)})')
+            raise RunError(f'Invalid symbol index: {symnum} (symtab size: {len(self.symtab.interned_names)})')
         self.s.append(s)
         if self.debug: print(f'ldsym {s}')
 
@@ -531,7 +531,7 @@ class Secd:
             if sym is None:
                 raise RunError(f'Unknown symbol number set: {symnum}')
             else:
-                raise RunError(f'Attempt to read unset symbol: {sym}')
+                raise RunError(f'Attempt to read unset symbol: {sym} ({symnum})')
 
         self.s.append(value)
 
