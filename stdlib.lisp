@@ -30,6 +30,7 @@
 (defun caar (x) (car (car x)))
 (defun cdar (x) (cdr (car x)))
 (defun cadr (x) (car (cdr x)))
+(defun cddr (x) (cdr (cdr x)))
 
 (defun mapcar (func args)
   (if (null? args)
@@ -51,6 +52,34 @@
 (defun atom? (v)
   ;; everything besides cons (3) is an atom
   (if (eq? (type v) 3) #f #t))
+
+(defun last (x)
+  (if (null? x)
+      nil
+      (if (null? (cdr x))
+          (car x)
+          (last (cdr x)))))
+
+(defun butlast (x)
+  (if (null? x)
+      nil
+      (if (null? (cdr x))
+          nil
+          (cons (car x) (butlast (cdr x))))))
+
+(defun + (& r)
+  (if (null? r)
+      0
+      (iadd (car r) (apply + (cdr r)))))
+
+(defun - (& r)
+  (if (null? r)
+      (error :arg-error :msg "Invalid number of arguments for -")
+      (if (null? (cdr r))
+          (isub 0 (car r))
+          (if (null? (cddr r))
+              (isub (car r) (cadr r))
+              (isub (apply - (butlast r)) (last r))))))
 
 ;; backquote
 
@@ -130,9 +159,19 @@
 (defun cons (x y) (cons x y))
 (defun car (x) (car x))
 (defun cdr (x) (cdr x))
-(defun + (x y) (+ x y))
-(defun - (x y) (- x y))
+(defun iadd (x y) (iadd x y))
+(defun isub (x y) (isub x y))
+(defun imul (x y) (imul x y))
+(defun idiv (x y) (idiv x y))
+(defun shr (x y) (shr x y))
+(defun shl (x y) (shl x y))
+(defun asr (x y) (asr x y))
+(defun b-not (x) (b-not x))
+(defun b-and (x y) (b-and x y))
+(defun b-or (x y) (b-or x y))
+(defun b-xor (x y) (b-xor x y))
 (defun < (x y) (< x y))
+(defun <= (x y) (<= x y))
 (defun print (x) (print x))
 (defun printc (c) (print c))
 (defun halt (n) (halt n))
@@ -142,11 +181,8 @@
 
 ;; everything else
 
-(defun > (x y) (< y x))
-(defun = (x y)
-  (cond ((< x y) #f)
-        ((> x y) #f)
-        (#t #t)))
+(defun > (x y) (not (< x y)))
+(defun >= (x y) (not (<= x y)))
 
 (defmac with-gensyms (names & body)
   `(let ,(mapcar (lambda (name) `(,name (gensym))) names)
