@@ -666,6 +666,110 @@ def add_tables(code):
     return code
 
 
+def get_all_syms_and_strs(code):
+    one_operand_instrs = ['ldc', 'ld', 'ldf', 'st', 'ldfx', 'ldstr', 'strtab',
+                          'symtab', 'ldsym', 'set', 'get']
+    i = 0
+    syms = []
+    strs = []
+    while i < len(code):
+        op = code[i]
+        i += 1
+        if op.name in ('ldsym', 'get', 'set'):
+            symnum = code[i]
+            i += 1
+            sym = symtab.find_by_number(symnum)
+            syms.append(sym)
+        elif op.name == 'ldstr':
+            strnum = code[i]
+            i += 1
+            s = strtab[strnum]
+            if s != String(''):
+                strs.append(s)
+        elif op.name == 'ldf':
+            arg_syms, arg_strs = get_all_syms_and_strs(code[i])
+            syms += arg_syms
+            strs += arg_strs
+            i += 1
+        elif op.name == 'ldfx':
+            arg_syms, arg_strs = get_all_syms_and_strs(code[i][1])
+            syms += arg_syms
+            strs += arg_strs
+            i += 1
+        elif op.name == 'sel':
+            arg_syms, arg_strs = get_all_syms_and_strs(code[i])
+            syms += arg_syms
+            strs += arg_strs
+            arg_syms, arg_strs = get_all_syms_and_strs(code[i+1])
+            syms += arg_syms
+            strs += arg_strs
+            i += 2
+        elif op.name in one_operand_instrs:
+            i += 1
+        elif op.name == 'sel':
+            i += 2
+
+    syms = list(set(syms))
+    strs = list(set(strs))
+
+    return syms, strs
+
+
+def renumber_syms_and_strs(code, new_syms, new_strs):
+    one_operand_instrs = ['ldc', 'ld', 'ldf', 'st', 'ldfx', 'ldstr', 'strtab',
+                          'symtab', 'ldsym', 'set', 'get']
+    i = 0
+    while i < len(code):
+        op = code[i]
+        i += 1
+        if op.name in ('ldsym', 'get', 'set'):
+            symnum = code[i]
+            code[i] = new_syms.index(symtab.find_by_number(symnum))
+            i += 1
+        elif op.name == 'ldstr':
+            strnum = code[i]
+            code[i] = new_strs.index(strtab[strnum])
+            i += 1
+        elif op.name == 'ldf':
+            code[i] = renumber_syms_and_strs(code[i], new_syms, new_strs)
+            i += 1
+        elif op.name == 'ldfx':
+            code[i][1] = renumber_syms_and_strs(code[i][1], new_syms, new_strs)
+            i += 1
+        elif op.name == 'sel':
+            code[i] = renumber_syms_and_strs(code[i], new_syms, new_strs)
+            code[i+1] = renumber_syms_and_strs(code[i+1], new_syms, new_strs)
+            i += 2
+        elif op.name in one_operand_instrs:
+            i += 1
+
+    return code
+
+
+def compact_tables(code):
+    syms, strs = get_all_syms_and_strs(code)
+    for sym in syms:
+        strs.append(String(sym.name))
+
+    # the empty string is always implied at the beginning of the list
+    if String('') in strs:
+        strs.remove(String(''))
+
+    if len(code) > 0 and code[0] == S('strtab'):
+        code[1] = strs
+    if len(code) > 2 and code[2] == S('strtab'):
+        code[3] = strs
+    if len(code) > 0 and code[0] == S('symtab'):
+        code[1] = [strs.index(String(s.name)) for s in syms]
+    if len(code) > 2 and code[2] == S('symtab'):
+        code[3] = [strs.index(String(s.name)) for s in syms]
+
+    if len(strtab) > 1 or len(symtab.interned_names) > 0:
+        code = renumber_syms_and_strs(code, syms, strs)
+
+    return code
+
+
 def compile_toplevel(text):
     global toplevel_code
 
@@ -702,6 +806,9 @@ def compile_toplevel(text):
     for sym in read_symbols:
         if sym not in defined_symbols:
             raise CompileError(f'Symbol {sym} is read at some point but never defined')
+
+    # remove unused strings and symbols (those introduced by macros)
+    code = compact_tables(code)
 
     return code
 
