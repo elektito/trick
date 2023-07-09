@@ -738,6 +738,11 @@ def main():
         help='Macro-expand the given expression (only first term is '
         'expanded).')
 
+    parser.add_argument(
+        '--compile-expr', '-c', metavar='EXPR', dest='compile_expr',
+        help='Compile and output assembly for the given expression, '
+        'after loading libraries.')
+
     args = parser.parse_args()
 
     text = ''
@@ -746,9 +751,16 @@ def main():
             text += f.read()
 
     if args.macro_expr:
-        compile_toplevel(text)
+        compile_toplevel(text)  # compile libs
         form, _ = read(args.macro_expr, symtab=symtab)
         result = macro_expand(form)
+        print_sexpr(result)
+        sys.exit(0)
+
+    if args.compile_expr:
+        compile_toplevel(text)  # compile libs
+        form, _ = read(args.compile_expr, symtab=symtab)
+        result = compile_form(form, [])
         print_sexpr(result)
         sys.exit(0)
 
