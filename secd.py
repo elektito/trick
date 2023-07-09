@@ -299,7 +299,6 @@ class Secd:
         if not isinstance(n, int) or not isinstance(shift, int):
             raise RunError('"shr" arguments must be integers.')
         self.s.append((n % 0x100000000) >> shift)  # assuming 32 bits
-        print('xxx', n, shift, (n % 0x100000000), (n % 0x100000000) >> shift)
         if self.debug: print(f'shr {n} >> {shift}')
 
     def run_shl(self):
