@@ -16,7 +16,7 @@ macros = {}
 toplevel_code = []
 defined_symbols = set()
 set_symbols = set()
-get_symbols = set()
+read_symbols = set()
 
 
 def S(s: str) -> Symbol:
@@ -312,7 +312,7 @@ def compile_symbol(sym: Symbol, env):
         if sym in frame:
             return [S('ld'), [i, frame.index(sym)]]
 
-    get_symbols.add(sym)
+    read_symbols.add(sym)
     return [S('get'), sym.interned_form]
 
 
@@ -699,7 +699,7 @@ def compile_toplevel(text):
         if sym not in defined_symbols:
             raise CompileError(f'Symbol {sym} is set at some point but never defined')
 
-    for sym in get_symbols:
+    for sym in read_symbols:
         if sym not in defined_symbols:
             raise CompileError(f'Symbol {sym} is read at some point but never defined')
 
