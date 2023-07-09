@@ -19,6 +19,10 @@ set_symbols = set()
 get_symbols = set()
 
 
+def S(s: str) -> Symbol:
+    return symtab.intern(s)
+
+
 class CompileError(Exception):
     pass
 
@@ -33,9 +37,9 @@ class Macro:
     def expand(self, args):
         global toplevel_code
 
-        quoted_args = [[symtab.intern('quote'), a] for a in args]
+        quoted_args = [[S('quote'), a] for a in args]
 
-        func = [symtab.intern('lambda'), self.params] + self.body
+        func = [S('lambda'), self.params] + self.body
         func_call = [func] + quoted_args
         try:
             func_call_code = compile_form(func_call, self.env)
@@ -44,7 +48,6 @@ class Macro:
 
         code = toplevel_code + func_call_code
         code = add_tables(code)
-        code = symbolize(code)
         assembled = assemble(code)
 
         machine = Secd(assembled)
@@ -53,9 +56,9 @@ class Macro:
             machine.run()
         except UserError:
             err = machine.s[-1]
-            err_type = assoc(symtab.intern(':type'), err)
+            err_type = assoc(S(':type'), err)
             msg = f'User error of type {err_type} during macro expansion'
-            err_msg = assoc(symtab.intern(':msg'), err)
+            err_msg = assoc(S(':msg'), err)
             if err_msg is not None:
                 msg += f': {err_msg}'
             raise CompileError(msg)
@@ -106,28 +109,28 @@ def process_defmac(expr, env):
 
 
 def compile_int(expr, env):
-    return ['ldc', expr]
+    return [S('ldc'), expr]
 
 
 def compile_print(expr, env):
     if len(expr) != 2:
         raise CompileError(f'Invalid number of arguments for print: {expr}')
     code = compile_form(expr[1], env)
-    return code + ['print']
+    return code + [S('print')]
 
 
 def compile_printc(expr, env):
     if len(expr) != 2:
         raise CompileError(f'Invalid number of arguments for printc: {expr}')
     code = compile_form(expr[1], env)
-    return code + ['printc']
+    return code + [S('printc')]
 
 
 def compile_halt(expr, env):
     if len(expr) != 2:
         raise CompileError(f'Invalid number of arguments for halt: {expr}')
     code = compile_form(expr[1], env)
-    return code + ['halt']
+    return code + [S('halt')]
 
 
 def compile_if(expr, env):
@@ -135,9 +138,9 @@ def compile_if(expr, env):
         raise CompileError(f'Invalid number of arguments for if: {expr}')
 
     cond_code = compile_form(expr[1], env)
-    true_code = compile_form(expr[2], env) + ['join']
-    false_code = compile_form(expr[3], env) + ['join']
-    return cond_code + ['sel'] + [true_code] + [false_code]
+    true_code = compile_form(expr[2], env) + [S('join')]
+    false_code = compile_form(expr[3], env) + [S('join')]
+    return cond_code + [S('sel')] + [true_code] + [false_code]
 
 
 def compile_iadd(expr, env):
@@ -146,7 +149,7 @@ def compile_iadd(expr, env):
 
     arg1 = compile_form(expr[1], env)
     arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + ['iadd']
+    return arg1 + arg2 + [S('iadd')]
 
 
 def compile_isub(expr, env):
@@ -155,7 +158,7 @@ def compile_isub(expr, env):
 
     arg1 = compile_form(expr[1], env)
     arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + ['isub']
+    return arg1 + arg2 + [S('isub')]
 
 
 def compile_imul(expr, env):
@@ -164,7 +167,7 @@ def compile_imul(expr, env):
 
     arg1 = compile_form(expr[1], env)
     arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + ['imul']
+    return arg1 + arg2 + [S('imul')]
 
 
 def compile_idiv(expr, env):
@@ -173,7 +176,7 @@ def compile_idiv(expr, env):
 
     arg1 = compile_form(expr[1], env)
     arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + ['idiv']
+    return arg1 + arg2 + [S('idiv')]
 
 
 def compile_shr(expr, env):
@@ -182,7 +185,7 @@ def compile_shr(expr, env):
 
     n = compile_form(expr[1], env)
     shift = compile_form(expr[2], env)
-    return n + shift + ['shr']
+    return n + shift + [S('shr')]
 
 
 def compile_shl(expr, env):
@@ -191,7 +194,7 @@ def compile_shl(expr, env):
 
     n = compile_form(expr[1], env)
     shift = compile_form(expr[2], env)
-    return n + shift + ['shl']
+    return n + shift + [S('shl')]
 
 
 def compile_asr(expr, env):
@@ -200,7 +203,7 @@ def compile_asr(expr, env):
 
     n = compile_form(expr[1], env)
     shift = compile_form(expr[2], env)
-    return n + shift + ['asr']
+    return n + shift + [S('asr')]
 
 
 def compile_bnot(expr, env):
@@ -208,7 +211,7 @@ def compile_bnot(expr, env):
         raise CompileError(f'Invalid number of arguments for b-not: {expr}')
 
     n = compile_form(expr[1], env)
-    return n + ['bnot']
+    return n + [S('bnot')]
 
 
 def compile_band(expr, env):
@@ -217,7 +220,7 @@ def compile_band(expr, env):
 
     n1 = compile_form(expr[1], env)
     n2 = compile_form(expr[2], env)
-    return n1 + n2 + ['band']
+    return n1 + n2 + [S('band')]
 
 
 def compile_bor(expr, env):
@@ -226,7 +229,7 @@ def compile_bor(expr, env):
 
     n1 = compile_form(expr[1], env)
     n2 = compile_form(expr[2], env)
-    return n1 + n2 + ['bor']
+    return n1 + n2 + [S('bor')]
 
 
 def compile_bxor(expr, env):
@@ -235,7 +238,7 @@ def compile_bxor(expr, env):
 
     n1 = compile_form(expr[1], env)
     n2 = compile_form(expr[2], env)
-    return n1 + n2 + ['bxor']
+    return n1 + n2 + [S('bxor')]
 
 
 def compile_lt(expr, env):
@@ -244,7 +247,7 @@ def compile_lt(expr, env):
 
     arg1 = compile_form(expr[1], env)
     arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + ['lt']
+    return arg1 + arg2 + [S('lt')]
 
 
 def compile_le(expr, env):
@@ -253,7 +256,7 @@ def compile_le(expr, env):
 
     arg1 = compile_form(expr[1], env)
     arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + ['le']
+    return arg1 + arg2 + [S('le')]
 
 
 def compile_lambda(expr, env):
@@ -266,7 +269,7 @@ def compile_lambda(expr, env):
             raise CompileError(f'Invalid parameter name: {p}')
 
     rest_param = False
-    amp = symtab.intern('&')
+    amp = S('&')
     if amp in params:
         idx = params.index(amp)
         if idx != len(params) - 2:
@@ -278,22 +281,22 @@ def compile_lambda(expr, env):
 
     body = expr[2:]
     if len(body) == 0:
-        body = [symtab.intern('nil')]
+        body = [S('nil')]
 
     body_code = []
     for i, e in enumerate(body):
         body_code += compile_form(e, new_env)
         if i < len(body) - 1:
-            body_code.append('drop')
+            body_code.append(S('drop'))
 
-    body_code = body_code + ['ret']
-    if body_code[-2] == 'ap' or body_code[-2] == symtab.intern('ap'):
-        body_code[-2:] = ['tap']
+    body_code = body_code + [S('ret')]
+    if body_code[-2] == S('ap') or body_code[-2] == S('ap'):
+        body_code[-2:] = [S('tap')]
 
     if rest_param:
-        code = ['ldfx', [len(params) - 1, body_code]]
+        code = [S('ldfx'), [len(params) - 1, body_code]]
     else:
-        code = ['ldf', body_code]
+        code = [S('ldf'), body_code]
 
 
     return code
@@ -301,16 +304,16 @@ def compile_lambda(expr, env):
 
 def compile_symbol(sym: Symbol, env):
     if sym.name == 'nil':
-        return ['nil']
+        return [S('nil')]
     elif sym.name.startswith(':'):
-        return ['ldsym', sym.interned_form]
+        return [S('ldsym'), sym.interned_form]
 
     for i, frame in enumerate(env):
         if sym in frame:
-            return ['ld', [i, frame.index(sym)]]
+            return [S('ld'), [i, frame.index(sym)]]
 
     get_symbols.add(sym)
-    return ['get', sym.interned_form]
+    return [S('get'), sym.interned_form]
 
 
 def compile_string(s: String, env):
@@ -320,14 +323,14 @@ def compile_string(s: String, env):
     else:
         idx = strtab.index(s)
 
-    return ['ldstr', idx]
+    return [S('ldstr'), idx]
 
 
 def compile_bool(s: Bool, env):
     if s:
-        return ['true']
+        return [S('true')]
     else:
-        return ['false']
+        return [S('false')]
 
 
 def compile_let(expr, env):
@@ -351,7 +354,7 @@ def compile_let(expr, env):
             raise CompileError(f'Invalid let variable: {p}')
 
     # transform let to a lambda call and compile that instead
-    new_expr = [[symtab.intern('lambda'), params] + body] + args
+    new_expr = [[S('lambda'), params] + body] + args
     return compile_form(new_expr, env)
 
 
@@ -377,25 +380,25 @@ def compile_letrec(expr, env):
         if not isinstance(v, Symbol):
             raise CompileError(f'Invalid let variable: {v}')
 
-    secd_code = ['dum', 'nil']
+    secd_code = [S('dum'), S('nil')]
     for v in values:
-        secd_code += compile_form(v, [vars] + env) + ['cons']
+        secd_code += compile_form(v, [vars] + env) + [S('cons')]
 
-    lambda_form = [symtab.intern('lambda'), vars] + body
+    lambda_form = [S('lambda'), vars] + body
     secd_code += compile_form(lambda_form, env)
 
-    secd_code += ['rap']
+    secd_code += [S('rap')]
 
     return secd_code
 
 
 def compile_func_call(expr, env):
-    secd_code = ['nil']
+    secd_code = [S('nil')]
     for arg in reversed(expr[1:]):
         secd_code += compile_form(arg, env)
-        secd_code += ['cons']
+        secd_code += [S('cons')]
     secd_code += compile_form(expr[0], env)
-    secd_code += ['ap']
+    secd_code += [S('ap')]
     return secd_code
 
 
@@ -404,7 +407,7 @@ def compile_apply(expr, env):
         raise CompileError('Invalid number of arguments for apply')
     secd_code = compile_form(expr[2], env)
     secd_code += compile_form(expr[1], env)
-    secd_code += ['ap']
+    secd_code += [S('ap')]
     return secd_code
 
 
@@ -427,12 +430,12 @@ def compile_define(expr, env):
         # the "dup" instructions makes sure "define" leaves its value on the
         # stack (because all primitive forms are supposed to have a return
         # value)
-        code += ['dup', 'set', name.interned_form]
+        code += [S('dup'), S('set'), name.interned_form]
     else:
         env[0].append(name)
-        code = ['xp']
+        code = [S('xp')]
         code += compile_form(value, env)
-        code += ['dup', 'st', [0, len(env[0]) - 1]]
+        code += [S('dup'), S('st'), [0, len(env[0]) - 1]]
 
     return code
 
@@ -448,14 +451,14 @@ def compile_set(expr, env):
     code = compile_form(value, env)
 
     # leave the value on the stack as return value of set!
-    code += ['dup']
+    code += [S('dup')]
 
     for i, frame in enumerate(env):
         if name in frame:
-            code += ['st', [i, frame.index(name)]]
+            code += [S('st'), [i, frame.index(name)]]
             break
     else:
-        code += ['set', name.interned_form]
+        code += [S('set'), name.interned_form]
         set_symbols.add(name)
 
     return code
@@ -467,7 +470,7 @@ def compile_cons(expr, env):
 
     code = compile_form(expr[2], env)
     code += compile_form(expr[1], env)
-    code += ['cons']
+    code += [S('cons')]
     return code
 
 
@@ -476,7 +479,7 @@ def compile_car(expr, env):
         raise CompileError(f'Invalid number of arguments for car.')
 
     code = compile_form(expr[1], env)
-    code += ['car']
+    code += [S('car')]
     return code
 
 
@@ -485,21 +488,21 @@ def compile_cdr(expr, env):
         raise CompileError(f'Invalid number of arguments for cdr.')
 
     code = compile_form(expr[1], env)
-    code += ['cdr']
+    code += [S('cdr')]
     return code
 
 
 def compile_quoted_form(form, env):
     if isinstance(form, list):
         if form == []:
-            return ['nil']
+            return [S('nil')]
         else:
             first = compile_quoted_form(form[0], env)
             rest = compile_quoted_form(form[1:], env)
-            return rest + first + ['cons']
+            return rest + first + [S('cons')]
     elif isinstance(form, Symbol):
         n = form.interned_form
-        return ['ldsym', n]
+        return [S('ldsym'), n]
     else:
         # other atoms evaluate to themselves, quoted or not
         return compile_form(form, env)
@@ -517,7 +520,7 @@ def compile_type(expr, env):
         raise CompileError(f'Invalid number of arguments for type.')
 
     code = compile_form(expr[1], env)
-    code += ['type']
+    code += [S('type')]
     return code
 
 
@@ -527,7 +530,7 @@ def compile_eq(expr, env):
 
     code = compile_form(expr[1], env)
     code += compile_form(expr[2], env)
-    code += ['eq']
+    code += [S('eq')]
     return code
 
 
@@ -539,7 +542,7 @@ def compile_error(expr, env):
     if not isinstance(error_sym, Symbol):
         raise CompileError(f'First argument to error must be a symbol')
 
-    error_args = [symtab.intern(':type'), error_sym]
+    error_args = [S(':type'), error_sym]
     for i in range(2, len(expr), 2):
         name, value = expr[i:i+2]
         if not isinstance(name, Symbol):
@@ -549,11 +552,11 @@ def compile_error(expr, env):
         error_args.append(name)
         error_args.append(value)
 
-    code = ['nil']
+    code = [S('nil')]
     for arg in reversed(error_args):
         code += compile_form(arg, env)
-        code += ['cons']
-    code += ['error']
+        code += [S('cons')]
+    code += [S('error')]
 
     return code
 
@@ -562,16 +565,16 @@ def compile_gensym(expr, env):
     if len(expr) != 1:
         raise CompileError('Invalid number of arguments for gensym')
 
-    return ['gensym']
+    return [S('gensym')]
 
 
 def compile_list(expr, env):
     if len(expr) == 0:
-        return ['nil']
+        return [S('nil')]
 
     if isinstance(expr[0], Symbol):
         name = expr[0].name
-        if name == 'defmac':
+        if name == S('defmac'):
             raise CompileError('defmac only allowed at top-level')
 
         primitives = {
@@ -620,21 +623,6 @@ def compile_list(expr, env):
         return compile_func_call(expr, env)
 
 
-def symbolize(code):
-    "recursively convert all strings in the given list to symbols."
-    ret = []
-    for i in code:
-        if isinstance(i, str):
-            ret.append(symtab.intern(i))
-        elif isinstance(i, list):
-            ret.append(symbolize(i))
-        elif isinstance(i, (int, Symbol, String)):
-            ret.append(i)
-        else:
-            raise CompileError(f'Internal error: bad secd code: {code}')
-    return ret
-
-
 def compile_form(expr, env):
     expr = macro_expand(expr)
 
@@ -650,8 +638,6 @@ def compile_form(expr, env):
         secd_code = compile_bool(expr, env)
     else:
         raise CompileError(f'Invalid value: {expr}')
-
-    secd_code = symbolize(secd_code)
 
     return secd_code
 
@@ -670,12 +656,12 @@ def add_tables(code):
             strtab.index(String(name))
             for name in symtab.interned_names
         ]
-        code = [symtab.intern('symtab'), strnums] + code
+        code = [S('symtab'), strnums] + code
 
     # add string table
     if len(strtab) > 1:
         # strip the empty string at 0
-        code = [symtab.intern('strtab'), strtab[1:]] + code
+        code = [S('strtab'), strtab[1:]] + code
 
     return code
 
@@ -693,10 +679,10 @@ def compile_toplevel(text):
 
         form = macro_expand(form)
 
-        if isinstance(form, list) and len(form) > 0 and form[0] == symtab.intern('defmac'):
+        if isinstance(form, list) and len(form) > 0 and form[0] == S('defmac'):
             process_defmac(form, toplevel_env)
             form_code = []
-        elif isinstance(form, list) and len(form) > 0 and form[0] == symtab.intern('define'):
+        elif isinstance(form, list) and len(form) > 0 and form[0] == S('define'):
             form_code = compile_form(form, toplevel_env)
             toplevel_code += form_code
         else:
@@ -705,9 +691,8 @@ def compile_toplevel(text):
         if code == []:
             code = form_code
         elif form_code != []:
-            code += ['drop'] + form_code
+            code += [S('drop')] + form_code
 
-    code = symbolize(code)
     code = add_tables(code)
 
     for sym in set_symbols:
