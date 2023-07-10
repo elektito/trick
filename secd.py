@@ -67,22 +67,23 @@ class Secd:
             0x11: self.run_isub,
             0x12: self.run_imul,
             0x13: self.run_idiv,
-            0x14: self.run_shr,
-            0x15: self.run_shl,
-            0x16: self.run_asr,
-            0x17: self.run_bnot,
-            0x18: self.run_band,
-            0x19: self.run_bor,
-            0x1a: self.run_bxor,
-            0x1b: self.run_lt,
-            0x1c: self.run_le,
-            0x1d: self.run_eq,
-            0x1e: self.run_drop,
-            0x1f: self.run_dup,
-            0x20: self.run_xp,
-            0x21: self.run_type,
-            0x22: self.run_error,
-            0x23: self.run_gensym,
+            0x14: self.run_irem,
+            0x15: self.run_shr,
+            0x16: self.run_shl,
+            0x17: self.run_asr,
+            0x18: self.run_bnot,
+            0x19: self.run_band,
+            0x1a: self.run_bor,
+            0x1b: self.run_bxor,
+            0x1c: self.run_lt,
+            0x1d: self.run_le,
+            0x1e: self.run_eq,
+            0x1f: self.run_drop,
+            0x20: self.run_dup,
+            0x21: self.run_xp,
+            0x22: self.run_type,
+            0x23: self.run_error,
+            0x24: self.run_gensym,
             0x40: self.run_ldc,
             0x41: self.run_ld,
             0x42: self.run_sel,
@@ -284,12 +285,27 @@ class Secd:
         if self.debug: print(f'imul {arg2} * {arg1}')
 
     def run_idiv(self):
-        arg1 = self.s.pop()
-        arg2 = self.s.pop()
-        if not isinstance(arg1, int) or not isinstance(arg2, int):
+        b = self.s.pop()
+        a = self.s.pop()
+        if not isinstance(b, int) or not isinstance(a, int):
             raise RunError('"idiv" arguments must be integers.')
-        self.s.append(arg2 // arg1)
-        if self.debug: print(f'idiv {arg2} / {arg1}')
+        if b == 0:
+            raise RuntimeError('Division by zero')
+        self.s.append(a // b)
+        if self.debug: print(f'idiv {a} / {b}')
+
+    def run_irem(self):
+        b = self.s.pop()
+        a = self.s.pop()
+        if not isinstance(b, int) or not isinstance(a, int):
+            raise RunError('"irem" arguments must be integers.')
+        if b == 0:
+            raise RunError('Division by zero')
+
+        result = abs(a) % abs(b) * (1,-1)[a < 0]
+
+        self.s.append(result)
+        if self.debug: print(f'irem {a} % {b}')
 
     def run_shr(self):
         shift = self.s.pop()

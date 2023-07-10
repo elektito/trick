@@ -174,6 +174,15 @@ def compile_idiv(expr, env):
     return arg1 + arg2 + [S('idiv')]
 
 
+def compile_irem(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for irem: {expr}')
+
+    arg1 = compile_form(expr[1], env)
+    arg2 = compile_form(expr[2], env)
+    return arg1 + arg2 + [S('irem')]
+
+
 def compile_shr(expr, env):
     if len(expr) != 3:
         raise CompileError(f'Invalid number of arguments for shr: {expr}')
@@ -573,6 +582,7 @@ def compile_list(expr, env):
             'isub': compile_isub,
             'imul': compile_imul,
             'idiv': compile_idiv,
+            'irem': compile_irem,
             'shr': compile_shr,
             'shl': compile_shl,
             'asr': compile_asr,

@@ -95,6 +95,15 @@
               (idiv (car r) (cadr r))
               (idiv (apply / (butlast r)) (last r))))))
 
+(defun remainder (a b)
+  (irem a b))
+
+(defun modulo (a b)
+  (let ((res (remainder a b)))
+    (if (< b 0)
+        (if (<= res 0) res (+ res b))
+        (if (>= res 0) res (+ res b)))))
+
 ;; backquote
 
 (defun bq-simplify (form)
