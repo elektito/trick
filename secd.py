@@ -512,8 +512,7 @@ class Secd:
         self.c += 4
         symnum = int.from_bytes(symnum, byteorder='little', signed=True)
 
-        # leave the set value on the stack as the return value of set
-        value = self.s[-1]
+        value = self.s.pop()
         self.symvals[symnum] = value
 
         if self.debug: print(f'set {symnum} => {value}')
