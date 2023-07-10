@@ -729,6 +729,10 @@ def main():
         help='Compile and output assembly for the given expression, '
         'after loading libraries.')
 
+    parser.add_argument(
+        '--eval', '-e', metavar='EXPR', dest='eval_expr',
+        help='Compile and run the given expression, and print the result.')
+
     args = parser.parse_args()
 
     text = ''
@@ -748,6 +752,27 @@ def main():
         form, _ = read(args.compile_expr, symtab=symtab)
         result = compile_form(form, [])
         print_sexpr(result)
+        sys.exit(0)
+
+    if args.eval_expr:
+        text += '\n' + args.eval_expr
+        code = compile_toplevel(text)
+        code = assemble(code)
+        m = Secd(code)
+        try:
+            m.run()
+        except RunError as e:
+            print('Error:', e)
+            sys.exit(1)
+        else:
+            if len(m.s) == 0:
+                print('Error: no result')
+                sys.exit(1)
+            elif len(m.s) > 1:
+                print('Error: more than one result')
+                sys.exit(1)
+            print_sexpr(m.s[-1])
+
         sys.exit(0)
 
     if args.input == '-':
