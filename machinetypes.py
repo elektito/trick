@@ -1,37 +1,31 @@
-from ctypes import ArgumentError
-
-
 DEFAULT_ENCODING = 'ascii'
 
 
 class Symbol:
-    def __init__(self, name, interned_form=None, *, magic=None):
-        if magic != 'mellon':
-            raise Exception('Symbols should be created using a symtab')
-
+    def __init__(self, name, *, unique=False):
         assert isinstance(name, str)
         self.name = name
-        self.interned_form = interned_form
+        self.unique = unique
 
     def __eq__(self, other):
         if not isinstance(other, Symbol):
             return False
-        elif self.interned_form is not None:
-            return self.interned_form == other.interned_form
-        else:
+        elif self.unique:
             return id(self) == id(other)
+        else:
+            return self.name == other.name
 
     def __hash__(self):
-        if self.interned_form:
-            return hash(self.interned_form)
-        else:
-            return hash(self.name)
+        return hash(self.name)
 
     def __str__(self):
         return self.name
 
     def __repr__(self):
-        return f'<Symbol {self.name}>'
+        if self.unique:
+            return f'<Symbol {self.name} (unique)>'
+        else:
+            return f'<Symbol {self.name}>'
 
 
 class Bool:

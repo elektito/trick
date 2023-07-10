@@ -4,14 +4,13 @@ import sys
 import argparse
 from read import read, ParseError
 from machinetypes import String, Symbol
-from symtab import Symtab
 
 
 class AssembleError(Exception):
     pass
 
 
-def assemble(expr, start_offset: int = 0) -> bytes:
+def _assemble(expr, start_offset: int, strings, symbols) -> bytes:
     if not isinstance(expr, list):
         raise AssembleError('Input not a list')
 
@@ -89,8 +88,8 @@ def assemble(expr, start_offset: int = 0) -> bytes:
 
             code += bytes([0x42])
 
-            true_body = assemble(expr[i], start_offset + 8)
-            false_body = assemble(expr[i + 1], start_offset + len(code) + 8 + len(true_body))
+            true_body = _assemble(expr[i], start_offset + 8, strings, symbols)
+            false_body = _assemble(expr[i + 1], start_offset + len(code) + 8 + len(true_body), strings, symbols)
 
             code += len(true_body).to_bytes(length=4, byteorder='little', signed=False)
             code += len(false_body).to_bytes(length=4, byteorder='little', signed=False)
@@ -104,7 +103,7 @@ def assemble(expr, start_offset: int = 0) -> bytes:
             body = expr[i]
             i += 1
             code += bytes([0x43])
-            body_code = assemble(body, start_offset + len(code) + 4)
+            body_code = _assemble(body, start_offset + len(code) + 4, strings, symbols)
             code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
             code += body_code
         elif instr == 'st':
@@ -135,64 +134,102 @@ def assemble(expr, start_offset: int = 0) -> bytes:
 
             code += bytes([0x45])
             code += bytes([nargs])
-            body_code = assemble(body, start_offset + len(code) + 4)
+            body_code = _assemble(body, start_offset + len(code) + 4, strings, symbols)
             code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
             code += body_code
         elif instr == 'ldstr':
-            value = expr[i]
+            s = expr[i]
             i += 1
-            if not isinstance(value, int):
-                raise AssembleError(f'Invalid argument for ldstr: {value}')
+            if not isinstance(s, String):
+                raise AssembleError(f'Invalid argument for ldstr: {s}')
+            try:
+                strnum = strings.index(s)
+            except ValueError:
+                strings.append(s)
+                strnum = len(strings) - 1
             code += bytes([0x46])
-            code += value.to_bytes(length=4, byteorder='little', signed=True)
+            code += strnum.to_bytes(length=4, byteorder='little', signed=True)
         elif instr == 'strtab':
-            strnums = expr[i]
-            i += 1
-            if not isinstance(strnums, list):
-                raise AssembleError(f'Invalid argument type for strtab: {strnums}')
-            if not all(isinstance(s, String) for s in strnums):
-                raise AssembleError(f'Non-string value passed to strtab: {strnums}')
-            code += bytes([0x47])
-            code += len(strnums).to_bytes(length=4, byteorder='little', signed=False)
-            for s in strnums:
-                code += len(s).to_bytes(length=4, byteorder='little', signed=False)
-                code += s.encode('utf-8')
+            raise AssembleError('Explicit symtab not allowed')
         elif instr == 'ldsym':
-            value = expr[i]
+            sym = expr[i]
             i += 1
-            if not isinstance(value, int):
-                raise AssembleError(f'Invalid argument for ldstr: {value}')
+            if not isinstance(sym, Symbol):
+                raise AssembleError(f'Invalid argument for ldstr: {sym}')
+            try:
+                symnum = symbols.index(Symbol)
+            except ValueError:
+                symbols.append(sym)
+                symnum = len(symbols) - 1
             code += bytes([0x48])
-            code += value.to_bytes(length=4, byteorder='little', signed=True)
+            code += symnum.to_bytes(length=4, byteorder='little', signed=True)
         elif instr == 'symtab':
-            strnums = expr[i]
-            i += 1
-            if not isinstance(strnums, list):
-                raise AssembleError(f'Invalid argument type for symtab: {strnums}')
-            if not all(isinstance(s, int) for s in strnums):
-                raise AssembleError(f'Non-numeric value passed to symtab: {strnums}')
-            code += bytes([0x49])
-            code += len(strnums).to_bytes(length=4, byteorder='little', signed=False)
-            for n in strnums:
-                code += n.to_bytes(length=4, byteorder='little', signed=False)
+            raise AssembleError('Explicit symtab not allowed')
         elif instr == 'set':
-            symnum = expr[i]
+            sym = expr[i]
             i += 1
-            if not isinstance(symnum, int):
-                raise AssembleError(f'Invalid argument type for set: {symnum}')
+            if not isinstance(sym, Symbol):
+                raise AssembleError(f'Invalid argument type for set: {sym}')
+            try:
+                symnum = symbols.index(sym)
+            except ValueError:
+                symbols.append(sym)
+                symnum = len(symbols) - 1
             code += bytes([0x4a])
             code += symnum.to_bytes(length=4, byteorder='little', signed=False)
         elif instr == 'get':
-            symnum = expr[i]
+            sym = expr[i]
             i += 1
-            if not isinstance(symnum, int):
-                raise AssembleError(f'Invalid argument type for get: {symnum}')
+            if not isinstance(sym, Symbol):
+                raise AssembleError(f'Invalid argument type for get: {sym}')
+            try:
+                symnum = symbols.index(sym)
+            except ValueError:
+                symbols.append(sym)
+                symnum = len(symbols) - 1
             code += bytes([0x4b])
             code += symnum.to_bytes(length=4, byteorder='little', signed=False)
         else:
             raise AssembleError(f'Unknown instruction: {instr}')
 
     return code
+
+
+def assemble(code: list, start_offset: int = 0) -> bytes:
+    strings = [String("")]
+    symbols = []
+
+    assembled = _assemble(code, start_offset, strings, symbols)
+
+    # empty string is implied
+    strings = strings[1:]
+
+    # add symbol strings
+    for sym in symbols:
+        sname = String(sym.name)
+        if sname not in strings:
+            strings.append(sname)
+
+    strtab = b''
+    if len(strings) > 0:
+        strtab = bytes([0x47])  # strtab instruction
+        strtab += len(strings).to_bytes(length=4, byteorder='little', signed=False)
+        for s in strings:
+            strtab += len(s).to_bytes(length=4, byteorder='little', signed=False)
+            strtab += s.encode()
+
+    symtab = b''
+    if len(symbols) > 0:
+        symtab = bytes([0x49])  # symtab instruction
+        symtab += len(symbols).to_bytes(length=4, byteorder='little', signed=False)
+        for sym in symbols:
+            sname = String(sym.name)
+            strnum = strings.index(sname) + 1 # plus because of empty string at the beginning of strtab
+            symtab += strnum.to_bytes(length=4, byteorder='little', signed=False)
+
+    assembled = strtab + symtab + assembled
+
+    return assembled
 
 
 def main():
@@ -214,7 +251,7 @@ def main():
             text = f.read()
 
     try:
-        expr, _ = read(text, symtab=Symtab())
+        expr, _ = read(text)
     except ParseError as e:
         print(f'Parse error: {e}', file=sys.stderr)
         sys.exit(1)

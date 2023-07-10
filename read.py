@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from machinetypes import String, Symbol, Bool
-from symtab import Symtab
 
 
 class ParseError(Exception):
@@ -38,7 +37,7 @@ def _read_token(s, i):
     return tok, i
 
 
-def _read_list(s: str, i: int, *, symtab):
+def _read_list(s: str, i: int):
     assert s[i] == '('
 
     i += 1
@@ -50,7 +49,7 @@ def _read_list(s: str, i: int, *, symtab):
         if s[i] == ')':
             i += 1
             return ls, i
-        value, i = read(s, i, symtab=symtab)
+        value, i = read(s, i)
         ls.append(value)
 
     return ls, i
@@ -77,7 +76,7 @@ def _read_string(s: str, i: int):
     raise ParseError('String not closed')
 
 
-def read(s: str, i: int = 0, *, symtab: Symtab) -> tuple[None | int | Symbol | list | Bool | String, int]:
+def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list | Bool | String, int]:
     if i >= len(s):
         return None, len(s)
 
@@ -86,23 +85,23 @@ def read(s: str, i: int = 0, *, symtab: Symtab) -> tuple[None | int | Symbol | l
         return None, len(s)
 
     if s[i] == '(':
-        return _read_list(s, i, symtab=symtab)
+        return _read_list(s, i)
     elif s[i] == ')':
         raise ParseError('Unbalanced parentheses')
     elif s[i] == '"':
         return _read_string(s, i)
     elif s[i] == "'":
-        quoted, i = read(s, i + 1, symtab=symtab)
-        return [symtab.intern('quote'), quoted], i
+        quoted, i = read(s, i + 1)
+        return [Symbol('quote'), quoted], i
     elif s[i] == '`':
-        quoted, i = read(s, i + 1, symtab=symtab)
-        return [symtab.intern('backquote'), quoted], i
+        quoted, i = read(s, i + 1)
+        return [Symbol('backquote'), quoted], i
     elif s[i] == ',' and i < len(s) - 1 and s[i+1] == '@':
-        unquoted, i = read(s, i + 2, symtab=symtab)
-        return [symtab.intern('unquote-splicing'), unquoted], i
+        unquoted, i = read(s, i + 2)
+        return [Symbol('unquote-splicing'), unquoted], i
     elif s[i] == ',':
-        unquoted, i = read(s, i + 1, symtab=symtab)
-        return [symtab.intern('unquote'), unquoted], i
+        unquoted, i = read(s, i + 1)
+        return [Symbol('unquote'), unquoted], i
     elif i < len(s) - 1 and s[i:i+2] == '#f':
         return Bool(False), i + 2
     elif i < len(s) - 1 and s[i:i+2] == '#t':
@@ -112,7 +111,7 @@ def read(s: str, i: int = 0, *, symtab: Symtab) -> tuple[None | int | Symbol | l
         try:
             return int(tok), i
         except ValueError:
-            return symtab.intern(tok), i
+            return Symbol(tok), i
 
 
 def _print_sexpr(sexpr):

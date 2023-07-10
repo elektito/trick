@@ -6,12 +6,8 @@ from read import read, ParseError, print_sexpr
 from machinetypes import Bool, Symbol, String
 from assemble import assemble
 from secd import RunError, Secd, UserError
-from symtab import Symtab
 
 
-# strtab has an implied empty string in the 0th position
-strtab = [String('')]
-symtab = Symtab()
 macros = {}
 toplevel_code = []
 defined_symbols = set()
@@ -20,7 +16,7 @@ read_symbols = set()
 
 
 def S(s: str) -> Symbol:
-    return symtab.intern(s)
+    return Symbol(s)
 
 
 class CompileError(Exception):
@@ -47,7 +43,6 @@ class Macro:
             raise CompileError(f'During macro expansion of {self.name}: {e}')
 
         code = toplevel_code + func_call_code
-        code = add_tables(code)
         assembled = assemble(code)
 
         machine = Secd(assembled)
@@ -306,24 +301,18 @@ def compile_symbol(sym: Symbol, env):
     if sym.name == 'nil':
         return [S('nil')]
     elif sym.name.startswith(':'):
-        return [S('ldsym'), sym.interned_form]
+        return [S('ldsym'), sym]
 
     for i, frame in enumerate(env):
         if sym in frame:
             return [S('ld'), [i, frame.index(sym)]]
 
     read_symbols.add(sym)
-    return [S('get'), sym.interned_form]
+    return [S('get'), sym]
 
 
 def compile_string(s: String, env):
-    if s not in strtab:
-        strtab.append(s)
-        idx = len(strtab) - 1
-    else:
-        idx = strtab.index(s)
-
-    return [S('ldstr'), idx]
+    return [S('ldstr'), s]
 
 
 def compile_bool(s: Bool, env):
@@ -430,7 +419,7 @@ def compile_define(expr, env):
         # the "dup" instructions makes sure "define" leaves its value on the
         # stack (because all primitive forms are supposed to have a return
         # value)
-        code += [S('dup'), S('set'), name.interned_form]
+        code += [S('dup'), S('set'), name]
     else:
         env[0].append(name)
         code = [S('xp')]
@@ -458,7 +447,7 @@ def compile_set(expr, env):
             code += [S('st'), [i, frame.index(name)]]
             break
     else:
-        code += [S('set'), name.interned_form]
+        code += [S('set'), name]
         set_symbols.add(name)
 
     return code
@@ -501,8 +490,7 @@ def compile_quoted_form(form, env):
             rest = compile_quoted_form(form[1:], env)
             return rest + first + [S('cons')]
     elif isinstance(form, Symbol):
-        n = form.interned_form
-        return [S('ldsym'), n]
+        return [S('ldsym'), form]
     else:
         # other atoms evaluate to themselves, quoted or not
         return compile_form(form, env)
@@ -642,30 +630,6 @@ def compile_form(expr, env):
     return secd_code
 
 
-def add_tables(code):
-    # add the strings for user symbols (those used in quoted values) to the
-    # string table
-    for name in symtab.interned_names:
-        sname = String(name)
-        if sname not in strtab:
-            strtab.append(sname)
-
-    # add symbol table
-    if len(symtab.interned_names) > 0:
-        strnums = [
-            strtab.index(String(name))
-            for name in symtab.interned_names
-        ]
-        code = [S('symtab'), strnums] + code
-
-    # add string table
-    if len(strtab) > 1:
-        # strip the empty string at 0
-        code = [S('strtab'), strtab[1:]] + code
-
-    return code
-
-
 def compile_toplevel(text):
     global toplevel_code
 
@@ -673,7 +637,7 @@ def compile_toplevel(text):
     code = []
     toplevel_env = []
     while offset < len(text):
-        form, offset = read(text, offset, symtab=symtab)
+        form, offset = read(text, offset)
         if form is None:  # eof
             break
 
@@ -692,8 +656,6 @@ def compile_toplevel(text):
             code = form_code
         elif form_code != []:
             code += [S('drop')] + form_code
-
-    code = add_tables(code)
 
     for sym in set_symbols:
         if sym not in defined_symbols:
@@ -742,14 +704,14 @@ def main():
 
     if args.macro_expr:
         compile_toplevel(text)  # compile libs
-        form, _ = read(args.macro_expr, symtab=symtab)
+        form, _ = read(args.macro_expr)
         result = macro_expand(form)
         print_sexpr(result)
         sys.exit(0)
 
     if args.compile_expr:
         compile_toplevel(text)  # compile libs
-        form, _ = read(args.compile_expr, symtab=symtab)
+        form, _ = read(args.compile_expr)
         result = compile_form(form, [])
         print_sexpr(result)
         sys.exit(0)
