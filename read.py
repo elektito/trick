@@ -106,6 +106,10 @@ def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list | Bool | String
         return Bool(False), i + 2
     elif i < len(s) - 1 and s[i:i+2] == '#t':
         return Bool(True), i + 2
+    elif i < len(s) - 1 and s[i:i+2] == '#x':
+        tok, i = _read_token(s, i)
+        tok = tok[2:]
+        return int(tok, 16), i
     else:
         tok, i = _read_token(s, i)
         try:
