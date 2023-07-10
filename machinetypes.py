@@ -7,6 +7,15 @@ class Symbol:
         self.name = name
         self.unique = unique
 
+    def id(self):
+        if self.unique:
+            # unique symbols (gensyms) are only the same if they refer to the
+            # same object
+            return id(self)
+        else:
+            # normal symbols are eq if they have the same name
+            return self.name
+
     def __eq__(self, other):
         if not isinstance(other, Symbol):
             return False
@@ -35,6 +44,10 @@ class Bool:
 
         self.value = value
 
+    def id(self):
+        # booleans are eq if they have the same value
+        return self.value
+
     def is_true(self):
         return self.value
 
@@ -57,6 +70,10 @@ class String:
     def __init__(self, value: str):
         assert isinstance(value, str)
         self.value = value
+
+    def id(self):
+        # strings are eq only if they are the same object
+        return id(self)
 
     def __hash__(self):
         return hash(self.value)

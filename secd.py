@@ -513,12 +513,12 @@ class Secd:
     def run_eq(self):
         x = self.s.pop()
         y = self.s.pop()
-        if isinstance(x, int) and isinstance(y, int):
+        if isinstance(x, int) or isinstance(y, int):
             result = (x == y)
-        elif isinstance(x, Symbol) and isinstance(y, Symbol):
-            result = (x.name == y.name)
-        else:
+        elif isinstance(x, list) or isinstance(y, list):
             result = (id(x) == id(y))
+        else:
+            result = (x.id() == y.id())
         result = Bool(result)
         self.s.append(result)
         if self.debug: print(f'eq {result}')
