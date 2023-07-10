@@ -47,6 +47,9 @@ class Bool:
     def __bool__(self):
         return self.is_true()
 
+    def __str__(self):
+        return '#t' if self.value else '#f'
+
     def __repr__(self):
         return f'<Bool {str(self.value).lower()}>'
 
