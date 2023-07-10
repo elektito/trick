@@ -204,8 +204,8 @@
 
 ;; everything else
 
-(defun > (x y) (not (< x y)))
-(defun >= (x y) (not (<= x y)))
+(defun > (x y) (not (<= x y)))
+(defun >= (x y) (not (< x y)))
 
 (defmac with-gensyms (names & body)
   `(let ,(mapcar (lambda (name) `(,name (gensym))) names)
