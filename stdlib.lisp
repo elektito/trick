@@ -81,6 +81,20 @@
               (isub (car r) (cadr r))
               (isub (apply - (butlast r)) (last r))))))
 
+(defun * (& r)
+  (if (null? r)
+      1
+      (imul (car r) (apply * (cdr r)))))
+
+(defun / (& r)
+  (if (null? r)
+      (error :arg-error :msg "Invalid number of arguments for /")
+      (if (null? (cdr r))
+          (idiv 1 (car r))
+          (if (null? (cddr r))
+              (idiv (car r) (cadr r))
+              (idiv (apply / (butlast r)) (last r))))))
+
 ;; backquote
 
 (defun bq-simplify (form)
