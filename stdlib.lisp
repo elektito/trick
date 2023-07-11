@@ -2,7 +2,7 @@
 
 (define list (lambda (& rest) rest))
 
-(define null? (lambda (x) (eq? 1 (type x))))
+(define null? (lambda (x) (eq? 'null (type x))))
 
 (define concat2 (lambda (l1 l2)
   (if (null? l1)
@@ -51,7 +51,7 @@
 
 (defun atom? (v)
   ;; everything besides cons (3) is an atom
-  (if (eq? (type v) 3) #f #t))
+  (if (eq? (type v) 'list) #f #t))
 
 (defun last (x)
   (if (null? x)

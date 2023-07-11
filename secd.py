@@ -109,6 +109,15 @@ class Secd:
 
             func()
 
+    def intern(self, name):
+        sym = Symbol(name)
+        if sym not in self.symtab:
+            sname = String(name)
+            if sname not in self.strtab:
+                self.strtab.append(sname)
+            self.symtab.append(sym)
+        return sym
+
     def run_nil(self):
         self.s.append([])
         if self.debug: print('nil')
@@ -492,19 +501,19 @@ class Secd:
     def run_type(self):
         v = self.s.pop()
         if v == []:
-            result = 1
+            result = self.intern('null')
         elif isinstance(v, Symbol):
-            result = 2
+            result = self.intern('symbol')
         elif isinstance(v, list):
-            result = 3
+            result = self.intern('list')
         elif isinstance(v, int):
-            result = 4
+            result = self.intern('int')
         elif isinstance(v, String):
-            result = 5
+            result = self.intern('string')
         elif isinstance(v, Closure):
-            result = 6
+            result = self.intern('closure')
         elif isinstance(v, Bool):
-            result = 7
+            result = self.intern('bool')
         else:
             raise RunError(f'Unknown type: {v}')
         self.s.append(result)
