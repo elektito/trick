@@ -401,10 +401,20 @@ def compile_func_call(expr, env):
 
 
 def compile_apply(expr, env):
-    if len(expr) != 3:
+    if len(expr) < 3:
         raise CompileError('Invalid number of arguments for apply')
-    secd_code = compile_form(expr[2], env)
+
+    # compile last form, which should be a list
+    secd_code = compile_form(expr[-1], env)
+
+    # prepend all the other arguments to the list
+    for form in reversed(expr[2:-1]):
+        secd_code += compile_form(form, env)
+        secd_code += [S('cons')]
+
+    # the function to apply
     secd_code += compile_form(expr[1], env)
+
     secd_code += [S('ap')]
     return secd_code
 

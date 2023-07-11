@@ -171,6 +171,12 @@
 (= '(1 (foo "bar") 2) '(1 (foo "bar") 2))
 (not (= '(1 (foo "bar") 2) '(1 (foo "bar" 10) 2)))
 
+(eq? 6 (apply + '(1 2 3)))
+(eq? 10 (apply + '(1 2 3 4)))
+(eq? 0 (apply + '()))
+(= '(1 2 3 foo bar)
+   (apply list 1 2 3 '(foo bar)))
+
 ;; backquote tests
 
 (eq? `() '())
