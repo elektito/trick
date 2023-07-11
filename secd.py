@@ -571,6 +571,10 @@ def main():
         help='Input file. Stdin is used if not specified or a dash (-) '
         'is passed instead. Defaults to reading from stdin.')
 
+    parser.add_argument(
+        '--debug', '-g', action='store_true', default=False,
+        help='Enable debug mode.')
+
     args = parser.parse_args()
 
     if args.input == '-':
@@ -580,7 +584,7 @@ def main():
             code = f.read()
 
     m = Secd(code)
-    # m.debug = True
+    m.debug = args.debug
     try:
         m.run()
     except RunError as e:
