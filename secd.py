@@ -516,7 +516,10 @@ class Secd:
         if isinstance(x, int) or isinstance(y, int):
             result = (x == y)
         elif isinstance(x, list) or isinstance(y, list):
-            result = (id(x) == id(y))
+            if x == [] and y == []:
+                result = True
+            else:
+                result = (id(x) == id(y))
         else:
             result = (x.id() == y.id())
         result = Bool(result)

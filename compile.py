@@ -499,7 +499,10 @@ def compile_quoted_form(form, env):
             rest = compile_quoted_form(form[1:], env)
             return rest + first + [S('cons')]
     elif isinstance(form, Symbol):
-        return [S('ldsym'), form]
+        if form.name == 'nil':
+            return [S('nil')]
+        else:
+            return [S('ldsym'), form]
     else:
         # other atoms evaluate to themselves, quoted or not
         return compile_form(form, env)
