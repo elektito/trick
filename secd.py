@@ -299,7 +299,7 @@ class Secd:
         if not isinstance(b, int) or not isinstance(a, int):
             raise RunError('"idiv" arguments must be integers.')
         if b == 0:
-            raise RuntimeError('Division by zero')
+            raise RunError('Division by zero')
         self.s.append(a // b)
         if self.debug: print(f'idiv {a} / {b}')
 
