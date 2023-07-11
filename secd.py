@@ -35,7 +35,7 @@ class Secd:
         self.code = code
 
         self.s = []
-        self.e = [[]]
+        self.e = []
         self.c = 0
         self.d = []
         self.halt_code = None
