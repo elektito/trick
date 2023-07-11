@@ -12,8 +12,8 @@ def main():
     parser = argparse.ArgumentParser(description='Run test suite.')
 
     parser.add_argument(
-        '--stop-on-error', '-x', action='store_true', default=False,
-        help='Stop on first error.')
+        '--stop-on-failure', '-x', action='store_true', default=False,
+        help='Stop on first failure.')
 
     args = parser.parse_args()
 
@@ -51,9 +51,13 @@ def main():
                 msg += f': {err_msg}'
             errors.append((expr, msg))
             print('E', end='', flush=True)
+            if args.stop_on_failure:
+                break
         except RunError as e:
             errors.append((expr, str(e)))
             print('E', end='', flush=True)
+            if args.stop_on_failure:
+                break
         else:
             result = machine.s[-1]
             if result:
