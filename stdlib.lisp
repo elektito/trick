@@ -253,3 +253,36 @@
 
 (defun map (func & arg-lists)
   (map1 func arg-lists))
+
+;; compare two lists recursively using eq?
+(defun list-eq? (list1 list2)
+  (cond ((null? list1) (null? list2))
+        ((null? list2) (null? list1))
+        ((not (eq? (type list1) 'list))
+         #f)
+        ((not (eq? (type list2) 'list))
+         #f)
+        ((and (eq? (type (car list1)) 'list)
+              (eq? (type (car list2)) 'list))
+         (and (list-eq? (car list1) (car list2))
+              (list-eq? (cdr list1) (cdr list2))))
+        (#t (and (eq? (car list1) (car list2))
+                 (list-eq? (cdr list1) (cdr list2))))))
+
+(defun =' (v1 v2)
+  (cond ((not (eq? (type v1) (type v2)))
+         #f)
+        ((eq? (type v1) 'list)
+         (list-eq? v1 v2))
+        (#t (eq? v1 v2))))
+
+(defun = (& r)
+  (cond ((null? r) ; no arguments
+         (error :arg-error :msg "Invalid number of arguments for ="))
+        ((null? (cdr r)) ; one argument
+         #t)
+        ((null? (cddr r)) ; two arguments
+         (=' (car r) (cadr r)))
+        (#t ; more than two arguments
+         (and (=' (car r) (cadr r))
+              (apply = (cdr r))))))
