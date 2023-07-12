@@ -2,7 +2,7 @@
 
 import argparse
 from assemble import assemble
-from compile import assoc, compile_form, compile_toplevel
+from compile import CompileError, assoc, compile_form, compile_toplevel
 from machinetypes import Symbol
 from read import print_sexpr, read
 from secd import RunError, Secd, UserError
@@ -36,7 +36,13 @@ def main():
     errors = []
     fails = []
     for expr in test_exprs:
-        expr_asm = compile_form(expr, [])
+        try:
+            expr_asm = compile_form(expr, [])
+        except CompileError as e:
+            errors.append((expr, e))
+            if args.stop_on_failure:
+                break
+            continue
         asm = lib_asm + expr_asm
         code = assemble(asm)
         machine = Secd(code)
