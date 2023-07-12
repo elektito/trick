@@ -52,7 +52,7 @@ def _read_list(s: str, i: int):
         value, i = read(s, i)
         ls.append(value)
 
-    return ls, i
+    raise ParseError('List not closed')
 
 
 def _read_string(s: str, i: int):
