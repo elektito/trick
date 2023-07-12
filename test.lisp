@@ -98,6 +98,10 @@
 (>= 1 -10)
 (>= 0 -20)
 
+(zero? 0)
+(not (zero? 1))
+(not (zero? -1))
+
 (eq? 10 ((lambda (x y) x) 10 20))
 (eq? 20 ((lambda (x y) y) 10 20))
 
