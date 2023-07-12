@@ -727,10 +727,21 @@ def main():
 
     if args.macro_expr:
         compile_toplevel(text)  # compile libs
-        form, _ = read(args.macro_expr)
-        result = macro_expand(form)
-        print_sexpr(result)
-        sys.exit(0)
+
+        try:
+            form, _ = read(args.macro_expr)
+        except ParseError as e:
+            print(f'Parse error during macro expansion: {e}')
+            sys.exit(1)
+
+        try:
+            result = macro_expand(form)
+        except CompileError as e:
+            print(e)
+            sys.exit(1)
+        else:
+            print_sexpr(result)
+            sys.exit(0)
 
     if args.compile_expr:
         compile_toplevel(text)  # compile libs
