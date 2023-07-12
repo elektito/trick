@@ -129,12 +129,15 @@ def compile_halt(expr, env):
 
 
 def compile_if(expr, env):
-    if len(expr) != 4:
+    if len(expr) not in (3, 4):
         raise CompileError(f'Invalid number of arguments for if: {expr}')
 
     cond_code = compile_form(expr[1], env)
     true_code = compile_form(expr[2], env) + [S('join')]
-    false_code = compile_form(expr[3], env) + [S('join')]
+    if len(expr) == 4:
+        false_code = compile_form(expr[3], env) + [S('join')]
+    else:
+        false_code = [S('nil')]
     return cond_code + [S('sel')] + [true_code] + [false_code]
 
 
