@@ -3,6 +3,12 @@
 (eq? "foo" "foo")
 (eq? :foo :foo)
 
+(eq? #f '#f)
+(eq? #t '#t)
+(eq? 10 '10)
+(eq? "foo" '"foo")
+(eq? nil 'nil)
+
 (let ((x 100))
   (set! x 200)
   (eq? 200 x))
