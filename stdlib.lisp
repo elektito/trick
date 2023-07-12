@@ -124,7 +124,6 @@
 
 (defun bq-is-unquote-splicing (form)
   (cond ((atom? form) #f)
-        ((null? form) #f)
         ((eq? (car form) 'unquote-splicing) #t)
         (#t #f)))
 
