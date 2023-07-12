@@ -91,9 +91,13 @@ def main():
             print(f'    {msg}: ', end='')
             print_sexpr(expr)
 
-    if fails and errors:
+    if fails or errors:
         print()
-        print('Failed.')
+        success = len(test_exprs) - len(fails) - len(errors)
+        print(f'Failed: {len(fails)}  Error: {len(errors)}  Success: {success}')
+    else:
+        print()
+        print(f'{len(test_exprs)} test(s) finished successfully.')
 
 if __name__ == '__main__':
     main()
