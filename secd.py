@@ -488,12 +488,22 @@ class Secd:
 
     def run_car(self):
         l = self.s.pop()
+
+        # working like scheme here, where the car of nil is not defined
+        if not isinstance(l, list) or l == []:
+            raise RunError(f'Not a non-empty list to get "car" of: {l}')
+
         car = l[0]
         self.s.append(car)
         if self.debug: print(f'car => {car}')
 
     def run_cdr(self):
         l = self.s.pop()
+
+        # working like scheme here, where the cdr of nil is not defined
+        if not isinstance(l, list) or l == []:
+            raise RunError(f'Not a non-empty list to get "cdr" of: {l}')
+
         cdr = l[1:]
         self.s.append(cdr)
         if self.debug: print(f'cdr => {cdr}')
