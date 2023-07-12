@@ -225,6 +225,12 @@
               `(let ((,xcar ,(car forms)))
                  (if ,xcar ,xcar (or ,@(cdr forms))))))))
 
+(defmac let* (bindings & body)
+  (if (null? bindings)
+      `(begin ,@body)
+      `(let (,(car bindings))
+         (let* ,(cdr bindings) ,@body))))
+
 ;;;;;;;;;;;;;;;;
 
 (defun not (x)

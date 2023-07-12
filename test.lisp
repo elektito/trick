@@ -137,6 +137,10 @@
                     (+ (fib (- n 1)) (fib (- n 2)))))))
   (eq? 55 (fib 10)))
 
+(eq? 12 (let* ((x 10)
+               (y (+ x 2)))
+          y))
+
 (eq? 100 (car (cons 100 nil)))
 (eq? 'bar (cadr '(foo bar spam eggs)))
 
