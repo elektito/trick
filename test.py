@@ -15,6 +15,10 @@ def main():
         '--stop-on-failure', '-x', action='store_true', default=False,
         help='Stop on first failure.')
 
+    parser.add_argument(
+        '--verbose', '-v', action='store_true', default=False,
+        help='Run tests in verbose mode.')
+
     args = parser.parse_args()
 
     with open('stdlib.lisp') as f:
@@ -36,13 +40,20 @@ def main():
     errors = []
     fails = []
     for expr in test_exprs:
+        if args.verbose:
+            print('Running: ', end='')
+            print_sexpr(expr, end='')
+            print(' ', end='', flush=True)
         try:
             expr_asm = compile_form(expr, [])
         except CompileError as e:
             errors.append((expr, e))
             if args.stop_on_failure:
                 break
+            if args.verbose:
+                print()
             continue
+
         asm = lib_asm + expr_asm
         code = assemble(asm)
         machine = Secd(code)
@@ -56,7 +67,10 @@ def main():
             if err_msg is not None:
                 msg += f': {err_msg}'
             errors.append((expr, msg))
-            print('E', end='', flush=True)
+            if args.verbose:
+                print('Success')
+            else:
+                print('E', end='', flush=True)
             if args.stop_on_failure:
                 break
         except RunError as e:
@@ -67,9 +81,15 @@ def main():
         else:
             result = machine.s[-1]
             if result:
-                print('.', end='', flush=True)
+                if args.verbose:
+                    print('Success')
+                else:
+                    print('.', end='', flush=True)
             else:
-                print('F', end='', flush=True)
+                if args.verbose:
+                    print('Failed')
+                else:
+                    print('F', end='', flush=True)
                 fails.append(expr)
 
     print()
@@ -96,7 +116,6 @@ def main():
         success = len(test_exprs) - len(fails) - len(errors)
         print(f'Failed: {len(fails)}  Error: {len(errors)}  Success: {success}')
     else:
-        print()
         print(f'{len(test_exprs)} test(s) finished successfully.')
 
 if __name__ == '__main__':

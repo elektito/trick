@@ -145,6 +145,6 @@ def _print_sexpr(sexpr):
         print(str(sexpr), end='')
 
 
-def print_sexpr(sexpr):
+def print_sexpr(sexpr, end='\n', flush=False):
     _print_sexpr(sexpr)
-    print()
+    print(end, end='', flush=flush)
