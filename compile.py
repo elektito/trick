@@ -24,10 +24,9 @@ class CompileError(Exception):
 
 
 class Macro:
-    def __init__(self, name, params, body, env):
+    def __init__(self, name, lambda_form, env):
         self.name = name
-        self.params = params
-        self.body = body
+        self.lambda_form = lambda_form
         self.env = env
 
     def expand(self, args):
@@ -35,8 +34,7 @@ class Macro:
 
         quoted_args = [[S('quote'), a] for a in args]
 
-        func = [S('lambda'), self.params] + self.body
-        func_call = [func] + quoted_args
+        func_call = [self.lambda_form] + quoted_args
         try:
             func_call_code = compile_form(func_call, self.env)
         except CompileError as e:
@@ -87,18 +85,40 @@ def assoc(item, alist):
     return None
 
 
-def process_defmac(expr, env):
+def parse_define_form(expr, name):
+    if len(expr) < 2:
+        raise CompileError(f'Invalid number of arguments for {name}.')
+
+    if isinstance(expr[1], Symbol):
+        name = expr[1]
+        if len(expr) == 3:
+            value = expr[2]
+        elif len(expr) == 2:
+            # define with no value
+            value = [S('nil')]
+        else:
+            raise CompileError(f'Invalid number of arguments for {name}.')
+    elif isinstance(expr[1], list):
+        if len(expr) < 3:
+            raise CompileError(f'Invalid number of arguments for {name}.')
+        if len(expr[1]) < 1 or not all(isinstance(i, Symbol) for i in expr[1]):
+            raise CompileError(f'Malformed {name}.')
+
+        name = expr[1][0]
+        value = [S('lambda'), expr[1][1:]] + expr[2:]
+    else:
+        raise CompileError(f'Malformed {name}.')
+
+    return name, value
+
+
+def process_define_macro(expr, env):
+    name, lambda_form = parse_define_form(expr, 'define-macro')
     if len(expr) < 3:
-        raise CompileError('Not enough arguments for defmac')
+        raise CompileError('Not enough arguments for define-macro')
 
-    name = expr[1].name
-    params = expr[2]
-    body = expr[3:]
-
-    if not all(isinstance(p, Symbol) for p in params):
-        raise CompileError('Bad macro parameter name')
-
-    macros[name] = Macro(name, params, body, env)
+    name = name.name
+    macros[name] = Macro(name, lambda_form, env)
 
     return []
 
@@ -433,28 +453,7 @@ def compile_call_cc(expr, env):
 
 
 def compile_define(expr, env):
-    if len(expr) < 2:
-        raise CompileError(f'Invalid number of arguments for define.')
-
-    if isinstance(expr[1], Symbol):
-        name = expr[1]
-        if len(expr) == 3:
-            value = expr[2]
-        elif len(expr) == 2:
-            # define with no value
-            value = [S('nil')]
-        else:
-            raise CompileError(f'Invalid number of arguments for define.')
-    elif isinstance(expr[1], list):
-        if len(expr) < 3:
-            raise CompileError(f'Invalid number of arguments for define.')
-        if len(expr[1]) < 1 or not all(isinstance(i, Symbol) for i in expr[1]):
-            raise CompileError(f'Malformed define.')
-
-        name = expr[1][0]
-        value = [S('lambda'), expr[1][1:]] + expr[2:]
-    else:
-        raise CompileError(f'Malformed define.')
+    name, value = parse_define_form(expr, 'define')
 
     if env == []:
         if name in defined_symbols:
@@ -612,8 +611,8 @@ def compile_list(expr, env):
 
     if isinstance(expr[0], Symbol):
         name = expr[0].name
-        if name == S('defmac'):
-            raise CompileError('defmac only allowed at top-level')
+        if name == S('define-macro'):
+            raise CompileError('define-macro only allowed at top-level')
 
         primitives = {
             'define': compile_define,
@@ -695,8 +694,8 @@ def compile_toplevel(text):
 
         form = macro_expand(form)
 
-        if isinstance(form, list) and len(form) > 0 and form[0] == S('defmac'):
-            process_defmac(form, toplevel_env)
+        if isinstance(form, list) and len(form) > 0 and form[0] == S('define-macro'):
+            process_define_macro(form, toplevel_env)
             form_code = []
         elif isinstance(form, list) and len(form) > 0 and form[0] == S('define'):
             form_code = compile_form(form, toplevel_env)

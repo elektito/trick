@@ -27,10 +27,10 @@
       (cons (func (car args))
             (mapcar func (cdr args)))))
 
-(defmac begin (& body)
+(define-macro (begin & body)
   (list (concat (list 'lambda nil) body)))
 
-(defmac cond (& arms)
+(define-macro (cond & arms)
   (if (null? arms)
       nil
       (list 'if
@@ -161,7 +161,7 @@
         (#t
          (bq-process-list form level))))
 
-(defmac backquote (form)
+(define-macro (backquote form)
   (bq-simplify
    (bq-process form 1)))
 
@@ -198,25 +198,25 @@
 (define (negative? x) (< x 0))
 (define (positive? x) (> x 0))
 
-(defmac with-gensyms (names & body)
+(define-macro (with-gensyms names & body)
   `(let ,(mapcar (lambda (name) `(,name (gensym))) names)
      ,@body))
 
-(defmac and (& forms)
+(define-macro (and & forms)
   (cond ((null? forms) '#t)
         ((null? (cdr forms)) (car forms))
         (#t `(if ,(car forms)
                  (and ,@(cdr forms))
                  '#f))))
 
-(defmac or (& forms)
+(define-macro (or & forms)
   (cond ((null? forms) '#f)
         ((null? (cdr forms)) (car forms))
         (#t (with-gensyms (xcar)
               `(let ((,xcar ,(car forms)))
                  (if ,xcar ,xcar (or ,@(cdr forms))))))))
 
-(defmac let* (bindings & body)
+(define-macro (let* bindings & body)
   (if (null? bindings)
       `(begin ,@body)
       `(let (,(car bindings))
