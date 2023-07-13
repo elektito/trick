@@ -1,6 +1,46 @@
-(define (list & values) values)
+;; allow some primitives to be used like normal functions
+
+(define (cons x y) (cons x y))
+(define (car x) (car x))
+(define (cdr x) (cdr x))
+(define (iadd x y) (iadd x y))
+(define (isub x y) (isub x y))
+(define (imul x y) (imul x y))
+(define (idiv x y) (idiv x y))
+(define (shr x y) (shr x y))
+(define (shl x y) (shl x y))
+(define (asr x y) (asr x y))
+(define (b-not x) (b-not x))
+(define (b-and x y) (b-and x y))
+(define (b-or x y) (b-or x y))
+(define (b-xor x y) (b-xor x y))
+(define (< x y) (< x y))
+(define (<= x y) (<= x y))
+(define (print x) (print x))
+(define (printc c) (print c))
+(define (halt n) (halt n))
+(define (type x) (type x))
+(define (eq? x y) (eq? x y))
+(define (gensym ) (gensym))
+
+;; type predicates
 
 (define (null? x) (eq? 'null (type x)))
+
+(define (atom? v)
+  ;; everything besides cons (3) is an atom
+  (if (eq? (type v) 'list) #f #t))
+
+(define (symbol? v) (eq? (type v) 'symbol))
+(define (list? v) (eq? (type v) 'list))
+(define (int? v) (eq? (type v) 'int))
+(define (string? v) (eq? (type v) 'string))
+(define (closure? v) (eq? (type v) 'closure))
+(define (bool? v) (eq? (type v) 'bool))
+
+;; list utilities
+
+(define (list & values) values)
 
 (define (concat2 l1 l2)
   (if (null? l1)
@@ -16,32 +56,6 @@
 (define (concat & lists)
   (concat1 lists))
 
-(define (caar x) (car (car x)))
-(define (cdar x) (cdr (car x)))
-(define (cadr x) (car (cdr x)))
-(define (cddr x) (cdr (cdr x)))
-
-(define (mapcar func args)
-  (if (null? args)
-      '()
-      (cons (func (car args))
-            (mapcar func (cdr args)))))
-
-(define-macro (begin & body)
-  (list (concat (list 'lambda nil) body)))
-
-(define-macro (cond & arms)
-  (if (null? arms)
-      nil
-      (list 'if
-            (caar arms)
-            (cons 'begin (cdar arms))
-            (cons 'cond (cdr arms)))))
-
-(define (atom? v)
-  ;; everything besides cons (3) is an atom
-  (if (eq? (type v) 'list) #f #t))
-
 (define (last x)
   (if (null? x)
       nil
@@ -55,6 +69,32 @@
       (if (null? (cdr x))
           nil
           (cons (car x) (butlast (cdr x))))))
+
+(define (caar x) (car (car x)))
+(define (cadr x) (car (cdr x)))
+(define (cdar x) (cdr (car x)))
+(define (cddr x) (cdr (cdr x)))
+
+(define (mapcar func args)
+  (if (null? args)
+      '()
+      (cons (func (car args))
+            (mapcar func (cdr args)))))
+
+;; begin and cond
+
+(define-macro (begin & body)
+  (list (concat (list 'lambda nil) body)))
+
+(define-macro (cond & arms)
+  (if (null? arms)
+      nil
+      (list 'if
+            (caar arms)
+            (cons 'begin (cdar arms))
+            (cons 'cond (cdr arms)))))
+
+;; arithmetic
 
 (define (+ & r)
   (if (null? r)
@@ -165,38 +205,15 @@
   (bq-simplify
    (bq-process form 1)))
 
-;; allow some primitives to be used like normal functions
-
-(define (cons x y) (cons x y))
-(define (car x) (car x))
-(define (cdr x) (cdr x))
-(define (iadd x y) (iadd x y))
-(define (isub x y) (isub x y))
-(define (imul x y) (imul x y))
-(define (idiv x y) (idiv x y))
-(define (shr x y) (shr x y))
-(define (shl x y) (shl x y))
-(define (asr x y) (asr x y))
-(define (b-not x) (b-not x))
-(define (b-and x y) (b-and x y))
-(define (b-or x y) (b-or x y))
-(define (b-xor x y) (b-xor x y))
-(define (< x y) (< x y))
-(define (<= x y) (<= x y))
-(define (print x) (print x))
-(define (printc c) (print c))
-(define (halt n) (halt n))
-(define (type x) (type x))
-(define (eq? x y) (eq? x y))
-(define (gensym ) (gensym))
-
-;; everything else
+;; comparison
 
 (define (> x y) (not (<= x y)))
 (define (>= x y) (not (< x y)))
 (define (zero? x) (eq? x 0))
 (define (negative? x) (< x 0))
 (define (positive? x) (> x 0))
+
+;; more macros now that we have backquote!
 
 (define-macro (with-gensyms names & body)
   `(let ,(mapcar (lambda (name) `(,name (gensym))) names)
@@ -221,8 +238,6 @@
       `(begin ,@body)
       `(let (,(car bindings))
          (let* ,(cdr bindings) ,@body))))
-
-;;;;;;;;;;;;;;;;
 
 (define (not x)
   (if x #f #t))
@@ -250,6 +265,8 @@
 
 (define (map func & arg-lists)
   (map1 func arg-lists))
+
+;; generalized/recursive comparison
 
 ;; compare two lists recursively using eq?
 (define (list-eq? list1 list2)
