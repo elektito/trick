@@ -137,7 +137,7 @@ def compile_if(expr, env):
     if len(expr) == 4:
         false_code = compile_form(expr[3], env) + [S('join')]
     else:
-        false_code = [S('nil')]
+        false_code = [S('nil'), S('join')]
     return cond_code + [S('sel')] + [true_code] + [false_code]
 
 

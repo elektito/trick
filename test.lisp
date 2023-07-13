@@ -23,6 +23,10 @@
 (eq? 100 (if #t 100))
 (eq? nil (if #f 100))
 
+;; regression test: putting one-armed if in a lambda just to make sure the
+;; "join" instruction is correctly generated for the implied "false" branch.
+(eq? nil ((lambda () (if #f 100))))
+
 (eq? 0 (+))
 (eq? 2 (+ 2))
 (eq? 100 (+ 30 70))
