@@ -30,6 +30,20 @@ class Closure:
             return f'<Closure c={self.c} e={self.e}>'
 
 
+class Continuation(Closure):
+    def __init__(self, s, e, c, d):
+        self.s = [i for i in s] # shallow copy
+        self.e = e
+        self.c = c
+        self.d = [i for i in d] # shallow copy
+
+    def has_rest_arg(self):
+        return False
+
+    def __repr__(self):
+        return f'<Continuation s={self.s} e={self.e} c={self.c} d={self.d}>'
+
+
 class Secd:
     def __init__(self, code):
         self.code = code
@@ -84,6 +98,7 @@ class Secd:
             0x22: self.run_type,
             0x23: self.run_error,
             0x24: self.run_gensym,
+            0x25: self.run_ccc,
             0x40: self.run_ldc,
             0x41: self.run_ld,
             0x42: self.run_sel,
@@ -242,7 +257,18 @@ class Secd:
                 raise RunError(f'Invalid number of function arguments')
             rest = args[closure.nargs:]
             args = args[:closure.nargs] + [rest]
-        self.s, self.e, self.c = [], [args] + closure.e, closure.c
+
+        if isinstance(closure, Continuation):
+            if len(args) != 1:
+                raise RunError(
+                    'Continuation should be passed one, and only one, '
+                    'argument.')
+            self.s = closure.s + [args[0]]
+            self.e = closure.e
+            self.c = closure.c
+            self.d = closure.d
+        else:
+            self.s, self.e, self.c = [], [args] + closure.e, closure.c
 
     def run_ret(self):
         retval = self.s.pop()
@@ -432,7 +458,18 @@ class Secd:
                 raise RunError(f'Invalid number of function arguments')
             rest = args[closure.nargs:]
             args = args[:closure.nargs] + [rest]
-        self.s, self.e, self.c = [], [args] + closure.e, closure.c
+
+        if isinstance(closure, Continuation):
+            if len(args) != 1:
+                raise RunError(
+                    'Continuation should be passed one, and only one, '
+                    'argument.')
+            self.s = closure.s + [args[0]]
+            self.e = closure.e
+            self.c = closure.c
+            self.d = closure.d
+        else:
+            self.s, self.e, self.c = [], [args] + closure.e, closure.c
 
     def run_drop(self):
         value = self.s.pop()
@@ -582,6 +619,19 @@ class Secd:
         self.next_gensym_number += 1
         self.s.append(sym)
         if self.debug: print(f'gensym {sym}')
+
+    def run_ccc(self): # call/cc
+        closure = self.s.pop()
+        if not isinstance(closure, Closure):
+            raise RunError(f'ccc with non-function value: {closure}')
+
+        self.d.append((self.s, self.e, self.c))
+
+        cont = Continuation(self.s, self.e, self.c, self.d)
+        args = [cont]
+
+        self.s, self.e, self.c = [], [args] + closure.e, closure.c
+        if self.debug: print(f'ccc cont={cont} closure={closure}')
 
 
 def main():

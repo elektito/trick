@@ -422,6 +422,16 @@ def compile_apply(expr, env):
     return secd_code
 
 
+def compile_call_cc(expr, env):
+    if len(expr) != 2:
+        raise CompileError(f'Invalid number of arguments for call/cc')
+
+    secd_code = compile_form(expr[1], env)
+    secd_code += [S('ccc')]
+
+    return secd_code
+
+
 def compile_define(expr, env):
     if len(expr) != 3:
         raise CompileError(f'Invalid number of arguments for define.')
@@ -623,6 +633,7 @@ def compile_list(expr, env):
             'error': compile_error,
             'gensym': compile_gensym,
             'apply': compile_apply,
+            'call/cc': compile_call_cc,
         }
         compile_func = primitives.get(name)
         if compile_func is not None:

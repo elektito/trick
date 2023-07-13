@@ -263,3 +263,20 @@
    '`(list ,(car '(3 6)) 4))
 (= `(a `(b ,(foo ,(car '(3 6))) c) d)
    '(a `(b ,(foo 3) c) d))
+
+;; call/cc tests
+;;
+;; some tests adapted from chibi scheme test suite. see:
+;; https://github.com/ashinn/chibi-scheme/blob/master/tests/r5rs-tests.scm
+;; https://github.com/ashinn/chibi-scheme/blob/master/tests/r7rs-tests.scm
+
+(eq? (call/cc type) 'closure)
+(eq? 30 (+ 10 (call/cc (lambda (k) (k 20)))))
+(eq? 3 (call/cc (lambda (k) (+ 2 5 (k 3)))))
+(eq? -3 (call/cc
+         (lambda (exit)
+           (map (lambda (x)
+                  (if (negative? x)
+                      (exit x)))
+                '(54 0 37 -3 245 19))
+           #t)))
