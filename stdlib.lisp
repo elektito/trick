@@ -206,6 +206,8 @@
 (defun > (x y) (not (<= x y)))
 (defun >= (x y) (not (< x y)))
 (defun zero? (x) (eq? x 0))
+(defun negative? (x) (< x 0))
+(defun positive? (x) (> x 0))
 
 (defmac with-gensyms (names & body)
   `(let ,(mapcar (lambda (name) `(,name (gensym))) names)

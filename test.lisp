@@ -118,6 +118,14 @@
 (not (zero? 1))
 (not (zero? -1))
 
+(negative? -1)
+(not (negative? 0))
+(not (negative? 1))
+
+(positive? 1)
+(not (positive? 0))
+(not (positive? -1))
+
 (eq? 10 ((lambda (x y) x) 10 20))
 (eq? 20 ((lambda (x y) y) 10 20))
 
