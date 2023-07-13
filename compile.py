@@ -433,13 +433,28 @@ def compile_call_cc(expr, env):
 
 
 def compile_define(expr, env):
-    if len(expr) != 3:
+    if len(expr) < 2:
         raise CompileError(f'Invalid number of arguments for define.')
 
-    if not isinstance(expr[1], Symbol):
-        raise CompileError(f'Variable name not a symbol.')
+    if isinstance(expr[1], Symbol):
+        name = expr[1]
+        if len(expr) == 3:
+            value = expr[2]
+        elif len(expr) == 2:
+            # define with no value
+            value = [S('nil')]
+        else:
+            raise CompileError(f'Invalid number of arguments for define.')
+    elif isinstance(expr[1], list):
+        if len(expr) < 3:
+            raise CompileError(f'Invalid number of arguments for define.')
+        if len(expr[1]) < 1 or not all(isinstance(i, Symbol) for i in expr[1]):
+            raise CompileError(f'Malformed define.')
 
-    name, value = expr[1:]
+        name = expr[1][0]
+        value = [S('lambda'), expr[1][1:]] + expr[2:]
+    else:
+        raise CompileError(f'Malformed define.')
 
     if env == []:
         if name in defined_symbols:
