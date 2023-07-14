@@ -16,6 +16,7 @@ normal schemes in (at least) the following ways:
  - Some tail calls are eliminated, but not all of them.
  - `define` and `set!` have a return value (the same value being written to the
    variable).
+ - Returning multiple values is not supported
  - Many utilities are missing.
  - Libraries not supported.
 
