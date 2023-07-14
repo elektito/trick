@@ -18,6 +18,10 @@
   (define (foo x) (+ 900 x))
   (eq? 1000 (foo 100)))
 
+(let ()
+  (define foo)
+  (eq? foo '()))
+
 (eq? 100 (if #t 100 200))
 (eq? 200 (if #f 100 200))
 (eq? 100 (if 0 100 200))

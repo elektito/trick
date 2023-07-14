@@ -95,7 +95,7 @@ def parse_define_form(expr, name):
             value = expr[2]
         elif len(expr) == 2:
             # define with no value
-            value = [S('nil')]
+            value = []
         else:
             raise CompileError(f'Invalid number of arguments for {name}.')
     elif isinstance(expr[1], list):
