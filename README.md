@@ -12,7 +12,6 @@ normal schemes in (at least) the following ways:
    less the same as Python integers).
  - Keyword symbols are supported (that is, symbols beginning with a colon
    evaluate to themselves).
- - The symbol `nil` evaluates to an empty list.
  - Some tail calls are eliminated, but not all of them.
  - `define` and `set!` have a return value (the same value being written to the
    variable).
@@ -51,7 +50,7 @@ Special forms:
  - `define-macro`: Only allowed at the top-level. Defines a non-hygienic macro.
  - `set!`: Set a symbol or local variable to the given value.
  - `if`: Conditional statement. Can have one or two arms. If only one arm is
-   specified, the other one (the false branch) returns nil.
+   specified, the other one (the false branch) returns `()`.
  - `lambda`: Creates a closure.
  - `let`: Create a set of local variables.
  - `letrec`: Like `let` but the variables are available inside the bindings too
@@ -88,7 +87,7 @@ Primitive functions:
  - `car`: Return the first element of a list
  - `cdr`: Return the list without the first element
  - `type`: Return a symbol specifying the type of its argument. Possible return
-   values are: `null`, `symbol`, `list`, `int`, `string`, `closure`, `bool`.
+   values are: `nil`, `symbol`, `list`, `int`, `string`, `closure`, `bool`.
  - `eq?`: Return true if the two values are the exact same object.
  - `gensym`: Return a unique symbol
 

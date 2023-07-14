@@ -330,9 +330,7 @@ def compile_lambda(expr, env):
 
 
 def compile_symbol(sym: Symbol, env):
-    if sym.name == 'nil':
-        return [S('nil')]
-    elif sym.name.startswith(':'):
+    if sym.name.startswith(':'):
         return [S('ldsym'), sym]
 
     for i, frame in enumerate(env):
@@ -536,10 +534,7 @@ def compile_quoted_form(form, env):
             rest = compile_quoted_form(form[1:], env)
             return rest + first + [S('cons')]
     elif isinstance(form, Symbol):
-        if form.name == 'nil':
-            return [S('nil')]
-        else:
-            return [S('ldsym'), form]
+        return [S('ldsym'), form]
     else:
         # other atoms evaluate to themselves, quoted or not
         return compile_form(form, env)

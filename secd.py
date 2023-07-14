@@ -548,7 +548,7 @@ class Secd:
     def run_type(self):
         v = self.s.pop()
         if v == []:
-            result = self.intern('null')
+            result = self.intern('nil')
         elif isinstance(v, Symbol):
             result = self.intern('symbol')
         elif isinstance(v, list):

@@ -7,7 +7,8 @@
 (eq? #t '#t)
 (eq? 10 '10)
 (eq? "foo" '"foo")
-(eq? nil 'nil)
+(eq? '() '())
+(not (eq? '() 'nil))
 
 (let ((x 100))
   (set! x 200)
@@ -25,11 +26,11 @@
 (eq? 100 (if "foo" 100 200))
 (eq? 100 (if (lambda (x) x) 100 200))
 (eq? 100 (if #t 100))
-(eq? nil (if #f 100))
+(eq? '() (if #f 100))
 
 ;; regression test: putting one-armed if in a lambda just to make sure the
 ;; "join" instruction is correctly generated for the implied "false" branch.
-(eq? nil ((lambda () (if #f 100))))
+(eq? '() ((lambda () (if #f 100))))
 
 (eq? 0 (+))
 (eq? 2 (+ 2))
@@ -94,7 +95,8 @@
 
 (eq? #f (not #t))
 (eq? #t (not #f))
-(eq? #f (not nil))
+(eq? #f (not '()))
+(eq? #f (not 'nil))
 (eq? #f (not 1))
 (eq? #f (not 0))
 
@@ -173,10 +175,10 @@
                (y (+ x 2)))
           y))
 
-(eq? 100 (car (cons 100 nil)))
+(eq? 100 (car (cons 100 '())))
 (eq? 'bar (cadr '(foo bar spam eggs)))
 
-(eq? 'null (type nil))
+(eq? 'nil (type '()))
 (eq? 'symbol (type :foo))
 (eq? 'list (type '(1 2)))
 (eq? 'int (type 42))

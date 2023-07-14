@@ -25,7 +25,7 @@
 
 ;; type predicates
 
-(define (null? x) (eq? 'null (type x)))
+(define (null? x) (eq? 'nil (type x)))
 
 (define (atom? v)
   ;; everything besides cons (3) is an atom
@@ -49,7 +49,7 @@
 
 (define (concat1 lists)
   (if (null? lists)
-      nil
+      '()
       (concat2 (car lists)
                (concat1 (cdr lists)))))
 
@@ -58,16 +58,16 @@
 
 (define (last x)
   (if (null? x)
-      nil
+      '()
       (if (null? (cdr x))
           (car x)
           (last (cdr x)))))
 
 (define (butlast x)
   (if (null? x)
-      nil
+      '()
       (if (null? (cdr x))
-          nil
+          '()
           (cons (car x) (butlast (cdr x))))))
 
 (define (caar x) (car (car x)))
@@ -84,11 +84,11 @@
 ;; begin and cond
 
 (define-macro (begin & body)
-  (list (concat (list 'lambda nil) body)))
+  (list (concat (list 'lambda '()) body)))
 
 (define-macro (cond & arms)
   (if (null? arms)
-      nil
+      '()
       (list 'if
             (caar arms)
             (cons 'begin (cdar arms))
@@ -259,7 +259,7 @@
 (define (map1 func arg-lists)
   (if (or (null? arg-lists)
           (any? (mapcar null? arg-lists)))
-      nil
+      '()
       (cons (apply func (mapcar car arg-lists))
             (map1 func (mapcar cdr arg-lists)))))
 

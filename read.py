@@ -119,9 +119,7 @@ def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list | Bool | String
 
 
 def _print_sexpr(sexpr):
-    if sexpr == []:
-            print('nil', end='')
-    elif isinstance(sexpr, list):
+    if isinstance(sexpr, list):
         if len(sexpr) == 2 and isinstance(sexpr[0], Symbol) and sexpr[0].name == 'quote':
             print("'", end='')
             _print_sexpr(sexpr[1])
