@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from machinetypes import Nil, Pair, String, Symbol, Bool
+from machinetypes import List, Nil, Pair, String, Symbol, Bool
 
 
 class ParseError(Exception):
@@ -37,7 +37,7 @@ def _read_token(s, i):
     return tok, i
 
 
-def _read_list(s: str, i: int) -> tuple[Pair | Nil, int]:
+def _read_list(s: str, i: int) -> tuple[List, int]:
     assert s[i] == '('
 
     i += 1
@@ -50,7 +50,7 @@ def _read_list(s: str, i: int) -> tuple[Pair | Nil, int]:
             raise ParseError('List not closed')
         if s[i] == ')':
             i += 1
-            ls = Pair.from_list(items)
+            ls = List.from_list(items)
             if item_after_dot is not None:
                 ls.last().cdr = item_after_dot
             elif read_dot:
@@ -96,7 +96,7 @@ def _read_string(s: str, i: int):
     raise ParseError('String not closed')
 
 
-def _read(s: str, i: int = 0) -> tuple[None | int | Symbol | Nil | Pair | Bool | String, int]:
+def _read(s: str, i: int = 0) -> tuple[None | int | Symbol | List | Bool | String, int]:
     if i >= len(s):
         return None, len(s)
 
@@ -112,16 +112,16 @@ def _read(s: str, i: int = 0) -> tuple[None | int | Symbol | Nil | Pair | Bool |
         return _read_string(s, i)
     elif s[i] == "'":
         quoted, i = read(s, i + 1)
-        return Pair.from_list([Symbol('quote'), quoted]), i
+        return List.from_list([Symbol('quote'), quoted]), i
     elif s[i] == '`':
         quoted, i = read(s, i + 1)
-        return Pair.from_list([Symbol('backquote'), quoted]), i
+        return List.from_list([Symbol('backquote'), quoted]), i
     elif s[i] == ',' and i < len(s) - 1 and s[i+1] == '@':
         unquoted, i = read(s, i + 2)
-        return Pair.from_list([Symbol('unquote-splicing'), unquoted]), i
+        return List.from_list([Symbol('unquote-splicing'), unquoted]), i
     elif s[i] == ',':
         unquoted, i = read(s, i + 1)
-        return Pair.from_list([Symbol('unquote'), unquoted]), i
+        return List.from_list([Symbol('unquote'), unquoted]), i
     elif i < len(s) - 1 and s[i:i+2] == '#f':
         return Bool(False), i + 2
     elif i < len(s) - 1 and s[i:i+2] == '#t':
@@ -138,7 +138,7 @@ def _read(s: str, i: int = 0) -> tuple[None | int | Symbol | Nil | Pair | Bool |
             return Symbol(tok), i
 
 
-def read(s: str, i: int = 0) -> tuple[None | int | Symbol | Nil | Pair | Bool | String, int]:
+def read(s: str, i: int = 0) -> tuple[None | int | Symbol | List | Bool | String, int]:
     v, i = _read(s, i)
     if v == Symbol('.'):
         raise ParseError('Unexpected dot (.)')

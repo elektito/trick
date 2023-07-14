@@ -4,7 +4,7 @@ import sys
 import argparse
 from utils import assoc
 from machinetypes import (
-    Bool, Nil, Pair, String, Symbol, Closure, Continuation,
+    Bool, List, Nil, Pair, String, Symbol, Closure, Continuation,
 )
 
 
@@ -110,10 +110,10 @@ class Secd:
         if self.debug: print('nil')
 
     def run_cons(self):
-        value = self.s.pop()
-        pair = self.s.pop()
-        self.s.append(Pair(value, pair))
-        if self.debug: print(f'cons {value} onto {pair}')
+        car = self.s.pop()
+        cdr = self.s.pop()
+        self.s.append(Pair(car, cdr))
+        if self.debug: print(f'cons {car} onto {cdr}')
 
     def run_ldc(self):
         value = self.code[self.c:self.c+4]
@@ -219,7 +219,7 @@ class Secd:
 
         if not isinstance(closure, Closure):
             raise RunError(f'Cannot call non-function value: {closure}')
-        if not isinstance(args, (Pair, Nil)):
+        if not isinstance(args, List):
             raise RunError(f'Invalid argument list: {args}')
         if not args.is_proper():
             raise RunError(f'Argument list not proper: {args}')
@@ -230,9 +230,9 @@ class Secd:
             if len(args) < closure.nparams:
                 raise RunError(f'Invalid number of function arguments')
             args = args.to_list()
-            rest = Pair.from_list(args[closure.nparams:])
+            rest = List.from_list(args[closure.nparams:])
             args = args[:closure.nparams] + [rest]
-            args = Pair.from_list(args)
+            args = List.from_list(args)
 
         args = args.to_list()
 
@@ -401,7 +401,7 @@ class Secd:
 
         if not isinstance(closure, Closure):
             raise RunError(f'Cannot call non-function value: {closure}')
-        if not isinstance(args, (Pair, Nil)):
+        if not isinstance(args, List):
             raise RunError(f'Invalid argument list: {args}')
         if not args.is_proper():
             raise RunError(f'Argument list not proper: {args}')
@@ -429,7 +429,7 @@ class Secd:
 
         if not isinstance(closure, Closure):
             raise RunError(f'Cannot call non-function value: {closure}')
-        if not isinstance(args, (Pair, Nil)):
+        if not isinstance(args, List):
             raise RunError(f'Invalid argument list: {args}')
         if not args.is_proper():
             raise RunError(f'Argument list not proper: {args}')
@@ -439,9 +439,9 @@ class Secd:
             if len(args) < closure.nparams:
                 raise RunError(f'Invalid number of function arguments')
             args = args.to_list()
-            rest = Pair.from_list(args[closure.nparams:])
+            rest = List.from_list(args[closure.nparams:])
             args = args[:closure.nparams] + [rest]
-            args = Pair.from_list(args)
+            args = List.from_list(args)
 
         args = args.to_list()
 

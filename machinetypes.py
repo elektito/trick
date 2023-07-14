@@ -127,7 +127,23 @@ class Continuation(Closure):
         return f'<Continuation s={self.s} e={self.e} c={self.c} d={self.d}>'
 
 
-class Nil:
+class List:
+    @staticmethod
+    def from_list(ls):
+        if ls == []:
+            return Nil()
+        else:
+            return Pair.from_list(ls)
+
+    @staticmethod
+    def from_list_recursive(ls):
+        if ls == []:
+            return Nil()
+        else:
+            return Pair.from_list_recursive(ls)
+
+
+class Nil(List):
     _instance = None
 
     def __new__(klass, *args, **kwargs):
@@ -157,7 +173,7 @@ class Nil:
         return []
 
 
-class Pair:
+class Pair(List):
     class Iterator:
         def __init__(self, start):
             self.cur = start
@@ -171,9 +187,9 @@ class Pair:
             return value
 
     def __init__(self, car, cdr):
-        if not isinstance(car, (int, Bool, String, Pair, Nil, Symbol, Closure)):
+        if not isinstance(car, (int, Bool, String, List, Symbol, Closure)):
             raise TypeError(f'Invalid value type for car: {car}')
-        if not isinstance(cdr, (int, Bool, String, Pair, Nil, Symbol, Closure)):
+        if not isinstance(cdr, (int, Bool, String, List, Symbol, Closure)):
             raise TypeError(f'Invalid value type for cdr: {cdr}')
 
         self.car = car
@@ -230,7 +246,7 @@ class Pair:
 
         cur = self
         while True:
-            if not isinstance(cur, (Nil, Pair)):
+            if not isinstance(cur, List):
                 raise ValueError('Cannot index into an improper list')
             if index == 0:
                 return cur.car

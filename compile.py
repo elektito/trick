@@ -3,7 +3,7 @@
 import sys
 import argparse
 from read import read, ParseError
-from machinetypes import Bool, Nil, Pair, Symbol, String
+from machinetypes import Bool, List, Nil, Pair, Symbol, String
 from assemble import assemble
 from secd import RunError, Secd, UserError
 from utils import assoc
@@ -34,10 +34,10 @@ class Macro:
         global toplevel_code
 
         quoted_args = [
-            Pair.from_list([S('quote'), a])
+            List.from_list([S('quote'), a])
             for a in args
         ]
-        quoted_args = Pair.from_list(quoted_args)
+        quoted_args = List.from_list(quoted_args)
 
         func_call = Pair(self.lambda_form, quoted_args)
         try:
@@ -368,11 +368,7 @@ def compile_bool(s: Bool, env):
 
 
 def check_let_bindings(bindings, let_name):
-    if isinstance(bindings, Nil):
-        # empty bindings list is allowed
-        return
-
-    if not isinstance(bindings, Pair):
+    if not isinstance(bindings, List):
         raise CompileError(f'Invalid bindings list for {let_name}: {bindings}')
 
     if not bindings.is_proper():
@@ -392,8 +388,8 @@ def compile_let(expr, env):
 
     # let: (let . (bindings . body))
     # bindings: (( a . (value1 . nil) (b . (value2 . nil))))
-    vars = Pair.from_list([b.car for b in bindings])
-    values = Pair.from_list([b.cdar() for b in bindings])
+    vars = List.from_list([b.car for b in bindings])
+    values = List.from_list([b.cdar() for b in bindings])
     body = expr.cddr()
 
     for v in vars:
@@ -415,8 +411,8 @@ def compile_letrec(expr, env):
     check_let_bindings(expr[1], 'letrec')
 
     # bindings (( a . (value1 . nil) (b . (value2 . nil))))
-    vars = Pair.from_list([b.car for b in bindings])
-    values = Pair.from_list([b.cdar() for b in bindings])
+    vars = List.from_list([b.car for b in bindings])
+    values = List.from_list([b.cdar() for b in bindings])
     body = expr.cddr()
 
     for v in vars:
@@ -693,7 +689,7 @@ def compile_list(expr, env):
 def compile_form(expr, env):
     expr = macro_expand(expr)
 
-    if isinstance(expr, (Nil, Pair)):
+    if isinstance(expr, List):
         secd_code = compile_list(expr, env)
     elif isinstance(expr, int):
         secd_code = compile_int(expr, env)
@@ -845,7 +841,7 @@ def main():
         print(f'Compile error: {e}', file=sys.stderr)
         sys.exit(1)
 
-    secd_code = Pair.from_list_recursive(secd_code)
+    secd_code = List.from_list_recursive(secd_code)
 
     print(secd_code)
 
