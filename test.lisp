@@ -169,6 +169,9 @@
                          (is-even? (isub n 1))))))
     (is-odd? 11))
 
+(letrec ()
+  #t)
+
 (letrec ((fib (lambda (n)
                 (if (< n 2)
                     n
