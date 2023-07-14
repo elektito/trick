@@ -2,8 +2,10 @@
 
 import sys
 import argparse
-from machinetypes import Bool, String, Symbol
-from read import print_sexpr
+from utils import assoc
+from machinetypes import (
+    Bool, Nil, Pair, String, Symbol, Closure, Continuation,
+)
 
 
 class RunError(Exception):
@@ -12,36 +14,6 @@ class RunError(Exception):
 
 class UserError(RunError):
     pass
-
-
-class Closure:
-    def __init__(self, c, e, nargs=None):
-        self.c = c
-        self.e = e
-        self.nargs = nargs
-
-    def has_rest_arg(self):
-        return self.nargs is not None
-
-    def __repr__(self):
-        if self.has_rest_arg():
-            return f'<Closure nargs={self.nargs} c={self.c} e={self.e}>'
-        else:
-            return f'<Closure c={self.c} e={self.e}>'
-
-
-class Continuation(Closure):
-    def __init__(self, s, e, c, d):
-        self.s = [i for i in s] # shallow copy
-        self.e = e
-        self.c = c
-        self.d = [i for i in d] # shallow copy
-
-    def has_rest_arg(self):
-        return False
-
-    def __repr__(self):
-        return f'<Continuation s={self.s} e={self.e} c={self.c} d={self.d}>'
 
 
 class Secd:
@@ -134,14 +106,14 @@ class Secd:
         return sym
 
     def run_nil(self):
-        self.s.append([])
+        self.s.append(Nil())
         if self.debug: print('nil')
 
     def run_cons(self):
-        v = self.s.pop()
-        l = self.s.pop()
-        self.s.append([v] + l)
-        if self.debug: print(f'cons {v} onto {l}')
+        value = self.s.pop()
+        pair = self.s.pop()
+        self.s.append(Pair(value, pair))
+        if self.debug: print(f'cons {value} onto {pair}')
 
     def run_ldc(self):
         value = self.code[self.c:self.c+4]
@@ -181,7 +153,7 @@ class Secd:
             raise RunError(f'Invalid frame number: {frame_idx} (nframes: {len(self.e)})')
         frame = self.e[frame_idx]
         if frame == self.dummy_frame:
-            raise RunError('Accessing dummy frame')
+            raise RunError('Accessing dummy frame (possible cause: values in letrec bindings reading variables while being evaluated)')
         else:
             if index >= len(frame):
                 raise RunError(f'Invalid variable index: {index} (frame size: {len(frame)})')
@@ -247,16 +219,22 @@ class Secd:
 
         if not isinstance(closure, Closure):
             raise RunError(f'Cannot call non-function value: {closure}')
-        if not isinstance(args, list):
+        if not isinstance(args, (Pair, Nil)):
             raise RunError(f'Invalid argument list: {args}')
+        if not args.is_proper():
+            raise RunError(f'Argument list not proper: {args}')
 
         self.d.append((self.s, self.e, self.c))
         if self.debug: print(f'ap {self.c} => {closure.c}')
-        if closure.has_rest_arg():
-            if len(args) < closure.nargs:
+        if closure.has_rest_param():
+            if len(args) < closure.nparams:
                 raise RunError(f'Invalid number of function arguments')
-            rest = args[closure.nargs:]
-            args = args[:closure.nargs] + [rest]
+            args = args.to_list()
+            rest = Pair.from_list(args[closure.nparams:])
+            args = args[:closure.nparams] + [rest]
+            args = Pair.from_list(args)
+
+        args = args.to_list()
 
         if isinstance(closure, Continuation):
             if len(args) != 1:
@@ -423,13 +401,15 @@ class Secd:
 
         if not isinstance(closure, Closure):
             raise RunError(f'Cannot call non-function value: {closure}')
-        if not isinstance(args, list):
+        if not isinstance(args, (Pair, Nil)):
             raise RunError(f'Invalid argument list: {args}')
+        if not args.is_proper():
+            raise RunError(f'Argument list not proper: {args}')
 
         if closure.e[0] != self.dummy_frame:
             raise RunError('No dummy frame.')
 
-        if closure.has_rest_arg():
+        if closure.has_rest_param():
             raise RunError('rap does not support rest arguments')
 
         # note that we don't store e[0] on d, since it contains the dummy frame.
@@ -449,15 +429,21 @@ class Secd:
 
         if not isinstance(closure, Closure):
             raise RunError(f'Cannot call non-function value: {closure}')
-        if not isinstance(args, list):
+        if not isinstance(args, (Pair, Nil)):
             raise RunError(f'Invalid argument list: {args}')
+        if not args.is_proper():
+            raise RunError(f'Argument list not proper: {args}')
 
         if self.debug: print(f'tap {self.c} => {closure.c}')
-        if closure.has_rest_arg():
-            if len(args) < closure.nargs:
+        if closure.has_rest_param():
+            if len(args) < closure.nparams:
                 raise RunError(f'Invalid number of function arguments')
-            rest = args[closure.nargs:]
-            args = args[:closure.nargs] + [rest]
+            args = args.to_list()
+            rest = Pair.from_list(args[closure.nparams:])
+            args = args[:closure.nparams] + [rest]
+            args = Pair.from_list(args)
+
+        args = args.to_list()
 
         if isinstance(closure, Continuation):
             if len(args) != 1:
@@ -524,35 +510,33 @@ class Secd:
         if self.debug: print(f'symtab {nsyms}')
 
     def run_car(self):
-        l = self.s.pop()
+        pair = self.s.pop()
 
-        # working like scheme here, where the car of nil is not defined
-        if not isinstance(l, list) or l == []:
-            raise RunError(f'Not a non-empty list to get "car" of: {l}')
+        if not isinstance(pair, Pair):
+            raise RunError(f'Not a pair to get car of: {pair}')
 
-        car = l[0]
+        car = pair.car
         self.s.append(car)
         if self.debug: print(f'car => {car}')
 
     def run_cdr(self):
-        l = self.s.pop()
+        pair = self.s.pop()
 
-        # working like scheme here, where the cdr of nil is not defined
-        if not isinstance(l, list) or l == []:
-            raise RunError(f'Not a non-empty list to get "cdr" of: {l}')
+        if not isinstance(pair, Pair):
+            raise RunError(f'Not a pair to get cdr of: {pair}')
 
-        cdr = l[1:]
+        cdr = pair.cdr
         self.s.append(cdr)
         if self.debug: print(f'cdr => {cdr}')
 
     def run_type(self):
         v = self.s.pop()
-        if v == []:
+        if v == Nil():
             result = self.intern('nil')
         elif isinstance(v, Symbol):
             result = self.intern('symbol')
-        elif isinstance(v, list):
-            result = self.intern('list')
+        elif isinstance(v, Pair):
+            result = self.intern('pair')
         elif isinstance(v, int):
             result = self.intern('int')
         elif isinstance(v, String):
@@ -571,11 +555,10 @@ class Secd:
         y = self.s.pop()
         if isinstance(x, int) or isinstance(y, int):
             result = (x == y)
-        elif isinstance(x, list) or isinstance(y, list):
-            if x == [] and y == []:
-                result = True
-            else:
-                result = (id(x) == id(y))
+        elif isinstance(x, Nil) or isinstance(y, Nil):
+            result = (x == y)
+        elif isinstance(x, Pair) or isinstance(y, Pair):
+            result = (id(x) == id(y))
         else:
             result = (x.id() == y.id())
         result = Bool(result)
@@ -659,9 +642,17 @@ def main():
     m.debug = args.debug
     try:
         m.run()
-    except RunError as e:
-        print(f'Run error: {e}', file=sys.stderr)
+    except UserError:
+        err = m.s[-1]
+        err_type = assoc(Symbol(':type'), err)
+        msg = f'User error of type {err_type}'
+        err_msg = assoc(Symbol(':msg'), err)
+        if err_msg is not None:
+            msg += f': {err_msg}'
+        print(f'Run error: {msg}', file=sys.stderr)
         sys.exit(1)
+    except RunError as e:
+        print('Run error:', e)
 
     if m.halt_code is None:
         print('Code exhausted.', file=sys.stderr)
@@ -676,12 +667,14 @@ def print_value(v):
         print(v)
     elif isinstance(v, Bool):
         print('#t' if v else '#f')
-    elif isinstance(v, list):
-        print_sexpr(v)
+    elif isinstance(v, Pair):
+        print(v)
     elif isinstance(v, Closure):
         print(v)
     elif isinstance(v, String):
         print(v.value)
+    elif isinstance(v, Nil):
+        print(v)
     else:
         raise RunError(f'Unknown type to print: {v}')
 

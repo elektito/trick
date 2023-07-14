@@ -29,18 +29,36 @@
 
 (define (atom? v)
   ;; everything besides cons (3) is an atom
-  (if (eq? (type v) 'list) #f #t))
+  (if (eq? (type v) 'pair) #f #t))
 
 (define (symbol? v) (eq? (type v) 'symbol))
-(define (list? v) (eq? (type v) 'list))
+(define (pair? v) (eq? (type v) 'pair))
 (define (int? v) (eq? (type v) 'int))
 (define (string? v) (eq? (type v) 'string))
 (define (closure? v) (eq? (type v) 'closure))
 (define (bool? v) (eq? (type v) 'bool))
+(define (list? v)
+  (let ((t (type v)))
+    (if (eq? t 'pair)
+        #t
+        (eq? t 'nil))))
+
+;; boolean
+
+(define (not x)
+  (if x #f #t))
+
+;; comparison
+
+(define (> x y) (not (<= x y)))
+(define (>= x y) (not (< x y)))
+(define (zero? x) (eq? x 0))
+(define (negative? x) (< x 0))
+(define (positive? x) (> x 0))
 
 ;; list utilities
 
-(define (list & values) values)
+(define (list . values) values)
 
 (define (concat2 l1 l2)
   (if (null? l1)
@@ -53,7 +71,7 @@
       (concat2 (car lists)
                (concat1 (cdr lists)))))
 
-(define (concat & lists)
+(define (concat . lists)
   (concat1 lists))
 
 (define (last x)
@@ -83,12 +101,12 @@
 
 ;; begin and cond
 
-(define-macro (begin & body)
+(define-macro (begin . body)
   (list (concat (list 'lambda '()) body)))
 
-(define-macro (cond & arms)
+(define-macro (cond . arms)
   (if (null? arms)
-      '()
+      '(quote ())
       (list 'if
             (caar arms)
             (cons 'begin (cdar arms))
@@ -96,12 +114,12 @@
 
 ;; arithmetic
 
-(define (+ & r)
+(define (+ . r)
   (if (null? r)
       0
       (iadd (car r) (apply + (cdr r)))))
 
-(define (- & r)
+(define (- . r)
   (if (null? r)
       (error :arg-error :msg "Invalid number of arguments for -")
       (if (null? (cdr r))
@@ -110,12 +128,12 @@
               (isub (car r) (cadr r))
               (isub (apply - (butlast r)) (last r))))))
 
-(define (* & r)
+(define (* . r)
   (if (null? r)
       1
       (imul (car r) (apply * (cdr r)))))
 
-(define (/ & r)
+(define (/ . r)
   (if (null? r)
       (error :arg-error :msg "Invalid number of arguments for /")
       (if (null? (cdr r))
@@ -205,42 +223,31 @@
   (bq-simplify
    (bq-process form 1)))
 
-;; comparison
-
-(define (> x y) (not (<= x y)))
-(define (>= x y) (not (< x y)))
-(define (zero? x) (eq? x 0))
-(define (negative? x) (< x 0))
-(define (positive? x) (> x 0))
-
 ;; more macros now that we have backquote!
 
-(define-macro (with-gensyms names & body)
+(define-macro (with-gensyms names . body)
   `(let ,(mapcar (lambda (name) `(,name (gensym))) names)
      ,@body))
 
-(define-macro (and & forms)
+(define-macro (and . forms)
   (cond ((null? forms) '#t)
         ((null? (cdr forms)) (car forms))
         (#t `(if ,(car forms)
                  (and ,@(cdr forms))
                  '#f))))
 
-(define-macro (or & forms)
+(define-macro (or . forms)
   (cond ((null? forms) '#f)
         ((null? (cdr forms)) (car forms))
         (#t (with-gensyms (xcar)
               `(let ((,xcar ,(car forms)))
                  (if ,xcar ,xcar (or ,@(cdr forms))))))))
 
-(define-macro (let* bindings & body)
+(define-macro (let* bindings . body)
   (if (null? bindings)
       `(begin ,@body)
       `(let (,(car bindings))
          (let* ,(cdr bindings) ,@body))))
-
-(define (not x)
-  (if x #f #t))
 
 (define (any? values)
   (if (null? values)
@@ -263,7 +270,7 @@
       (cons (apply func (mapcar car arg-lists))
             (map1 func (mapcar cdr arg-lists)))))
 
-(define (map func & arg-lists)
+(define (map func . arg-lists)
   (map1 func arg-lists))
 
 ;; generalized/recursive comparison
@@ -272,12 +279,12 @@
 (define (list-eq? list1 list2)
   (cond ((null? list1) (null? list2))
         ((null? list2) (null? list1))
-        ((not (eq? (type list1) 'list))
+        ((not (eq? (type list1) 'pair))
          #f)
-        ((not (eq? (type list2) 'list))
+        ((not (eq? (type list2) 'pair))
          #f)
-        ((and (eq? (type (car list1)) 'list)
-              (eq? (type (car list2)) 'list))
+        ((and (eq? (type (car list1)) 'pair)
+              (eq? (type (car list2)) 'pair))
          (and (list-eq? (car list1) (car list2))
               (list-eq? (cdr list1) (cdr list2))))
         (#t (and (eq? (car list1) (car list2))
@@ -286,11 +293,11 @@
 (define (=' v1 v2)
   (cond ((not (eq? (type v1) (type v2)))
          #f)
-        ((eq? (type v1) 'list)
+        ((eq? (type v1) 'pair)
          (list-eq? v1 v2))
         (#t (eq? v1 v2))))
 
-(define (= & r)
+(define (= . r)
   (cond ((null? r) ; no arguments
          (error :arg-error :msg "Invalid number of arguments for ="))
         ((null? (cdr r)) ; one argument

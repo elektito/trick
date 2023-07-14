@@ -2,10 +2,11 @@
 
 import argparse
 from assemble import assemble
-from compile import CompileError, assoc, compile_form, compile_toplevel
+from compile import CompileError, compile_form, compile_toplevel
 from machinetypes import Symbol
-from read import ParseError, print_sexpr, read
+from read import ParseError, read
 from secd import RunError, Secd, UserError
+from utils import assoc
 
 
 def main():

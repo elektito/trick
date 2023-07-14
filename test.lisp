@@ -184,7 +184,7 @@
 
 (eq? 'nil (type '()))
 (eq? 'symbol (type :foo))
-(eq? 'list (type '(1 2)))
+(eq? 'pair (type '(1 2)))
 (eq? 'int (type 42))
 (eq? 'string (type "foo"))
 (eq? 'closure (type (lambda (x) x)))

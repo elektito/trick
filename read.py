@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from machinetypes import String, Symbol, Bool
+from machinetypes import Nil, Pair, String, Symbol, Bool
 
 
 class ParseError(Exception):
@@ -37,20 +37,40 @@ def _read_token(s, i):
     return tok, i
 
 
-def _read_list(s: str, i: int):
+def _read_list(s: str, i: int) -> tuple[Pair | Nil, int]:
     assert s[i] == '('
 
     i += 1
-    ls = []
+    items = []
+    item_after_dot = None
+    read_dot = False
     while i < len(s):
         i = _skip_whitespace(s, i)
         if i == len(s):
             raise ParseError('List not closed')
         if s[i] == ')':
             i += 1
+            ls = Pair.from_list(items)
+            if item_after_dot is not None:
+                ls.last().cdr = item_after_dot
+            elif read_dot:
+                raise ParseError('Expected an item after dot (.)')
             return ls, i
-        value, i = read(s, i)
-        ls.append(value)
+
+        value, i = _read(s, i)
+        if value == Symbol('.'):
+            if items == []:
+                raise ParseError('No item before dot')
+            elif not read_dot:
+                read_dot = True
+            else:
+                raise ParseError('More than one dot in list')
+        elif read_dot:
+            if item_after_dot is not None:
+                raise ParseError('More than one item after dot')
+            item_after_dot = value
+        else:
+            items.append(value)
 
     raise ParseError('List not closed')
 
@@ -76,7 +96,7 @@ def _read_string(s: str, i: int):
     raise ParseError('String not closed')
 
 
-def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list | Bool | String, int]:
+def _read(s: str, i: int = 0) -> tuple[None | int | Symbol | Nil | Pair | Bool | String, int]:
     if i >= len(s):
         return None, len(s)
 
@@ -92,16 +112,16 @@ def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list | Bool | String
         return _read_string(s, i)
     elif s[i] == "'":
         quoted, i = read(s, i + 1)
-        return [Symbol('quote'), quoted], i
+        return Pair.from_list([Symbol('quote'), quoted]), i
     elif s[i] == '`':
         quoted, i = read(s, i + 1)
-        return [Symbol('backquote'), quoted], i
+        return Pair.from_list([Symbol('backquote'), quoted]), i
     elif s[i] == ',' and i < len(s) - 1 and s[i+1] == '@':
         unquoted, i = read(s, i + 2)
-        return [Symbol('unquote-splicing'), unquoted], i
+        return Pair.from_list([Symbol('unquote-splicing'), unquoted]), i
     elif s[i] == ',':
         unquoted, i = read(s, i + 1)
-        return [Symbol('unquote'), unquoted], i
+        return Pair.from_list([Symbol('unquote'), unquoted]), i
     elif i < len(s) - 1 and s[i:i+2] == '#f':
         return Bool(False), i + 2
     elif i < len(s) - 1 and s[i:i+2] == '#t':
@@ -118,31 +138,8 @@ def read(s: str, i: int = 0) -> tuple[None | int | Symbol | list | Bool | String
             return Symbol(tok), i
 
 
-def _print_sexpr(sexpr):
-    if isinstance(sexpr, list):
-        if len(sexpr) == 2 and isinstance(sexpr[0], Symbol) and sexpr[0].name == 'quote':
-            print("'", end='')
-            _print_sexpr(sexpr[1])
-        elif len(sexpr) == 2 and isinstance(sexpr[0], Symbol) and sexpr[0].name == 'backquote':
-            print('`', end='')
-            _print_sexpr(sexpr[1])
-        elif len(sexpr) == 2 and isinstance(sexpr[0], Symbol) and sexpr[0].name == 'unquote':
-            print(',', end='')
-            _print_sexpr(sexpr[1])
-        elif len(sexpr) == 2 and isinstance(sexpr[0], Symbol) and sexpr[0].name == 'unquote-splicing':
-            print(',@', end='')
-            _print_sexpr(sexpr[1])
-        else:
-            print('(', end='')
-            for i, v in enumerate(sexpr):
-                _print_sexpr(v)
-                if i != len(sexpr) - 1:
-                    print(' ', end='')
-            print(')', end='')
-    else:
-        print(str(sexpr), end='')
-
-
-def print_sexpr(sexpr, end='\n', flush=False):
-    _print_sexpr(sexpr)
-    print(end, end='', flush=flush)
+def read(s: str, i: int = 0) -> tuple[None | int | Symbol | Nil | Pair | Bool | String, int]:
+    v, i = _read(s, i)
+    if v == Symbol('.'):
+        raise ParseError('Unexpected dot (.)')
+    return v, i

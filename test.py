@@ -2,10 +2,11 @@
 
 import argparse
 from assemble import assemble
-from compile import CompileError, assoc, compile_form, compile_toplevel
+from compile import CompileError, compile_form, compile_toplevel
 from machinetypes import Symbol
-from read import print_sexpr, read
+from read import read
 from secd import RunError, Secd, UserError
+from utils import assoc
 
 
 def main():
@@ -39,19 +40,22 @@ def main():
 
     errors = []
     fails = []
+    success = 0
     for expr in test_exprs:
         if args.verbose:
             print('Running: ', end='')
-            print_sexpr(expr, end='')
+            print(expr, end='')
             print(' ', end='', flush=True)
         try:
             expr_asm = compile_form(expr, [])
         except CompileError as e:
             errors.append((expr, e))
+            if args.verbose:
+                print('Error')
+            else:
+                print('E', end='', flush=True)
             if args.stop_on_failure:
                 break
-            if args.verbose:
-                print()
             continue
 
         asm = lib_asm + expr_asm
@@ -68,52 +72,61 @@ def main():
                 msg += f': {err_msg}'
             errors.append((expr, msg))
             if args.verbose:
-                print('Success')
+                print('Error')
             else:
                 print('E', end='', flush=True)
             if args.stop_on_failure:
                 break
         except RunError as e:
             errors.append((expr, str(e)))
-            print('E', end='', flush=True)
+            if args.verbose:
+                print('Error')
+            else:
+                print('E', end='', flush=True)
             if args.stop_on_failure:
                 break
         else:
-            result = machine.s[-1]
-            if result:
-                if args.verbose:
-                    print('Success')
+            if len(machine.s) != 1:
+                if len(machine.s) == 0:
+                    errors.append((expr, 'Expression did not return anything'))
                 else:
-                    print('.', end='', flush=True)
+                    errors.append((expr, f'Expression returned more than one value (stack={machine.s})'))
+                if args.verbose:
+                    print('Error')
+                else:
+                    print('E', end='', flush=True)
+                if args.stop_on_failure:
+                    break
             else:
-                if args.verbose:
-                    print('Failed')
+                result = machine.s[-1]
+                success += 1
+                if result:
+                    if args.verbose:
+                        print('Success')
+                    else:
+                        print('.', end='', flush=True)
                 else:
-                    print('F', end='', flush=True)
-                fails.append(expr)
+                    if args.verbose:
+                        print('Failed')
+                    else:
+                        print('F', end='', flush=True)
+                    fails.append(expr)
 
     print()
     if fails:
-        print()
         print('Failed test case(s):')
         for expr in fails:
             print('    ', end='')
-            print_sexpr(expr)
+            print(expr)
 
     if errors:
-        print()
         print('Error(s):')
-        for expr, exception in errors:
-            if isinstance(exception, UserError):
-                msg = xx
-            else:
-                msg = str(exception)
-            print(f'    {msg}: ', end='')
-            print_sexpr(expr)
+        for expr, err in errors:
+            print(f'    {err}: ', end='')
+            print(expr)
 
     if fails or errors:
         print()
-        success = len(test_exprs) - len(fails) - len(errors)
         print(f'Failed: {len(fails)}  Error: {len(errors)}  Success: {success}')
     else:
         print(f'{len(test_exprs)} test(s) finished successfully.')

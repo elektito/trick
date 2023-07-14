@@ -3,7 +3,7 @@
 import sys
 import argparse
 from read import read, ParseError
-from machinetypes import String, Symbol
+from machinetypes import Pair, String, Symbol
 
 
 class AssembleError(Exception):
@@ -197,9 +197,15 @@ def _assemble(expr, start_offset: int, strings, symbols) -> bytes:
     return code
 
 
-def assemble(code: list, start_offset: int = 0) -> bytes:
+def assemble(code: (Pair | list), start_offset: int = 0) -> bytes:
     strings = [String("")]
     symbols = []
+
+    if not isinstance(code, (Pair, list)):
+        raise AssembleError(f'Cannot assemble: {code}')
+
+    if isinstance(code, Pair):
+        code = code.to_list_recursive()
 
     assembled = _assemble(code, start_offset, strings, symbols)
 
@@ -256,6 +262,10 @@ def main():
         expr, _ = read(text)
     except ParseError as e:
         print(f'Parse error: {e}', file=sys.stderr)
+        sys.exit(1)
+
+    if expr is None:
+        print('Input is empty.', file=sys.stderr)
         sys.exit(1)
 
     try:
