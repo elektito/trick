@@ -661,19 +661,9 @@ def main():
 
 
 def print_value(v):
-    if isinstance(v, Symbol):
-        print(v.name)
-    elif isinstance(v, int):
-        print(v)
-    elif isinstance(v, Bool):
-        print('#t' if v else '#f')
-    elif isinstance(v, Pair):
-        print(v)
-    elif isinstance(v, Closure):
-        print(v)
-    elif isinstance(v, String):
+    if isinstance(v, String):
         print(v.value)
-    elif isinstance(v, Nil):
+    elif isinstance(v, (int, Symbol, Bool, List, Closure)):
         print(v)
     else:
         raise RunError(f'Unknown type to print: {v}')
