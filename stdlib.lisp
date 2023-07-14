@@ -38,10 +38,11 @@
 (define (closure? v) (eq? (type v) 'closure))
 (define (bool? v) (eq? (type v) 'bool))
 (define (list? v)
-  (let ((t (type v)))
-    (if (eq? t 'pair)
-        #t
-        (eq? t 'nil))))
+  (if (null? v)
+      #t
+      (if (pair? v)
+          (list? (cdr v))
+          #f)))
 
 ;; boolean
 
