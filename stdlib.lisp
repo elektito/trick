@@ -303,6 +303,19 @@
         (#t (and (eq? (car list1) (car list2))
                  (list-eq? (cdr list1) (cdr list2))))))
 
+;; apply the given function to pairs of the given list and return the results as
+;; a list.
+;;
+;; for example, (pairwise list '(1 2 3 4)) would result in (1 2) (2 3) (3 4)
+(define (pairwise fn ls)
+  (cond ((< (length ls) 2)
+         (error :arg-error :msg "Invalid number of arguments for pairwise"))
+        ((eq? (length ls) 2)
+         (list (fn (car ls) (cadr ls))))
+        (#t
+         (cons (fn (car ls) (cadr ls))
+               (pairwise fn (cdr ls))))))
+
 (define (=' v1 v2)
   (cond ((not (eq? (type v1) (type v2)))
          #f)
@@ -310,12 +323,6 @@
         (#t (eq? v1 v2))))
 
 (define (= . r)
-  (cond ((null? r) ; no arguments
-         (error :arg-error :msg "Invalid number of arguments for ="))
-        ((null? (cdr r)) ; one argument
-         #t)
-        ((null? (cddr r)) ; two arguments
-         (=' (car r) (cadr r)))
-        (#t ; more than two arguments
-         (and (=' (car r) (cadr r))
-              (apply = (cdr r))))))
+  (if (null? (cdr r))
+      #t
+      (all? (pairwise =' r))))
