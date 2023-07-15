@@ -33,7 +33,7 @@
 
 (define (symbol? v) (eq? (type v) 'symbol))
 (define (pair? v) (eq? (type v) 'pair))
-(define (int? v) (eq? (type v) 'int))
+(define (integer? v) (eq? (type v) 'int))
 (define (string? v) (eq? (type v) 'string))
 (define (closure? v) (eq? (type v) 'closure))
 (define (bool? v) (eq? (type v) 'bool))
