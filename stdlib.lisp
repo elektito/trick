@@ -24,6 +24,10 @@
 (define (gensym) (gensym))
 (define (char->integer c) (char->integer c))
 (define (integer->char n) (integer->char n))
+(define (char-upcase c) (char-upcase c))
+(define (char-downcase c) (char-downcase c))
+(define (char-foldcase c) (char-foldcase c))
+(define (digit-value c) (digit-value c))
 
 ;; type predicates
 
@@ -378,3 +382,28 @@
 
 (define (char-lower-case? char)
   (eq? 'Ll (char-general-category char)))
+
+(define (char-ci=? . chars)
+  (if (null? (cdr chars))
+      #t
+      (all? (pairwise char=? (map char-foldcase chars)))))
+
+(define (char-ci<? . chars)
+  (if (null? (cdr chars))
+      #t
+      (all? (pairwise char<? (map char-foldcase chars)))))
+
+(define (char-ci>? . chars)
+  (if (null? (cdr chars))
+      #t
+      (all? (pairwise char>? (map char-foldcase chars)))))
+
+(define (char-ci<=? . chars)
+  (if (null? (cdr chars))
+      #t
+      (all? (pairwise char<=? (map char-foldcase chars)))))
+
+(define (char-ci>=? . chars)
+  (if (null? (cdr chars))
+      #t
+      (all? (pairwise char>=? (map char-foldcase chars)))))

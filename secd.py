@@ -75,6 +75,10 @@ class Secd:
             0x26: self.run_i2ch,
             0x27: self.run_ch2i,
             0x28: self.run_ugcat,
+            0x29: self.run_chup,
+            0x2a: self.run_chdn,
+            0x2b: self.run_chfd,
+            0x2c: self.run_chdv,
             0x40: self.run_ldc,
             0x41: self.run_ld,
             0x42: self.run_sel,
@@ -643,7 +647,47 @@ class Secd:
         cat = unicodedata.category(chr(char.char_code))
         sym = self.intern(cat)
         self.s.append(sym)
-        if self.debug: print(f'ch2i {char}')
+        if self.debug: print(f'ugcat {char}')
+
+    def run_chup(self):
+        char = self.s.pop()
+        if not isinstance(char, Char):
+            raise RunError(f'chup argument not a character: {char}')
+        new_char = Char(ord(chr(char.char_code).upper()))
+        self.s.append(new_char)
+        if self.debug: print(f'chup {char}')
+
+    def run_chdn(self):
+        char = self.s.pop()
+        if not isinstance(char, Char):
+            raise RunError(f'chdn argument not a character: {char}')
+        new_char = Char(ord(chr(char.char_code).lower()))
+        self.s.append(new_char)
+        if self.debug: print(f'chdn {char}')
+
+    def run_chfd(self):
+        char = self.s.pop()
+        if not isinstance(char, Char):
+            raise RunError(f'chfd argument not a character: {char}')
+        folded_char = chr(char.char_code).casefold()
+        if len(folded_char) > 1:
+            # for example: german letter ß becomes "ss" when folded. not sure
+            # what else to do besides defaulting to lower case. chez scheme also
+            # seems to be doing the same thing.
+            folded_char = chr(char.char_code).lower()
+        new_char = Char(ord(folded_char))
+        self.s.append(new_char)
+        if self.debug: print(f'chfd {char}')
+
+    def run_chdv(self):
+        char = self.s.pop()
+        if not isinstance(char, Char):
+            raise RunError(f'chdv argument not a character: {char}')
+        digit_value = unicodedata.digit(chr(char.char_code), None)
+        if digit_value is None:
+            digit_value = Bool(False)
+        self.s.append(digit_value)
+        if self.debug: print(f'chdv {char}')
 
 
 def main():
