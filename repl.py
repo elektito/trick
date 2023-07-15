@@ -53,7 +53,7 @@ def main():
             print(e)
         else:
             result = machine.s[-1]
-            print_sexpr(result)
+            print(result)
 
 
 if __name__ == '__main__':
