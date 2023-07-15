@@ -2,7 +2,7 @@
 
 import sys
 import argparse
-from utils import assoc
+from utils import format_user_error
 from machinetypes import (
     Bool, List, Nil, Pair, String, Symbol, Closure, Continuation,
 )
@@ -644,11 +644,7 @@ def main():
         m.run()
     except UserError:
         err = m.s[-1]
-        err_type = assoc(Symbol(':type'), err)
-        msg = f'User error of type {err_type}'
-        err_msg = assoc(Symbol(':msg'), err)
-        if err_msg is not None:
-            msg += f': {err_msg}'
+        msg = format_user_error(err)
         print(f'Run error: {msg}', file=sys.stderr)
         sys.exit(1)
     except RunError as e:

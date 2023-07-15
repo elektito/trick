@@ -6,7 +6,7 @@ from read import read, ParseError
 from machinetypes import Bool, List, Nil, Pair, Symbol, String
 from assemble import assemble
 from secd import RunError, Secd, UserError
-from utils import assoc
+from utils import format_user_error
 
 
 macros = {}
@@ -54,11 +54,8 @@ class Macro:
             machine.run()
         except UserError:
             err = machine.s[-1]
-            err_type = assoc(S(':type'), err)
-            msg = f'User error of type {err_type} during macro expansion'
-            err_msg = assoc(S(':msg'), err)
-            if err_msg is not None:
-                msg += f': {err_msg}'
+            msg = format_user_error(err)
+            msg = 'During macro expansion: ' + msg
             raise CompileError(msg)
         except RunError as e:
             raise CompileError(f'Run error during macro expansion: {e}')

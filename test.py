@@ -6,7 +6,7 @@ from compile import CompileError, compile_form, compile_toplevel
 from machinetypes import Symbol
 from read import read
 from secd import RunError, Secd, UserError
-from utils import assoc
+from utils import format_user_error
 
 
 def main():
@@ -65,11 +65,7 @@ def main():
             machine.run()
         except UserError:
             err = machine.s[-1]
-            err_type = assoc(Symbol(':type'), err)
-            msg = f'User error of type {err_type} during macro expansion'
-            err_msg = assoc(Symbol(':msg'), err)
-            if err_msg is not None:
-                msg += f': {err_msg}'
+            msg = format_user_error(err)
             errors.append((expr, msg))
             if args.verbose:
                 print('Error')
