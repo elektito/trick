@@ -7,7 +7,6 @@ normal schemes in (at least) the following ways:
 
  - Instead of hygienic macros, we have only `define-macro` which defines
    unhygienic macros.
- - Pairs and imrproper lists are not supported. We only have proper lists.
  - The only numeric type supported is big integers (they are basically more or
    less the same as Python integers).
  - Keyword symbols are supported (that is, symbols beginning with a colon
@@ -83,11 +82,11 @@ Primitive functions:
  - `print`: Print a value
  - `printc`: Print a character given its code
  - `halt`: Stop execution. Accepts a single argument as the exit code.
- - `cons`: Prepend a value to a list
- - `car`: Return the first element of a list
- - `cdr`: Return the list without the first element
+ - `cons`: Create a pair object
+ - `car`: Return the "car" of a pair
+ - `cdr`: Return the "cdr" of a pair
  - `type`: Return a symbol specifying the type of its argument. Possible return
-   values are: `nil`, `symbol`, `list`, `int`, `string`, `closure`, `bool`.
+   values are: `nil`, `symbol`, `pair`, `int`, `string`, `closure`, `bool`.
  - `eq?`: Return true if the two values are the exact same object.
  - `gensym`: Return a unique symbol
 
