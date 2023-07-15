@@ -356,3 +356,25 @@
   (if (null? (cdr chars))
       #t
       (all? (pairwise >= (map char->integer chars)))))
+
+(define (char-alphabetic? char)
+  (let ((cat (char-general-category char)))
+    (or (eq? cat 'Lu)
+        (eq? cat 'Ll)
+        (eq? cat 'Lo))))
+
+(define (char-numeric? char)
+  (eq? 'Nd (char-general-category char)))
+
+(define (char-whitespace? char)
+  (let ((cat (char-general-category char)))
+    (or (eq? cat 'Zs)
+        (eq? cat 'Zl)
+        (eq? cat 'Zp)
+        (eq? cat 'Cc))))
+
+(define (char-upper-case? char)
+  (eq? 'Lu (char-general-category char)))
+
+(define (char-lower-case? char)
+  (eq? 'Ll (char-general-category char)))

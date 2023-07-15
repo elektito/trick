@@ -386,6 +386,15 @@ def compile_int_to_char(expr, env):
     return code
 
 
+def compile_char_general_category(expr, env):
+    if len(expr) != 2:
+        raise CompileError(f'Invalid number of arguments for char-general-category')
+
+    code = compile_form(expr[1], env)
+    code += [S('ugcat')]
+    return code
+
+
 def check_let_bindings(bindings, let_name):
     if not isinstance(bindings, List):
         raise CompileError(f'Invalid bindings list for {let_name}: {bindings}')
@@ -693,6 +702,7 @@ def compile_list(expr, env):
             'call/cc': compile_call_cc,
             'char->integer': compile_char_to_int,
             'integer->char': compile_int_to_char,
+            'char-general-category': compile_char_general_category,
         }
         compile_func = primitives.get(name)
         if compile_func is not None:

@@ -64,6 +64,7 @@ def _assemble(expr, start_offset: int, strings, symbols) -> bytes:
             'ccc': 0x25,
             'i2ch': 0x26,
             'ch2i': 0x27,
+            'ugcat': 0x28,
         }
         opcode = single_byte_instrs.get(instr)
         if opcode is not None:

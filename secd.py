@@ -2,6 +2,7 @@
 
 import sys
 import argparse
+import unicodedata
 from utils import format_user_error
 from machinetypes import (
     Bool, Char, List, Nil, Pair, String, Symbol, Closure, Continuation,
@@ -73,6 +74,7 @@ class Secd:
             0x25: self.run_ccc,
             0x26: self.run_i2ch,
             0x27: self.run_ch2i,
+            0x28: self.run_ugcat,
             0x40: self.run_ldc,
             0x41: self.run_ld,
             0x42: self.run_sel,
@@ -632,6 +634,15 @@ class Secd:
         if not isinstance(char, Char):
             raise RunError(f'ch2i argument not a character: {char}')
         self.s.append(char.char_code)
+        if self.debug: print(f'ch2i {char}')
+
+    def run_ugcat(self):  # unicode general category
+        char = self.s.pop()
+        if not isinstance(char, Char):
+            raise RunError(f'ugcat argument not a character: {char}')
+        cat = unicodedata.category(chr(char.char_code))
+        sym = self.intern(cat)
+        self.s.append(sym)
         if self.debug: print(f'ch2i {char}')
 
 

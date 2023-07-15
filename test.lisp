@@ -367,6 +367,40 @@
 (char>=? #\c #\b #\a #\a)
 (char>=? #\c #\b #\b #\a)
 
+(eq? 'Lu (char-general-category #\A))
+(eq? 'Ll (char-general-category #\a))
+(eq? 'Nd (char-general-category #\5))
+(eq? 'Nd (char-general-category #\۴))
+(eq? 'Zs (char-general-category #\space))
+
+(char-alphabetic? #\A)
+(char-alphabetic? #\a)
+(char-alphabetic? #\ف)
+(not (char-alphabetic? #\1))
+(not (char-alphabetic? #\۷))
+
+(char-upper-case? #\A)
+(not (char-upper-case? #\a))
+(not (char-upper-case? #\ف))
+
+(char-lower-case? #\a)
+(not (char-lower-case? #\A))
+(not (char-lower-case? #\ف))
+
+(char-whitespace? #\space)
+(char-whitespace? #\tab)
+(char-whitespace? #\newline)
+(char-whitespace? #\return)
+(not (char-whitespace? #\a))
+(not (char-whitespace? #\1))
+
+(char-numeric? #\0)
+(char-numeric? #\5)
+(char-numeric? #\۵)
+(not (char-numeric? #\A))
+(not (char-numeric? #\space))
+(not (char-numeric? #\tab))
+
 ;; backquote tests
 
 (eq? `() '())
