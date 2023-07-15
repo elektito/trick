@@ -4,7 +4,7 @@ import sys
 import argparse
 from utils import format_user_error
 from machinetypes import (
-    Bool, List, Nil, Pair, String, Symbol, Closure, Continuation,
+    Bool, Char, List, Nil, Pair, String, Symbol, Closure, Continuation,
 )
 
 
@@ -71,6 +71,8 @@ class Secd:
             0x23: self.run_error,
             0x24: self.run_gensym,
             0x25: self.run_ccc,
+            0x26: self.run_i2ch,
+            0x27: self.run_ch2i,
             0x40: self.run_ldc,
             0x41: self.run_ld,
             0x42: self.run_sel,
@@ -545,6 +547,8 @@ class Secd:
             result = self.intern('closure')
         elif isinstance(v, Bool):
             result = self.intern('bool')
+        elif isinstance(v, Char):
+            result = self.intern('char')
         else:
             raise RunError(f'Unknown type: {v}')
         self.s.append(result)
@@ -616,6 +620,20 @@ class Secd:
         self.s, self.e, self.c = [], [args] + closure.e, closure.c
         if self.debug: print(f'ccc cont={cont} closure={closure}')
 
+    def run_i2ch(self):
+        char_code = self.s.pop()
+        if not isinstance(char_code, int):
+            raise RunError(f'Invalid character code for i2ch: {char_code}')
+        self.s.append(Char(char_code))
+        if self.debug: print(f'i2ch {char_code}')
+
+    def run_ch2i(self):
+        char = self.s.pop()
+        if not isinstance(char, Char):
+            raise RunError(f'ch2i argument not a character: {char}')
+        self.s.append(char.char_code)
+        if self.debug: print(f'ch2i {char}')
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -659,7 +677,7 @@ def main():
 def print_value(v):
     if isinstance(v, String):
         print(v.value)
-    elif isinstance(v, (int, Symbol, Bool, List, Closure)):
+    elif isinstance(v, (int, Symbol, Bool, List, Closure, Char)):
         print(v)
     else:
         raise RunError(f'Unknown type to print: {v}')

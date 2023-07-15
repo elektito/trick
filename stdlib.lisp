@@ -21,7 +21,9 @@
 (define (halt n) (halt n))
 (define (type x) (type x))
 (define (eq? x y) (eq? x y))
-(define (gensym ) (gensym))
+(define (gensym) (gensym))
+(define (char->integer c) (char->integer c))
+(define (integer->char n) (integer->char n))
 
 ;; type predicates
 
@@ -35,6 +37,7 @@
 (define (pair? v) (eq? (type v) 'pair))
 (define (integer? v) (eq? (type v) 'int))
 (define (string? v) (eq? (type v) 'string))
+(define (char? v) (eq? (type v) 'char))
 (define (closure? v) (eq? (type v) 'closure))
 (define (bool? v) (eq? (type v) 'bool))
 (define (list? v)
@@ -326,3 +329,30 @@
   (if (null? (cdr r))
       #t
       (all? (pairwise =' r))))
+
+;; characters
+
+(define (char=? . chars)
+  (if (null? (cdr chars))
+      #t
+      (all? (pairwise eq? chars))))
+
+(define (char<? . chars)
+  (if (null? (cdr chars))
+      #t
+      (all? (pairwise < (map char->integer chars)))))
+
+(define (char>? . chars)
+  (if (null? (cdr chars))
+      #t
+      (all? (pairwise > (map char->integer chars)))))
+
+(define (char<=? . chars)
+  (if (null? (cdr chars))
+      #t
+      (all? (pairwise <= (map char->integer chars)))))
+
+(define (char>=? . chars)
+  (if (null? (cdr chars))
+      #t
+      (all? (pairwise >= (map char->integer chars)))))

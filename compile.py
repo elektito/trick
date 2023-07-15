@@ -3,7 +3,7 @@
 import sys
 import argparse
 from read import read, ParseError
-from machinetypes import Bool, List, Nil, Pair, Symbol, String
+from machinetypes import Bool, Char, List, Nil, Pair, Symbol, String
 from assemble import assemble
 from secd import RunError, Secd, UserError
 from utils import format_user_error
@@ -364,6 +364,28 @@ def compile_bool(s: Bool, env):
         return [S('false')]
 
 
+def compile_char(ch: Char, env):
+    return [S('ldc'), ch.char_code, S('i2ch')]
+
+
+def compile_char_to_int(expr, env):
+    if len(expr) != 2:
+        raise CompileError(f'Invalid number of arguments for char->integer')
+
+    code = compile_form(expr[1], env)
+    code += [S('ch2i')]
+    return code
+
+
+def compile_int_to_char(expr, env):
+    if len(expr) != 2:
+        raise CompileError(f'Invalid number of arguments for integer->char')
+
+    code = compile_form(expr[1], env)
+    code += [S('i2ch')]
+    return code
+
+
 def check_let_bindings(bindings, let_name):
     if not isinstance(bindings, List):
         raise CompileError(f'Invalid bindings list for {let_name}: {bindings}')
@@ -669,6 +691,8 @@ def compile_list(expr, env):
             'gensym': compile_gensym,
             'apply': compile_apply,
             'call/cc': compile_call_cc,
+            'char->integer': compile_char_to_int,
+            'integer->char': compile_int_to_char,
         }
         compile_func = primitives.get(name)
         if compile_func is not None:
@@ -696,6 +720,8 @@ def compile_form(expr, env):
         secd_code = compile_string(expr, env)
     elif isinstance(expr, Bool):
         secd_code = compile_bool(expr, env)
+    elif isinstance(expr, Char):
+        secd_code = compile_char(expr, env)
     else:
         raise CompileError(f'Invalid value: {expr}')
 

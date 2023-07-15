@@ -7,6 +7,7 @@
 (eq? #t '#t)
 (eq? 10 '10)
 (eq? "foo" '"foo")
+(eq? #\space #\space)
 (eq? '() '())
 (not (eq? '() 'nil))
 
@@ -185,11 +186,14 @@
 (eq? 100 (car (cons 100 '())))
 (eq? 'bar (cadr '(foo bar spam eggs)))
 
+;; type predicates
+
 (eq? 'nil (type '()))
 (eq? 'symbol (type :foo))
 (eq? 'pair (type '(1 2)))
 (eq? 'int (type 42))
 (eq? 'string (type "foo"))
+(eq? 'char (type #\space))
 (eq? 'closure (type (lambda (x) x)))
 (eq? 'bool (type #f))
 (eq? 'bool (type #t))
@@ -261,10 +265,18 @@
 (not (closure? '(1 2)))
 (not (closure? '(1 . 2)))
 
+;; utility
+
+(= (pairwise list '(1 2 3 4)) '((1 2) (2 3) (3 4)))
+
+;; list
+
 (eq? 0 (length '()))
 (eq? 1 (length '(1)))
 (eq? 2 (length '(1 2)))
 (eq? 3 (length '(1 2 3)))
+
+;; equality
 
 (not (eq? (gensym) (gensym)))
 (let ((gs (gensym)))
@@ -297,6 +309,63 @@
 (eq? 0 (apply + '()))
 (= '(1 2 3 foo bar)
    (apply list 1 2 3 '(foo bar)))
+
+;; characters
+(eq? #\space #\ )
+(eq? #\space #\x20)
+(eq? #\x #\x78)
+(eq? #\( #\x28)
+(eq? #\) #\x29)
+(eq? #\alarm #\x7)
+(eq? #\backspace #\x8)
+(eq? #\delete #\x7f)
+(eq? #\newline #\xA)
+(eq? #\null #\x0)
+(eq? #\return #\x0d)
+(eq? #\tab #\x09)
+(eq? #\λ #\x03bb)
+
+(char? #\space)
+(char? #\A)
+(char? #\x40)
+
+(char=? #\space)
+(char=? #\space #\space)
+(char=? #\space #\  #\space)
+(not (char=? #\A #\B))
+(not (char=? #\A #\B #\space))
+
+(char<? #\a)
+(char<? #\a #\b)
+(char<? #\a #\b #\c)
+(char<? #\A #\a)
+(not (char<? #\b #\a))
+(not (char<? #\a #\a #\b #\c))
+
+(char<=? #\a)
+(char<=? #\a #\a)
+(char<=? #\a #\b)
+(char<=? #\a #\b #\c)
+(char<=? #\A #\a)
+(not (char<=? #\b #\a))
+(char<=? #\a #\a #\b #\c)
+(char<=? #\a #\b #\b #\c)
+
+(char>? #\a)
+(char>? #\b #\a)
+(char>? #\c #\b #\a)
+(char>? #\a #\A)
+(not (char>? #\a #\b))
+(not (char>? #\c #\b #\a #\a))
+
+(char>=? #\a)
+(char>=? #\a #\a)
+(char>=? #\b #\a)
+(char>=? #\c #\b #\a)
+(char>=? #\a #\A)
+(not (char>=? #\a #\b))
+(char>=? #\c #\b #\a #\a)
+(char>=? #\c #\b #\b #\a)
 
 ;; backquote tests
 

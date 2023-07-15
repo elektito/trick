@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from machinetypes import List, Nil, Pair, String, Symbol, Bool
+from machinetypes import Char, List, Nil, Pair, String, Symbol, Bool
 
 
 class ParseError(Exception):
@@ -96,7 +96,33 @@ def _read_string(s: str, i: int):
     raise ParseError('String not closed')
 
 
-def _read(s: str, i: int = 0) -> tuple[None | int | Symbol | List | Bool | String, int]:
+def _read_char(s: str, i: int) -> tuple[Char, int]:
+    i += 2
+    if i >= len(s):
+        raise ParseError('EOF while reading character literal')
+
+    desc = s[i]
+    i += 1
+    while i < len(s) and not s[i].isspace() and s[i] not in '()':
+        desc += s[i]
+        i += 1
+
+    if desc in Char.name_to_code:
+        return Char(Char.name_to_code[desc]), i
+    else:
+        if len(desc) == 1:
+            char_code = ord(desc)
+        elif desc.startswith('x'):
+            try:
+                char_code = int(desc[1:], 16)
+            except ValueError:
+                raise ParseError(f'Invalid character literal: #\\{desc}')
+        else:
+            raise ParseError(f'Invalid character literal: #\\{desc}')
+        return Char(char_code), i
+
+
+def _read(s: str, i: int = 0) -> tuple[None | int | Symbol | List | Bool | String | Char, int]:
     if i >= len(s):
         return None, len(s)
 
@@ -111,16 +137,16 @@ def _read(s: str, i: int = 0) -> tuple[None | int | Symbol | List | Bool | Strin
     elif s[i] == '"':
         return _read_string(s, i)
     elif s[i] == "'":
-        quoted, i = read(s, i + 1)
+        quoted, i = _read(s, i + 1)
         return List.from_list([Symbol('quote'), quoted]), i
     elif s[i] == '`':
-        quoted, i = read(s, i + 1)
+        quoted, i = _read(s, i + 1)
         return List.from_list([Symbol('backquote'), quoted]), i
     elif s[i] == ',' and i < len(s) - 1 and s[i+1] == '@':
-        unquoted, i = read(s, i + 2)
+        unquoted, i = _read(s, i + 2)
         return List.from_list([Symbol('unquote-splicing'), unquoted]), i
     elif s[i] == ',':
-        unquoted, i = read(s, i + 1)
+        unquoted, i = _read(s, i + 1)
         return List.from_list([Symbol('unquote'), unquoted]), i
     elif i < len(s) - 1 and s[i:i+2] == '#f':
         return Bool(False), i + 2
@@ -130,6 +156,8 @@ def _read(s: str, i: int = 0) -> tuple[None | int | Symbol | List | Bool | Strin
         tok, i = _read_token(s, i)
         tok = tok[2:]
         return int(tok, 16), i
+    elif i < len(s) - 1 and s[i:i+2] == '#\\':
+        return _read_char(s, i)
     else:
         tok, i = _read_token(s, i)
         try:
@@ -138,7 +166,7 @@ def _read(s: str, i: int = 0) -> tuple[None | int | Symbol | List | Bool | Strin
             return Symbol(tok), i
 
 
-def read(s: str, i: int = 0) -> tuple[None | int | Symbol | List | Bool | String, int]:
+def read(s: str, i: int = 0) -> tuple[None | int | Symbol | List | Bool | String | Char, int]:
     v, i = _read(s, i)
     if v == Symbol('.'):
         raise ParseError('Unexpected dot (.)')

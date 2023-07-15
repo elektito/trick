@@ -66,6 +66,57 @@ class Bool:
         return self.value == other.value
 
 
+class Char:
+    name_to_code = {
+        'alarm': 0x07,
+        'backspace': 0x08,
+        'delete': 0x7f,
+        'escape': 0x1b,
+        'newline': 0x0a,
+        'null': 0x00,
+        'return': 0x0d,
+        'space': 0x20,
+        'tab': 0x09,
+    }
+
+    code_to_name = {
+        0x07: 'alarm',
+        0x08: 'backspace',
+        0x7f: 'delete',
+        0x1b: 'escape',
+        0x0a: 'newline',
+        0x00: 'null',
+        0x0d: 'return',
+        0x20: 'space',
+        0x09: 'tab',
+    }
+
+    def __init__(self, char_code):
+        self.char_code = char_code
+
+    def __eq__(self, other):
+        if not isinstance(other, Char):
+            return False
+        return self.char_code == other.char_code
+
+    def __str__(self):
+        name = Char.code_to_name.get(self.char_code)
+        if name is None:
+            char = chr(self.char_code)
+            if char.isprintable:
+                return f'#\\{char}'
+            else:
+                return f'#\\{self.char_code}'
+        else:
+            return f'#\\{name}'
+
+    def __repr__(self):
+        return f'<Char {self}>'
+
+    def id(self):
+        return self.char_code
+
+
 class String:
     def __init__(self, value: str):
         assert isinstance(value, str)
@@ -187,9 +238,9 @@ class Pair(List):
             return value
 
     def __init__(self, car, cdr):
-        if not isinstance(car, (int, Bool, String, List, Symbol, Closure)):
+        if not isinstance(car, (int, Bool, String, Char, List, Symbol, Closure)):
             raise TypeError(f'Invalid value type for car: {car}')
-        if not isinstance(cdr, (int, Bool, String, List, Symbol, Closure)):
+        if not isinstance(cdr, (int, Bool, String, Char, List, Symbol, Closure)):
             raise TypeError(f'Invalid value type for cdr: {cdr}')
 
         self.car = car
