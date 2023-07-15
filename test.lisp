@@ -261,6 +261,11 @@
 (not (closure? '(1 2)))
 (not (closure? '(1 . 2)))
 
+(eq? 0 (length '()))
+(eq? 1 (length '(1)))
+(eq? 2 (length '(1 2)))
+(eq? 3 (length '(1 2 3)))
+
 (not (eq? (gensym) (gensym)))
 (let ((gs (gensym)))
   (eq? gs gs))

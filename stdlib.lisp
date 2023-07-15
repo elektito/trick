@@ -274,6 +274,18 @@
 (define (map func . arg-lists)
   (map1 func arg-lists))
 
+;; more list operations
+
+(define (length ls)
+  (cond ((null? ls) 0)
+        ((not (pair? ls))
+         (error :arg-error :msg "length: argument not a list"))
+        ((null? (cdr ls))
+         1)
+        ((not (pair? (cdr ls)))
+         (error :arg-error :msg "length: argument not a proper list"))
+        (#t (+ 1 (length (cdr ls))))))
+
 ;; generalized/recursive comparison
 
 ;; compare two lists recursively using eq?
