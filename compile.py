@@ -736,6 +736,7 @@ def compile_list(expr, env):
             'gensym': compile_gensym,
             'apply': compile_apply,
             'call/cc': compile_call_cc,
+            'call-with-current-continuation': compile_call_cc,
             'char->integer': compile_char_to_int,
             'integer->char': compile_int_to_char,
             'char-general-category': compile_char_general_category,
