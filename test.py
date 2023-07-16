@@ -3,7 +3,6 @@
 import argparse
 from assemble import assemble
 from compile import CompileError, compile_form, compile_toplevel
-from machinetypes import Symbol
 from read import read
 from secd import RunError, Secd, UserError
 from utils import format_user_error
