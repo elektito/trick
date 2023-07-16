@@ -107,6 +107,8 @@ def main():
                     else:
                         print('F', end='', flush=True)
                     fails.append(expr)
+                    if args.stop_on_failure:
+                        break
 
     print()
     if fails:
