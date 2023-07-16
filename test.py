@@ -21,12 +21,12 @@ def main():
 
     args = parser.parse_args()
 
-    with open('stdlib.lisp') as f:
+    with open('stdlib.scm') as f:
         text = f.read()
 
     lib_asm = compile_toplevel(text)
 
-    with open('test.lisp') as f:
+    with open('test.scm') as f:
         text = f.read()
 
     i = 0

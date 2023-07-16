@@ -14,7 +14,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run test suite.')
     args = parser.parse_args()
 
-    with open('stdlib.lisp') as f:
+    with open('stdlib.scm') as f:
         text = f.read()
 
     lib_asm = compile_toplevel(text)
