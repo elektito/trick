@@ -41,11 +41,9 @@ def main():
     errors = []
     fails = []
     success = 0
-    for expr in test_exprs:
+    for i, expr in enumerate(test_exprs):
         if args.verbose:
-            print('Running: ', end='')
-            print(expr, end='')
-            print(' ', end='', flush=True)
+            print(f'[{i+1}] Running: {expr} ', end='', flush=True)
         try:
             expr_asm = compile_form(expr, [])
         except CompileError as e:
