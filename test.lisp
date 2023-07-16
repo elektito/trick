@@ -33,6 +33,11 @@
 (eq? 100 (if #t 100))
 (eq? '() (if #f 100))
 
+(cond (#t #t))
+(= 200 (cond ((= 10 20) 50 100)
+             ((= 5 5) 80 200)
+             ((= 40 40) 300)))
+
 ;; regression test: putting one-armed if in a lambda just to make sure the
 ;; "join" instruction is correctly generated for the implied "false" branch.
 (eq? '() ((lambda () (if #f 100))))
