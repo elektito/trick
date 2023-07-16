@@ -690,6 +690,52 @@ def compile_gensym(expr, env):
     return [S('gensym')]
 
 
+def compile_make_string(expr, env):
+    if len(expr) not in (2, 3):
+        raise CompileError('Invalid number of arguments for make-string')
+
+    code = []
+    if len(expr) == 2:
+        # default to filling with null character
+        code += [S('ldc'), 0, S('i2ch')]
+    else:
+        code += compile_form(expr[2], env)
+
+    code += compile_form(expr[1], env)
+    code += [S('mkstr')]
+    return code
+
+
+def compile_string_ref(expr, env):
+    if len(expr) != 3:
+        raise CompileError('Invalid number of arguments for string-ref')
+
+    code = compile_form(expr[1], env)
+    code += compile_form(expr[2], env)
+    code += [S('strref')]
+    return code
+
+
+def compile_string_set(expr, env):
+    if len(expr) != 4:
+        raise CompileError('Invalid number of arguments for string-set')
+
+    code = compile_form(expr[1], env)
+    code += compile_form(expr[2], env)
+    code += compile_form(expr[3], env)
+    code += [S('strset')]
+    return code
+
+
+def compile_string_length(expr, env):
+    if len(expr) != 2:
+        raise CompileError('Invalid number of arguments for string-length')
+
+    code = compile_form(expr[1], env)
+    code += [S('strlen')]
+    return code
+
+
 def compile_list(expr, env):
     if expr == Nil():
         raise CompileError('Empty list is not a valid form')
@@ -744,6 +790,10 @@ def compile_list(expr, env):
             'char-downcase': compile_char_downcase,
             'char-foldcase': compile_char_foldcase,
             'digit-value': compile_digit_value,
+            'make-string': compile_make_string,
+            'string-ref': compile_string_ref,
+            'string-set!': compile_string_set,
+            'string-length': compile_string_length,
         }
         compile_func = primitives.get(name)
         if compile_func is not None:

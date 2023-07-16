@@ -69,6 +69,10 @@ def _assemble(expr, start_offset: int, strings, symbols) -> bytes:
             'chdn': 0x2a,
             'chfd': 0x2b,
             'chdv': 0x2c,
+            'mkstr': 0x2d,
+            'strref': 0x2e,
+            'strset': 0x2f,
+            'strlen': 0x30,
         }
         opcode = single_byte_instrs.get(instr)
         if opcode is not None:

@@ -79,6 +79,10 @@ class Secd:
             0x2a: self.run_chdn,
             0x2b: self.run_chfd,
             0x2c: self.run_chdv,
+            0x2d: self.run_mkstr,
+            0x2e: self.run_strref,
+            0x2f: self.run_strset,
+            0x30: self.run_strlen,
             0x40: self.run_ldc,
             0x41: self.run_ld,
             0x42: self.run_sel,
@@ -688,6 +692,69 @@ class Secd:
             digit_value = Bool(False)
         self.s.append(digit_value)
         if self.debug: print(f'chdv {char}')
+
+    def run_mkstr(self):
+        nchars = self.s.pop()
+        fill_char = self.s.pop()
+
+        if not isinstance(nchars, int):
+            raise RunError(f'mkstr argument "nchars" not an int: {nchars}')
+
+        if not isinstance(fill_char, Char):
+            raise RunError(f'mkstr argument "fill_char" not a char: {fill_char}')
+
+        s = chr(fill_char.char_code) * nchars
+        s = String(s)
+        self.s.append(s)
+        if self.debug: print(f'mkstr {nchars} * {fill_char}')
+
+    def run_strref(self):
+        idx = self.s.pop()
+        s = self.s.pop()
+
+        if not isinstance(idx, int):
+            raise RunError(f'strref argument "index" not an int: {idx}')
+
+        if not isinstance(s, String):
+            raise RunError(f'strref argument "string" not a string: {s}')
+
+        try:
+            c = s.value[idx]
+        except IndexError:
+            raise RunError(f'Invalid index {idx} for string {s}')
+
+        c = Char(ord(c))
+        self.s.append(c)
+        if self.debug: print(f'strref: s={s} idx={idx} => {c}')
+
+    def run_strset(self):
+        char = self.s.pop()
+        idx = self.s.pop()
+        s = self.s.pop()
+
+        if not isinstance(char, Char):
+            raise RunError(f'strset argument "char" not a char: {char}')
+
+        if not isinstance(idx, int):
+            raise RunError(f'strset argument "index" not an int: {idx}')
+
+        if not isinstance(s, String):
+            raise RunError(f'strset argument "string" not a string: {s}')
+
+        if idx < 0 or idx >= len(s):
+            raise RunError(f'Invalid index {idx} for string {s}')
+
+        s.value = s.value[:idx] + chr(char.char_code) + s.value[idx + 1:]
+
+        self.s.append(s)
+        if self.debug: print(f'strset: idx={idx} char={char} => {s}')
+
+    def run_strlen(self):
+        s = self.s.pop()
+        if not isinstance(s, String):
+            raise RunError(f'strlen argument not a string: {s}')
+        self.s.append(len(s))
+        if self.debug: print(f'strlen {s} => {len(s)}')
 
 
 def main():

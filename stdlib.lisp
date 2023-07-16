@@ -28,6 +28,13 @@
 (define (char-downcase c) (char-downcase c))
 (define (char-foldcase c) (char-foldcase c))
 (define (digit-value c) (digit-value c))
+(define (make-string . args)
+  (if (null? (cdr args))
+      (make-string (car args))
+      (make-string (car args) (cadr args))))
+(define (string-ref s k) (string-ref s k))
+(define (string-set! s k c) (string-set! s k c))
+(define (string-length s) (string-length s))
 
 ;; type predicates
 
@@ -56,13 +63,18 @@
 (define (not x)
   (if x #f #t))
 
-;; comparison
+;; numeric comparison
 
 (define (> x y) (not (<= x y)))
 (define (>= x y) (not (< x y)))
 (define (zero? x) (eq? x 0))
 (define (negative? x) (< x 0))
 (define (positive? x) (> x 0))
+
+(define (= . numbers)
+  (if (null? (cdr numbers))
+      #t
+      (all? (pairwise eq? numbers))))
 
 ;; list utilities
 
@@ -101,6 +113,15 @@
 (define (cdar x) (cdr (car x)))
 (define (cddr x) (cdr (cdr x)))
 
+(define (caaar x) (car (car (car x))))
+(define (caadr x) (car (car (cdr x))))
+(define (cadar x) (car (cdr (car x))))
+(define (caddr x) (car (cdr (cdr x))))
+(define (cdaar x) (cdr (car (car x))))
+(define (cdadr x) (cdr (car (cdr x))))
+(define (cddar x) (cdr (cdr (car x))))
+(define (cdddr x) (cdr (cdr (cdr x))))
+
 (define (mapcar func args)
   (if (null? args)
       '()
@@ -119,6 +140,21 @@
             (caar arms)
             (cons 'begin (cdar arms))
             (cons 'cond (cdr arms)))))
+
+;; utility
+
+;; apply the given function to pairs of the given list and return the results as
+;; a list.
+;;
+;; for example, (pairwise list '(1 2 3 4)) would result in (1 2) (2 3) (3 4)
+(define (pairwise fn ls)
+  (cond ((< (length ls) 2)
+         (error :arg-error :msg "Invalid number of arguments for pairwise"))
+        ((eq? (length ls) 2)
+         (list (fn (car ls) (cadr ls))))
+        (#t
+         (cons (fn (car ls) (cadr ls))
+               (pairwise fn (cdr ls))))))
 
 ;; arithmetic
 
@@ -158,6 +194,12 @@
     (if (< b 0)
         (if (<= res 0) res (+ res b))
         (if (>= res 0) res (+ res b)))))
+
+(define (1+ n)
+  (+ n 1))
+
+(define (1- n)
+  (- n 1))
 
 ;; backquote
 
@@ -293,46 +335,27 @@
          (error :arg-error :msg "length: argument not a proper list"))
         (#t (+ 1 (length (cdr ls))))))
 
-;; generalized/recursive comparison
+(define (range' start n acc)
+  (if (<= n start)
+      acc
+      (range' start (1- n) (cons (1- n) acc))))
 
-;; compare two lists recursively using eq?
-(define (list-eq? list1 list2)
-  (cond ((null? list1) (null? list2))
-        ((null? list2) (null? list1))
-        ((not (pair? list1))
+(define (range start end)
+  (range' start end '()))
+
+(define (iota n)
+  (range 0 n))
+
+;; general comparison
+
+(define (equal? x y)
+  (cond ((not (eq? (type x) (type y)))
          #f)
-        ((not (pair? list2))
-         #f)
-        ((and (pair? (car list1))
-              (pair? (car list2)))
-         (and (list-eq? (car list1) (car list2))
-              (list-eq? (cdr list1) (cdr list2))))
-        (#t (and (eq? (car list1) (car list2))
-                 (list-eq? (cdr list1) (cdr list2))))))
-
-;; apply the given function to pairs of the given list and return the results as
-;; a list.
-;;
-;; for example, (pairwise list '(1 2 3 4)) would result in (1 2) (2 3) (3 4)
-(define (pairwise fn ls)
-  (cond ((< (length ls) 2)
-         (error :arg-error :msg "Invalid number of arguments for pairwise"))
-        ((eq? (length ls) 2)
-         (list (fn (car ls) (cadr ls))))
-        (#t
-         (cons (fn (car ls) (cadr ls))
-               (pairwise fn (cdr ls))))))
-
-(define (=' v1 v2)
-  (cond ((not (eq? (type v1) (type v2)))
-         #f)
-        ((pair? v1) (list-eq? v1 v2))
-        (#t (eq? v1 v2))))
-
-(define (= . r)
-  (if (null? (cdr r))
-      #t
-      (all? (pairwise =' r))))
+        ((null? x) #t)
+        ((pair? x) (and (equal? (car x) (car y))
+                        (equal? (cdr x) (cdr y))))
+        ((string? x) (string=? x y))
+        (#t (eq? x y))))
 
 ;; characters
 
@@ -407,3 +430,42 @@
   (if (null? (cdr chars))
       #t
       (all? (pairwise char>=? (map char-foldcase chars)))))
+
+;; strings
+
+(define (string' s chars i)
+  (if (null? chars)
+      s
+      (begin
+        (string-set! s i (car chars))
+        (string' s (cdr chars) (1+ i)))))
+
+(define (string . chars)
+  (let ((s (make-string (length chars))))
+    (string' s chars 0)))
+
+(define (string->list . args)
+  (if (or (null? args) (> (length args) 3))
+      (error :arg-error :msg "string->list accepts 1-3 arguments."))
+  (let* ((str (car args))
+         (strlen (string-length str))
+         (start (if (>= (length args) 2)
+                    (cadr args)
+                    0))
+         (end (if (>= (length args) 3)
+                  (caddr args)
+                  strlen)))
+    (map (lambda (n) (string-ref str n))
+         (range start end))))
+
+(define (list->string ls)
+  (apply string ls))
+
+(define (string=?' s1 s2)
+  (and (eq? (string-length s1) (string-length s2))
+       (all? (map char=? (string->list s1) (string->list s2)))))
+
+(define (string=? . strings)
+  (if (null? (cdr strings))
+      #t
+      (all? (pairwise string=?' strings))))
