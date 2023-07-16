@@ -62,8 +62,8 @@ class Secd:
             0x19: self.run_band,
             0x1a: self.run_bor,
             0x1b: self.run_bxor,
-            0x1c: self.run_lt,
-            0x1d: self.run_le,
+            0x1c: self.run_ilt,
+            0x1d: self.run_ile,
             0x1e: self.run_eq,
             0x1f: self.run_drop,
             0x20: self.run_dup,
@@ -300,20 +300,20 @@ class Secd:
         arg2 = self.s.pop()
         if not isinstance(arg1, int) or not isinstance(arg2, int):
             raise RunError('"isub" arguments must be integers.')
-        self.s.append(arg2 - arg1)
-        if self.debug: print(f'isub {arg2} - {arg1}')
+        self.s.append(arg1 - arg2)
+        if self.debug: print(f'isub {arg1} - {arg2}')
 
     def run_imul(self):
         arg1 = self.s.pop()
         arg2 = self.s.pop()
         if not isinstance(arg1, int) or not isinstance(arg2, int):
             raise RunError('"imul" arguments must be integers.')
-        self.s.append(arg2 * arg1)
+        self.s.append(arg1 * arg2)
         if self.debug: print(f'imul {arg2} * {arg1}')
 
     def run_idiv(self):
-        b = self.s.pop()
         a = self.s.pop()
+        b = self.s.pop()
         if not isinstance(b, int) or not isinstance(a, int):
             raise RunError('"idiv" arguments must be integers.')
         if b == 0:
@@ -322,8 +322,8 @@ class Secd:
         if self.debug: print(f'idiv {a} / {b}')
 
     def run_irem(self):
-        b = self.s.pop()
         a = self.s.pop()
+        b = self.s.pop()
         if not isinstance(b, int) or not isinstance(a, int):
             raise RunError('"irem" arguments must be integers.')
         if b == 0:
@@ -335,24 +335,24 @@ class Secd:
         if self.debug: print(f'irem {a} % {b}')
 
     def run_shr(self):
-        shift = self.s.pop()
         n = self.s.pop()
+        shift = self.s.pop()
         if not isinstance(n, int) or not isinstance(shift, int):
             raise RunError('"shr" arguments must be integers.')
         self.s.append((n % 0x100000000) >> shift)  # assuming 32 bits
         if self.debug: print(f'shr {n} >> {shift}')
 
     def run_shl(self):
-        shift = self.s.pop()
         n = self.s.pop()
+        shift = self.s.pop()
         if not isinstance(n, int) or not isinstance(shift, int):
             raise RunError('"shl" arguments must be integers.')
         self.s.append(n << shift)
         if self.debug: print(f'shl {n} << {shift}')
 
     def run_asr(self):
-        shift = self.s.pop()
         n = self.s.pop()
+        shift = self.s.pop()
         if not isinstance(n, int) or not isinstance(shift, int):
             raise RunError('"shl" arguments must be integers.')
         self.s.append(n >> shift)
@@ -389,21 +389,21 @@ class Secd:
         self.s.append(n1 ^ n2)
         if self.debug: print(f'bxor {n1} | {n2}')
 
-    def run_lt(self):
+    def run_ilt(self):
         arg1 = self.s.pop()
         arg2 = self.s.pop()
         if not isinstance(arg1, int) or not isinstance(arg2, int):
             raise RunError('"lt" arguments must be integers.')
-        self.s.append(Bool(True) if arg2 < arg1 else Bool(False))
-        if self.debug: print(f'lt {arg2} < {arg1}')
+        self.s.append(Bool(True) if arg1 < arg2 else Bool(False))
+        if self.debug: print(f'ilt {arg1} < {arg2}')
 
-    def run_le(self):
+    def run_ile(self):
         arg1 = self.s.pop()
         arg2 = self.s.pop()
         if not isinstance(arg1, int) or not isinstance(arg2, int):
             raise RunError('"le" arguments must be integers.')
-        self.s.append(Bool(True) if arg2 <= arg1 else Bool(False))
-        if self.debug: print(f'lt {arg2} <= {arg1}')
+        self.s.append(Bool(True) if arg1 <= arg2 else Bool(False))
+        if self.debug: print(f'ile {arg1} <= {arg2}')
 
     def run_dum(self):
         self.e = [self.dummy_frame] + self.e
@@ -711,8 +711,8 @@ class Secd:
         if self.debug: print(f'mkstr {nchars} * {fill_char}')
 
     def run_strref(self):
-        idx = self.s.pop()
         s = self.s.pop()
+        idx = self.s.pop()
 
         if not isinstance(idx, int):
             raise RunError(f'strref argument "index" not an int: {idx}')
@@ -730,9 +730,9 @@ class Secd:
         if self.debug: print(f'strref: s={s} idx={idx} => {c}')
 
     def run_strset(self):
-        char = self.s.pop()
-        idx = self.s.pop()
         s = self.s.pop()
+        idx = self.s.pop()
+        char = self.s.pop()
 
         if not isinstance(char, Char):
             raise RunError(f'strset argument "char" not a char: {char}')
@@ -759,23 +759,25 @@ class Secd:
         if self.debug: print(f'strlen {s} => {len(s)}')
 
     def run_setcar(self):
+        pair = self.s.pop()
         value = self.s.pop()
-        pair = self.s[-1]  # leave on the stack as return value
 
         if not isinstance(pair, Pair):
             raise RunError(f'Not a pair to set-car: {pair}')
 
         pair.car = value
+        self.s.append(pair)
         if self.debug: print(f'setcar pair={pair} value={value}')
 
     def run_setcdr(self):
+        pair = self.s.pop()
         value = self.s.pop()
-        pair = self.s[-1]  # leave on the stack as return value
 
         if not isinstance(pair, Pair):
             raise RunError(f'Not a pair to set-cdr: {pair}')
 
         pair.cdr = value
+        self.s.append(pair)
         if self.debug: print(f'setcdr pair={pair} value={value}')
 
 

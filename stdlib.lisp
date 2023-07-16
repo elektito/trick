@@ -1,40 +1,12 @@
-;; allow some primitives to be used like normal functions
+;; primcalls
 
-(define (cons x y) (cons x y))
-(define (car x) (car x))
-(define (cdr x) (cdr x))
-(define (iadd x y) (iadd x y))
-(define (isub x y) (isub x y))
-(define (imul x y) (imul x y))
-(define (idiv x y) (idiv x y))
-(define (shr x y) (shr x y))
-(define (shl x y) (shl x y))
-(define (asr x y) (asr x y))
-(define (b-not x) (b-not x))
-(define (b-and x y) (b-and x y))
-(define (b-or x y) (b-or x y))
-(define (b-xor x y) (b-xor x y))
-(define (< x y) (< x y))
-(define (<= x y) (<= x y))
-(define (print x) (print x))
-(define (printc c) (print c))
-(define (halt n) (halt n))
-(define (type x) (type x))
-(define (eq? x y) (eq? x y))
-(define (gensym) (gensym))
-(define (char->integer c) (char->integer c))
-(define (integer->char n) (integer->char n))
-(define (char-upcase c) (char-upcase c))
-(define (char-downcase c) (char-downcase c))
-(define (char-foldcase c) (char-foldcase c))
-(define (digit-value c) (digit-value c))
 (define (make-string . args)
   (if (null? (cdr args))
-      (make-string (car args))
-      (make-string (car args) (cadr args))))
-(define (string-ref s k) (string-ref s k))
-(define (string-set! s k c) (string-set! s k c))
-(define (string-length s) (string-length s))
+      (#$make-string (car args) #\null)
+      (#$make-string (car args) (cadr args))))
+
+(define (apply fn . args)
+  (#$apply fn (concat (butlast args) (last args))))
 
 ;; type predicates
 
@@ -65,8 +37,15 @@
 
 ;; numeric comparison
 
-(define (> x y) (not (<= x y)))
-(define (>= x y) (not (< x y)))
+
+(define (< x y)
+  (#$ilt x y))
+(define (<= x y)
+  (#$ile x y))
+(define (> x y)
+  (not (<= x y)))
+(define (>= x y)
+  (not (< x y)))
 (define (zero? x) (eq? x 0))
 (define (negative? x) (< x 0))
 (define (positive? x) (> x 0))
@@ -161,33 +140,33 @@
 (define (+ . r)
   (if (null? r)
       0
-      (iadd (car r) (apply + (cdr r)))))
+      (#$iadd (car r) (apply + (cdr r)))))
 
 (define (- . r)
   (if (null? r)
       (error :arg-error :msg "Invalid number of arguments for -")
       (if (null? (cdr r))
-          (isub 0 (car r))
+          (#$isub 0 (car r))
           (if (null? (cddr r))
-              (isub (car r) (cadr r))
-              (isub (apply - (butlast r)) (last r))))))
+              (#$isub (car r) (cadr r))
+              (#$isub (apply - (butlast r)) (last r))))))
 
 (define (* . r)
   (if (null? r)
       1
-      (imul (car r) (apply * (cdr r)))))
+      (#$imul (car r) (apply * (cdr r)))))
 
 (define (/ . r)
   (if (null? r)
       (error :arg-error :msg "Invalid number of arguments for /")
       (if (null? (cdr r))
-          (idiv 1 (car r))
+          (#$idiv 1 (car r))
           (if (null? (cddr r))
-              (idiv (car r) (cadr r))
-              (idiv (apply / (butlast r)) (last r))))))
+              (#$idiv (car r) (cadr r))
+              (#$idiv (apply / (butlast r)) (last r))))))
 
 (define (remainder a b)
-  (irem a b))
+  (#$irem a b))
 
 (define (modulo a b)
   (let ((res (remainder a b)))

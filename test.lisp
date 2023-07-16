@@ -68,35 +68,35 @@
 (eq? -2 (modulo 10 -3))
 (eq? -1 (modulo -10 -3))
 
-(eq? 7 (shr 29 2))
-(eq? 116 (shl 29 2))
-(eq? 7 (asr 29 2))
-(eq? -8 (asr -29 2))
+(eq? 7 (#$shr 29 2))
+(eq? 116 (#$shl 29 2))
+(eq? 7 (#$asr 29 2))
+(eq? -8 (#$asr -29 2))
 
-(eq? -1 (b-not 0))
-(eq? 0 (b-not -1))
-(eq? -2 (b-not 1))
+(eq? -1 (#$bnot 0))
+(eq? 0 (#$bnot -1))
+(eq? -2 (#$bnot 1))
 
-(eq? 0 (b-and 0 0))
-(eq? 0 (b-and 0 1))
-(eq? 0 (b-and 1 0))
-(eq? 1 (b-and 1 1))
-(eq? #xaa00 (b-and #xaabb #xff00))
-(eq? 0 (b-and 19999 0))
-(eq? 19999 (b-and 19999 -1))
+(eq? 0 (#$band 0 0))
+(eq? 0 (#$band 0 1))
+(eq? 0 (#$band 1 0))
+(eq? 1 (#$band 1 1))
+(eq? #xaa00 (#$band #xaabb #xff00))
+(eq? 0 (#$band 19999 0))
+(eq? 19999 (#$band 19999 -1))
 
-(eq? 0 (b-or 0 0))
-(eq? 1 (b-or 0 1))
-(eq? 1 (b-or 1 0))
-(eq? 1 (b-or 1 1))
-(eq? #xffbb (b-or #xaabb #xff00))
-(eq? 19999 (b-or 19999 0))
+(eq? 0 (#$bor 0 0))
+(eq? 1 (#$bor 0 1))
+(eq? 1 (#$bor 1 0))
+(eq? 1 (#$bor 1 1))
+(eq? #xffbb (#$bor #xaabb #xff00))
+(eq? 19999 (#$bor 19999 0))
 
-(eq? 0 (b-xor 0 0))
-(eq? 1 (b-xor 0 1))
-(eq? 1 (b-xor 1 0))
-(eq? 0 (b-xor 1 1))
-(eq? 5 (b-xor #xf #xa))
+(eq? 0 (#$bxor 0 0))
+(eq? 1 (#$bxor 0 1))
+(eq? 1 (#$bxor 1 0))
+(eq? 0 (#$bxor 1 1))
+(eq? 5 (#$bxor #xf #xa))
 
 (eq? #f (not #t))
 (eq? #t (not #f))
@@ -164,10 +164,10 @@
 
 (letrec ((is-even? (lambda (n)
                        (or (eq? n 0)
-                           (is-odd? (isub n 1)))))
+                           (is-odd? (#$isub n 1)))))
          (is-odd? (lambda (n)
                     (and (not (eq? n 0))
-                         (is-even? (isub n 1))))))
+                         (is-even? (#$isub n 1))))))
     (is-odd? 11))
 
 (letrec ()
@@ -600,32 +600,97 @@
 ;; make sure primitive functions are available as normal functions
 
 (closure? cons)
+(equal? '(1 2) (apply cons '(1 (2))))
+
 (closure? car)
+(equal? 1 (apply car '((1 2))))
+
 (closure? cdr)
-(closure? iadd)
-(closure? isub)
-(closure? imul)
-(closure? idiv)
-(closure? shr)
-(closure? shl)
-(closure? asr)
-(closure? b-not)
-(closure? b-and)
-(closure? b-or)
-(closure? b-xor)
-(closure? <)
-(closure? <=)
+(equal? '(2) (apply cdr '((1 2))))
+
+(closure? #$iadd)
+(equal? 3 (apply #$iadd '(1 2)))
+
+(closure? #$isub)
+(equal? -1 (apply #$isub '(1 2)))
+
+(closure? #$imul)
+(equal? 2 (apply #$imul '(1 2)))
+
+(closure? #$idiv)
+(equal? 2 (apply #$idiv '(4 2)))
+
+(closure? #$shr)
+(equal? 1 (apply #$shr '(4 2)))
+
+(closure? #$shl)
+(equal? 16 (apply #$shl '(4 2)))
+
+(closure? #$asr)
+(equal? 1 (apply #$asr '(4 2)))
+
+(closure? #$bnot)
+(equal? -1 (apply #$bnot '(0)))
+
+(closure? #$band)
+(equal? 0 (apply #$band '(0 1)))
+
+(closure? #$bor)
+(equal? 1 (apply #$bor '(0 1)))
+
+(closure? #$bxor)
+(equal? 1 (apply #$bxor '(0 1)))
+
+(closure? #$ilt)
+(apply #$ilt '(1 2))
+
+(closure? #$ile)
+(apply #$ile '(1 1))
+
 (closure? type)
+(equal? 'symbol (apply type '(x)))
+
 (closure? eq?)
+(apply eq? '(foo foo))
+
 (closure? gensym)
+(symbol? (apply gensym))
+
 (closure? char->integer)
+(equal? 65 (apply char->integer '(#\A)))
+
 (closure? integer->char)
+(equal? #\A (apply integer->char '(65)))
+
 (closure? char-upcase)
+(equal? #\A (apply char-upcase '(#\a)))
+
 (closure? char-downcase)
+(equal? #\a (apply char-downcase '(#\A)))
+
 (closure? char-foldcase)
+(equal? #\a (apply char-foldcase '(#\A)))
+
 (closure? digit-value)
-(closure? length)
+(equal? 1 (apply digit-value '(#\1)))
+
 (closure? make-string)
+(equal? "AAA" (apply make-string '(3 #\A)))
+(equal? 3 (string-length (apply make-string '(3))))
+
 (closure? string-ref)
+(equal? #\C (string-ref "ABCD" 2))
+
 (closure? string-set!)
+(let ((x (make-string 4 #\A)))
+  (apply string-set! `(,x 2 #\X))
+  (equal? "AAXA" x))
+
 (closure? string-length)
+(equal? 4 (apply string-length '("AAAA")))
+
+(closure? call/cc)
+(apply call/cc (list (lambda (k) (k #t))))
+
+(closure? call-with-current-continuation)
+(apply call-with-current-continuation (list (lambda (k) (k #t))))

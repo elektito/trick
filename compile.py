@@ -20,6 +20,155 @@ def S(s: str) -> Symbol:
     return Symbol(s)
 
 
+primcalls = {
+    'call-with-current-continuation': {
+        'nargs': 1,
+        'code': [S('ccc')],
+    },
+    'call/cc': 'call-with-current-continuation',
+    'print': {
+        'nargs': 1,
+        'code': [S('print')],
+    },
+    'printc': {
+        'nargs': 1,
+        'code': [S('printc')],
+    },
+    '#$iadd': {
+        'nargs': 2,
+        'code': [S('iadd')],
+    },
+    '#$isub': {
+        'nargs': 2,
+        'code': [S('isub')],
+    },
+    '#$imul': {
+        'nargs': 2,
+        'code': [S('imul')],
+    },
+    '#$idiv': {
+        'nargs': 2,
+        'code': [S('idiv')],
+    },
+    '#$irem': {
+        'nargs': 2,
+        'code': [S('irem')],
+    },
+    '#$ilt': {
+        'nargs': 2,
+        'code': [S('ilt')],
+    },
+    '#$ile': {
+        'nargs': 2,
+        'code': [S('ile')],
+    },
+    '#$shr': {
+        'nargs': 2,
+        'code': [S('shr')],
+    },
+    '#$shl': {
+        'nargs': 2,
+        'code': [S('shl')],
+    },
+    '#$asr': {
+        'nargs': 2,
+        'code': [S('asr')],
+    },
+    '#$bnot': {
+        'nargs': 1,
+        'code': [S('bnot')],
+    },
+    '#$band': {
+        'nargs': 2,
+        'code': [S('band')],
+    },
+    '#$bor': {
+        'nargs': 2,
+        'code': [S('bor')],
+    },
+    '#$bxor': {
+        'nargs': 2,
+        'code': [S('bxor')],
+    },
+    'cons': {
+        'nargs': 2,
+        'code': [S('cons')],
+    },
+    'car': {
+        'nargs': 1,
+        'code': [S('car')],
+    },
+    'cdr': {
+        'nargs': 1,
+        'code': [S('cdr')],
+    },
+    'set-car!': {
+        'nargs': 2,
+        'code': [S('setcar')],
+    },
+    'set-cdr!': {
+        'nargs': 2,
+        'code': [S('setcdr')],
+    },
+    'type': {
+        'nargs': 1,
+        'code': [S('type')],
+    },
+    'eq?': {
+        'nargs': 2,
+        'code': [S('eq')],
+    },
+    'gensym': {
+        'nargs': 0,
+        'code': [S('gensym')],
+    },
+    'char->integer': {
+        'nargs': 1,
+        'code': [S('ch2i')],
+    },
+    'integer->char': {
+        'nargs': 1,
+        'code': [S('i2ch')],
+    },
+    'char-general-category': {
+        'nargs': 1,
+        'code': [S('ugcat')],
+    },
+    'char-upcase': {
+        'nargs': 1,
+        'code': [S('chup')],
+    },
+    'char-downcase': {
+        'nargs': 1,
+        'code': [S('chdn')],
+    },
+    'char-foldcase': {
+        'nargs': 1,
+        'code': [S('chfd')],
+    },
+    'digit-value': {
+        'nargs': 1,
+        'code': [S('chdv')],
+    },
+    '#$make-string': {
+        'nargs': 2,
+        'code': [S('mkstr')],
+    },
+    'string-ref': {
+        'nargs': 2,
+        'code': [S('strref')],
+    },
+    'string-set!': {
+        'nargs': 3,
+        'code': [S('strset')],
+    },
+    'string-length': {
+        'nargs': 1,
+        'code': [S('strlen')],
+    },
+}
+
+
 class CompileError(Exception):
     pass
 
@@ -130,27 +279,6 @@ def compile_int(expr, env):
     return [S('ldc'), expr]
 
 
-def compile_print(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for print: {expr}')
-    code = compile_form(expr[1], env)
-    return code + [S('print')]
-
-
-def compile_printc(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for printc: {expr}')
-    code = compile_form(expr[1], env)
-    return code + [S('printc')]
-
-
-def compile_halt(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for halt: {expr}')
-    code = compile_form(expr[1], env)
-    return code + [S('halt')]
-
-
 def compile_if(expr, env):
     if len(expr) not in (3, 4):
         raise CompileError(f'Invalid number of arguments for if: {expr}')
@@ -162,131 +290,6 @@ def compile_if(expr, env):
     else:
         false_code = [S('nil'), S('join')]
     return cond_code + [S('sel')] + [true_code] + [false_code]
-
-
-def compile_iadd(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for iadd: {expr}')
-
-    arg1 = compile_form(expr[1], env)
-    arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + [S('iadd')]
-
-
-def compile_isub(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for isub: {expr}')
-
-    arg1 = compile_form(expr[1], env)
-    arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + [S('isub')]
-
-
-def compile_imul(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for imul: {expr}')
-
-    arg1 = compile_form(expr[1], env)
-    arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + [S('imul')]
-
-
-def compile_idiv(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for idiv: {expr}')
-
-    arg1 = compile_form(expr[1], env)
-    arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + [S('idiv')]
-
-
-def compile_irem(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for irem: {expr}')
-
-    arg1 = compile_form(expr[1], env)
-    arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + [S('irem')]
-
-
-def compile_shr(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for shr: {expr}')
-
-    n = compile_form(expr[1], env)
-    shift = compile_form(expr[2], env)
-    return n + shift + [S('shr')]
-
-
-def compile_shl(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for shl: {expr}')
-
-    n = compile_form(expr[1], env)
-    shift = compile_form(expr[2], env)
-    return n + shift + [S('shl')]
-
-
-def compile_asr(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for asr: {expr}')
-
-    n = compile_form(expr[1], env)
-    shift = compile_form(expr[2], env)
-    return n + shift + [S('asr')]
-
-
-def compile_bnot(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for b-not: {expr}')
-
-    n = compile_form(expr[1], env)
-    return n + [S('bnot')]
-
-
-def compile_band(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for b-and: {expr}')
-
-    n1 = compile_form(expr[1], env)
-    n2 = compile_form(expr[2], env)
-    return n1 + n2 + [S('band')]
-
-
-def compile_bor(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for b-or: {expr}')
-
-    n1 = compile_form(expr[1], env)
-    n2 = compile_form(expr[2], env)
-    return n1 + n2 + [S('bor')]
-
-
-def compile_bxor(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for b-xor: {expr}')
-
-    n1 = compile_form(expr[1], env)
-    n2 = compile_form(expr[2], env)
-    return n1 + n2 + [S('bxor')]
-
-
-def compile_lt(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for <: {expr}')
-
-    arg1 = compile_form(expr[1], env)
-    arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + [S('lt')]
-
-
-def compile_le(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for <=: {expr}')
-
-    arg1 = compile_form(expr[1], env)
-    arg2 = compile_form(expr[2], env)
-    return arg1 + arg2 + [S('le')]
 
 
 def compile_lambda(expr, env):
@@ -342,6 +345,17 @@ def compile_lambda(expr, env):
 
 
 def compile_symbol(sym: Symbol, env):
+    if sym.name in primcalls:
+        func_code = []
+        prim = primcalls[sym.name]
+        if isinstance(prim, str):
+            prim = primcalls[prim]
+        for i in range(prim['nargs'] - 1, -1, -1):
+            func_code += [S('ld'), [0, i]]
+        func_code += prim['code']
+        func_code += [S('ret')]
+        return [S('ldf'), func_code]
+
     if sym.name.startswith(':'):
         return [S('ldsym'), sym]
 
@@ -366,69 +380,6 @@ def compile_bool(s: Bool, env):
 
 def compile_char(ch: Char, env):
     return [S('ldc'), ch.char_code, S('i2ch')]
-
-
-def compile_char_to_int(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for char->integer')
-
-    code = compile_form(expr[1], env)
-    code += [S('ch2i')]
-    return code
-
-
-def compile_int_to_char(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for integer->char')
-
-    code = compile_form(expr[1], env)
-    code += [S('i2ch')]
-    return code
-
-
-def compile_char_general_category(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for char-general-category')
-
-    code = compile_form(expr[1], env)
-    code += [S('ugcat')]
-    return code
-
-
-def compile_char_upcase(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for char-upcase')
-
-    code = compile_form(expr[1], env)
-    code += [S('chup')]
-    return code
-
-
-def compile_char_downcase(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for char-downcase')
-
-    code = compile_form(expr[1], env)
-    code += [S('chdn')]
-    return code
-
-
-def compile_char_foldcase(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for char-foldcase')
-
-    code = compile_form(expr[1], env)
-    code += [S('chfd')]
-    return code
-
-
-def compile_digit_value(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for digit-value')
-
-    code = compile_form(expr[1], env)
-    code += [S('chdv')]
-    return code
 
 
 def check_let_bindings(bindings, let_name):
@@ -507,32 +458,16 @@ def compile_func_call(expr, env):
 
 
 def compile_apply(expr, env):
-    if len(expr) < 3:
-        raise CompileError('Invalid number of arguments for apply')
+    if len(expr) != 3:
+        raise CompileError('Invalid number of arguments for #$apply')
 
-    # compile last form, which should be a list
-    secd_code = compile_form(expr.last().car, env)
+    # compile second argument which should be a list
+    secd_code = compile_form(expr[2], env)
 
-    # prepend all the other arguments to the list
-    other_args = expr.to_list()[2:-1]
-    for form in reversed(other_args):
-        secd_code += compile_form(form, env)
-        secd_code += [S('cons')]
-
-    # the function to apply
+    # compile first argument which should be a function
     secd_code += compile_form(expr[1], env)
 
     secd_code += [S('ap')]
-    return secd_code
-
-
-def compile_call_cc(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for call/cc')
-
-    secd_code = compile_form(expr[1], env)
-    secd_code += [S('ccc')]
-
     return secd_code
 
 
@@ -584,54 +519,6 @@ def compile_set(expr, env):
     return code
 
 
-def compile_cons(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for cons.')
-
-    code = compile_form(expr[2], env)
-    code += compile_form(expr[1], env)
-    code += [S('cons')]
-    return code
-
-
-def compile_car(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for car.')
-
-    code = compile_form(expr[1], env)
-    code += [S('car')]
-    return code
-
-
-def compile_set_car(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for set-car!')
-
-    code = compile_form(expr[1], env)
-    code += compile_form(expr[2], env)
-    code += [S('setcar')]
-    return code
-
-
-def compile_set_cdr(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for set-cdr!')
-
-    code = compile_form(expr[1], env)
-    code += compile_form(expr[2], env)
-    code += [S('setcdr')]
-    return code
-
-
-def compile_cdr(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for cdr.')
-
-    code = compile_form(expr[1], env)
-    code += [S('cdr')]
-    return code
-
-
 def compile_quoted_form(form, env):
     if isinstance(form, Nil):
         return [S('nil')]
@@ -651,25 +538,6 @@ def compile_quote(expr, env):
         raise CompileError(f'Invalid number of arguments for quote.')
 
     return compile_quoted_form(expr[1], env)
-
-
-def compile_type(expr, env):
-    if len(expr) != 2:
-        raise CompileError(f'Invalid number of arguments for type.')
-
-    code = compile_form(expr[1], env)
-    code += [S('type')]
-    return code
-
-
-def compile_eq(expr, env):
-    if len(expr) != 3:
-        raise CompileError(f'Invalid number of arguments for eq.')
-
-    code = compile_form(expr[1], env)
-    code += compile_form(expr[2], env)
-    code += [S('eq')]
-    return code
 
 
 def compile_error(expr, env):
@@ -703,56 +571,19 @@ def compile_error(expr, env):
     return code
 
 
-def compile_gensym(expr, env):
-    if len(expr) != 1:
-        raise CompileError('Invalid number of arguments for gensym')
+def compile_primcall(expr, env, desc):
+    if isinstance(desc, str):
+        desc = primcalls[desc]
 
-    return [S('gensym')]
-
-
-def compile_make_string(expr, env):
-    if len(expr) not in (2, 3):
-        raise CompileError('Invalid number of arguments for make-string')
+    nargs = desc['nargs']
+    if len(expr) != nargs + 1:
+        raise CompileError(f'Invalid number of arguments for "{expr[0]}"')
 
     code = []
-    if len(expr) == 2:
-        # default to filling with null character
-        code += [S('ldc'), 0, S('i2ch')]
-    else:
-        code += compile_form(expr[2], env)
+    for i in range(nargs - 1, -1, -1):
+        code += compile_form(expr[i + 1], env)
 
-    code += compile_form(expr[1], env)
-    code += [S('mkstr')]
-    return code
-
-
-def compile_string_ref(expr, env):
-    if len(expr) != 3:
-        raise CompileError('Invalid number of arguments for string-ref')
-
-    code = compile_form(expr[1], env)
-    code += compile_form(expr[2], env)
-    code += [S('strref')]
-    return code
-
-
-def compile_string_set(expr, env):
-    if len(expr) != 4:
-        raise CompileError('Invalid number of arguments for string-set')
-
-    code = compile_form(expr[1], env)
-    code += compile_form(expr[2], env)
-    code += compile_form(expr[3], env)
-    code += [S('strset')]
-    return code
-
-
-def compile_string_length(expr, env):
-    if len(expr) != 2:
-        raise CompileError('Invalid number of arguments for string-length')
-
-    code = compile_form(expr[1], env)
-    code += [S('strlen')]
+    code += desc['code']
     return code
 
 
@@ -761,65 +592,32 @@ def compile_list(expr, env):
         raise CompileError('Empty list is not a valid form')
 
     if not expr.is_proper():
-        raise CompileError('Cannot compile improper list')
+        raise CompileError(f'Cannot compile improper list: {expr}')
 
     if isinstance(expr.car, Symbol):
         name = expr.car.name
         if name == S('define-macro'):
             raise CompileError('define-macro only allowed at top-level')
 
-        primitives = {
+        special_forms = {
             'define': compile_define,
             'set!': compile_set,
             'if': compile_if,
-            'iadd': compile_iadd,
-            'isub': compile_isub,
-            'imul': compile_imul,
-            'idiv': compile_idiv,
-            'irem': compile_irem,
-            'shr': compile_shr,
-            'shl': compile_shl,
-            'asr': compile_asr,
-            'b-not': compile_bnot,
-            'b-and': compile_band,
-            'b-or': compile_bor,
-            'b-xor': compile_bxor,
-            '<': compile_lt,
-            '<=': compile_le,
             'lambda': compile_lambda,
             'let': compile_let,
             'letrec': compile_letrec,
-            'print': compile_print,
-            'printc': compile_printc,
-            'halt': compile_halt,
-            'cons': compile_cons,
-            'car': compile_car,
-            'cdr': compile_cdr,
-            'set-car!': compile_set_car,
-            'set-cdr!': compile_set_cdr,
             'quote': compile_quote,
-            'type': compile_type,
-            'eq?': compile_eq,
             'error': compile_error,
-            'gensym': compile_gensym,
-            'apply': compile_apply,
-            'call/cc': compile_call_cc,
-            'call-with-current-continuation': compile_call_cc,
-            'char->integer': compile_char_to_int,
-            'integer->char': compile_int_to_char,
-            'char-general-category': compile_char_general_category,
-            'char-upcase': compile_char_upcase,
-            'char-downcase': compile_char_downcase,
-            'char-foldcase': compile_char_foldcase,
-            'digit-value': compile_digit_value,
-            'make-string': compile_make_string,
-            'string-ref': compile_string_ref,
-            'string-set!': compile_string_set,
-            'string-length': compile_string_length,
+            '#$apply': compile_apply,
         }
-        compile_func = primitives.get(name)
-        if compile_func is not None:
+
+        compile_func = special_forms.get(name)
+        if name in special_forms:
+            compile_func = special_forms[name]
             return compile_func(expr, env)
+        elif name in primcalls:
+            prim = primcalls[name]
+            return compile_primcall(expr, env, prim)
         elif name in macros:
             macro = macros[name]
             new_form = macro.expand(expr.cdr)
