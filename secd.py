@@ -83,6 +83,8 @@ class Secd:
             0x2e: self.run_strref,
             0x2f: self.run_strset,
             0x30: self.run_strlen,
+            0x31: self.run_setcar,
+            0x32: self.run_setcdr,
             0x40: self.run_ldc,
             0x41: self.run_ld,
             0x42: self.run_sel,
@@ -755,6 +757,26 @@ class Secd:
             raise RunError(f'strlen argument not a string: {s}')
         self.s.append(len(s))
         if self.debug: print(f'strlen {s} => {len(s)}')
+
+    def run_setcar(self):
+        value = self.s.pop()
+        pair = self.s[-1]  # leave on the stack as return value
+
+        if not isinstance(pair, Pair):
+            raise RunError(f'Not a pair to set-car: {pair}')
+
+        pair.car = value
+        if self.debug: print(f'setcar pair={pair} value={value}')
+
+    def run_setcdr(self):
+        value = self.s.pop()
+        pair = self.s[-1]  # leave on the stack as return value
+
+        if not isinstance(pair, Pair):
+            raise RunError(f'Not a pair to set-cdr: {pair}')
+
+        pair.cdr = value
+        if self.debug: print(f'setcdr pair={pair} value={value}')
 
 
 def main():

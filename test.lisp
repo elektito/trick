@@ -520,6 +520,14 @@
 (equal? (list->string '(#\A #\B #\C)) "ABC")
 (equal? (list->string '()) "")
 
+(let ((x '(1 2 3)))
+  (set-car! x 10)
+  (equal? x '(10 2 3)))
+
+(let ((x '(1 2 3)))
+  (set-cdr! x 10)
+  (equal? x '(1 . 10)))
+
 ;; backquote tests
 
 (eq? `() '())

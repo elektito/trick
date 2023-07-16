@@ -603,6 +603,26 @@ def compile_car(expr, env):
     return code
 
 
+def compile_set_car(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for set-car!')
+
+    code = compile_form(expr[1], env)
+    code += compile_form(expr[2], env)
+    code += [S('setcar')]
+    return code
+
+
+def compile_set_cdr(expr, env):
+    if len(expr) != 3:
+        raise CompileError(f'Invalid number of arguments for set-cdr!')
+
+    code = compile_form(expr[1], env)
+    code += compile_form(expr[2], env)
+    code += [S('setcdr')]
+    return code
+
+
 def compile_cdr(expr, env):
     if len(expr) != 2:
         raise CompileError(f'Invalid number of arguments for cdr.')
@@ -775,6 +795,8 @@ def compile_list(expr, env):
             'cons': compile_cons,
             'car': compile_car,
             'cdr': compile_cdr,
+            'set-car!': compile_set_car,
+            'set-cdr!': compile_set_cdr,
             'quote': compile_quote,
             'type': compile_type,
             'eq?': compile_eq,
