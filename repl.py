@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import readline
 from assemble import assemble
 from compile import CompileError, compile_form, compile_toplevel
 from machinetypes import Symbol
