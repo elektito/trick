@@ -89,6 +89,20 @@ Primitive functions:
    values are: `nil`, `symbol`, `pair`, `int`, `string`, `closure`, `bool`.
  - `eq?`: Return true if the two values are the exact same object.
  - `gensym`: Return a unique symbol
+ - `apply`
+ - `call/cc`
+ - `call-with-current-continuation`
+ - `char->integer`
+ - `integer->char`
+ - `char-general-category`
+ - `char-upcase`
+ - `char-downcase`
+ - `char-foldcase`
+ - `digit-value`
+ - `make-string`
+ - `string-ref`
+ - `string-set!`
+ - `string-length`
 
 ## SECD Instructions
 
@@ -131,7 +145,20 @@ The following instructions are supported by the SECD machine. The ones that are 
  - `type`
  - `error`
  - `gensym`
- - `ccc`
+ - `ccc`: call/cc
+ - `i2ch`
+ - `ch2i`
+ - `ugcat`
+ - `chup`
+ - `chdn`
+ - `chfd`
+ - `chdv`
+ - `mkstr`
+ - `strref`
+ - `strset`
+ - `strlen`
+ - `setcar`
+ - `setcdr`
  - `ldc`
  - `ld`
  - `sel`
