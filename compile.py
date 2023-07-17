@@ -346,9 +346,16 @@ def compile_lambda(expr, env):
 
 def compile_symbol(sym: Symbol, env):
     if sym.name in primcalls:
+        # using a primitive like "car" or "cons" as a symbol. this should return
+        # a function that performs those primitives. what we do is emit an ldf
+        # instruction which loads its arguments into the stack, in the same
+        # order as the call to the primitive itself pushes its arguments, and
+        # than performs the same instructions the primitive itself would
+        # perform. and then returns of course.
         func_code = []
         prim = primcalls[sym.name]
         if isinstance(prim, str):
+            # primitive is a synonoym of another one. look it up again.
             prim = primcalls[prim]
         for i in range(prim['nargs'] - 1, -1, -1):
             func_code += [S('ld'), [0, i]]
