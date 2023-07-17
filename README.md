@@ -24,20 +24,20 @@ The code consists of the following main parts:
  - `assemble.py`: Read SECD instructions in s-expr text form and output binary
    SECD instructions.
  - `secd.py`: Read binary SECD instructions and execute them.
- - `stdlib.lisp`: A small set of utility functions and macros provided as the
+ - `stdlib.scm`: A small set of utility functions and macros provided as the
    standard library.
  - `test.py`: Run the test suite.
  - `repl.py`: Run a Read-Eval-Print loop. Currently rather limited, since state
    is not kept between two entered expressions, so you cannot first define a
    function and then call it.
    
-If you have a source file named "foo.lisp" you can run it by:
+If you have a source file named "foo.scm" you can run it by:
 
-    python3 compile.py -l stdlib.lisp foo.lisp | python3 assemble.py | python3 secd.py
+    python3 compile.py -l stdlib.scm foo.scm | python3 assemble.py | python3 secd.py
     
 Or you can use the provided "run.sh" script which does the same thing:
 
-    ./run.sh foo.lisp
+    ./run.sh foo.scm
 
 ## Lisp Primitives
 
@@ -59,26 +59,25 @@ Special forms:
    supposed to be passed to the function which will be interpreted as error
    type. An error message can also specified by adding `:msg "error message"` to
    the arguments.
- - `apply`: Apply a function to a list.
- - `call/cc`: Call the given function and pass the current continuation as its
-   argument.
+ - `#$apply`: Apply a function to a list. This only accepts a single list as
+   argument. The full version of apply is in stdlib.
 
 Primitive functions:
 
- - `iadd`: Add two integers
- - `isub`: Subtract two integers
- - `imul`: Multiply two integers
- - `idiv`: Divide two integers and return the quotient
- - `irem`: Divide two integers and return the remainder
- - `shr`: Logical shift right
- - `shl`: Logical shift left
- - `asr`: Arithmetic shift right
- - `b-not`: Binary NOT
- - `b-and`: Binary AND
- - `b-or`: Binary OR
- - `b-xor`: Binary XOR
- - `<`: Less-than operator
- - `<=`: Less-than-or-equal to operator
+ - `#$iadd`: Add two integers
+ - `#$isub`: Subtract two integers
+ - `#$imul`: Multiply two integers
+ - `#$idiv`: Divide two integers and return the quotient
+ - `#$irem`: Divide two integers and return the remainder
+ - `#$shr`: Logical shift right
+ - `#$shl`: Logical shift left
+ - `#$asr`: Arithmetic shift right
+ - `#$bnot`: Binary NOT
+ - `#$band`: Binary AND
+ - `#$bor`: Binary OR
+ - `#$bxor`: Binary XOR
+ - `#$ilt`: Less-than operator
+ - `#$ile`: Less-than-or-equal to operator
  - `print`: Print a value
  - `printc`: Print a character given its code
  - `halt`: Stop execution. Accepts a single argument as the exit code.
@@ -89,7 +88,6 @@ Primitive functions:
    values are: `nil`, `symbol`, `pair`, `int`, `string`, `closure`, `bool`.
  - `eq?`: Return true if the two values are the exact same object.
  - `gensym`: Return a unique symbol
- - `apply`
  - `call/cc`
  - `call-with-current-continuation`
  - `char->integer`
