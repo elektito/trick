@@ -39,6 +39,11 @@
 (eq? 100 (if #t 100))
 (eq? '() (if #f 100))
 
+(eq? 3 (when #t 1 2 3))
+(eq? #f (when #f 1 2 3))
+(eq? #f (unless #t 1 2 3))
+(eq? 3 (unless #f 1 2 3))
+
 (cond (#t #t))
 (= 200 (cond ((= 10 20) 50 100)
              ((= 5 5) 80 200)
