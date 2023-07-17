@@ -98,8 +98,10 @@ def _assemble(expr, start_offset: int, strings, symbols) -> bytes:
             code += frame.to_bytes(length=2, byteorder='little', signed=False)
             code += index.to_bytes(length=2, byteorder='little', signed=False)
         elif instr == 'sel':
-            if not isinstance(expr[i], list) or not isinstance(expr[i + 1], list):
-                raise AssembleError(f'Invalid argument for sel: {expr[j]}')
+            if not isinstance(expr[i], list) :
+                raise AssembleError(f'Invalid first argument for sel: {expr[i]}')
+            if not isinstance(expr[i + 1], list):
+                raise AssembleError(f'Invalid second argument for sel: {expr[i+1]}')
 
             code += bytes([0x42])
 
