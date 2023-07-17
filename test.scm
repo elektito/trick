@@ -11,6 +11,12 @@
 (eq? '() '())
 (not (eq? '() 'nil))
 
+(symbol=? 'foo 'foo)
+(not (symbol=? 'foo 'bar))
+
+(boolean=? #t #t)
+(not (boolean=? #t #f))
+
 (let ((x 100))
   (set! x 200)
   (eq? 200 x))

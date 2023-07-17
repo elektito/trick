@@ -30,10 +30,18 @@
           (list? (cdr v))
           #f)))
 
-;; boolean
+;; booleans
 
 (define (not x)
   (if x #f #t))
+
+(define (boolean=? x y)
+  (if x y (not y)))
+
+;; symbols
+
+(define (symbol=? x y)
+  (eq? x y))
 
 ;; numeric comparison
 
