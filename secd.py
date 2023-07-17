@@ -266,7 +266,7 @@ class Secd:
 
         return args
 
-    def _do_apply(self, tail_call=False, dummy_frame=False):
+    def _do_apply(self, name, tail_call=False, dummy_frame=False):
         assert not tail_call or not dummy_frame
 
         closure = self.s.pop()
@@ -296,7 +296,7 @@ class Secd:
         elif not tail_call:
             self.d.append((self.s, self.e, self.c))
 
-        if self.debug: print(f'ap {self.c} => {closure.c}')
+        if self.debug: print(f'{name} {self.c} => {closure.c}')
 
         args = self.fit_args(closure, args)
         if isinstance(closure, Continuation):
@@ -312,7 +312,7 @@ class Secd:
             self.s, self.e, self.c = [], [args] + closure.e, closure.c
 
     def run_ap(self):
-        self._do_apply(tail_call=False)
+        self._do_apply('ap', tail_call=False)
 
     def run_ret(self):
         retval = self.s.pop()
@@ -462,10 +462,10 @@ class Secd:
         if self.debug: print(f'dum')
 
     def run_rap(self):
-        self._do_apply(dummy_frame=True)
+        self._do_apply('rap', dummy_frame=True)
 
     def run_tap(self):
-        self._do_apply(tail_call=True)
+        self._do_apply('tap', tail_call=True)
 
     def run_drop(self):
         value = self.s.pop()
