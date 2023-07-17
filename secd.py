@@ -90,7 +90,6 @@ class Secd:
             0x42: self.run_sel,
             0x43: self.run_ldf,
             0x44: self.run_st,
-            0x45: self.run_ldfx,
             0x46: self.run_ldstr,
             0x47: self.run_strtab,
             0x48: self.run_ldsym,
@@ -118,6 +117,16 @@ class Secd:
                 self.strtab.append(sname)
             self.symtab.append(sym)
         return sym
+
+    def find_procedure_name(self, procedure):
+        for symnum, value in self.symvals.items():
+            if value == procedure:
+                break
+        else:
+            return None
+
+        sym = self.symtab[symnum]
+        return sym.name
 
     def run_nil(self):
         self.s.append(Nil())
@@ -209,25 +218,57 @@ class Secd:
         if self.debug: print(f'join')
 
     def run_ldf(self):
-        body_size = self.code[self.c:self.c+4]
+        nparams = self.code[self.c:self.c+4]
+        body_size = self.code[self.c+4:self.c+8]
+        nparams = int.from_bytes(nparams, byteorder='little', signed=True)
         body_size = int.from_bytes(body_size, byteorder='little', signed=False)
-        self.c += 4
-        closure = Closure(self.c, self.e)
+        self.c += 8
+        if nparams < 0:
+            rest_param = True
+            nparams = -nparams - 1
+        else:
+            rest_param = False
+        closure = Closure(self.c, self.e, nparams=nparams, rest_param=rest_param)
         self.s.append(closure)
         self.c += body_size
         if self.debug: print(f'ldf body_size={body_size}')
 
-    def run_ldfx(self):
-        nargs = self.code[self.c]
-        body_size = self.code[self.c+1:self.c+5]
-        body_size = int.from_bytes(body_size, byteorder='little', signed=False)
-        self.c += 5
-        closure = Closure(self.c, self.e, nargs=nargs)
-        self.s.append(closure)
-        self.c += body_size
-        if self.debug: print(f'ldfx nargs={nargs} body_size={body_size}')
+    def fit_args(self, closure, args):
+        """
+        Check procedure arguments against args. If they mismatch,
+        return an error, otherwise return them as a python list. In
+        case the procedure has a rest parameter, any extra arguments
+        are stored as a (Scheme) list in the last argument.
+        """
+        if closure.rest_param:
+            if len(args) < closure.nparams:
+                desc = 'procedure'
+                proc_name = self.find_procedure_name(closure)
+                if proc_name:
+                    desc += f' "{proc_name}"'
+                raise RunError(
+                    f'Invalid number of arguments for {desc} (expected '
+                    f'at least {closure.nparams}, got {len(args)})')
+            args = args.to_list()
+            rest = List.from_list(args[closure.nparams:])
+            args = args[:closure.nparams] + [rest]
+        else:
+            if len(args) != closure.nparams:
+                desc = 'procedure'
+                proc_name = self.find_procedure_name(closure)
+                if proc_name:
+                    desc += f' "{proc_name}"'
+                raise RunError(
+                    f'Invalid number of arguments for {desc} (expected '
+                    f'{closure.nparams}, got {len(args)})')
 
-    def run_ap(self):
+            args = args.to_list()
+
+        return args
+
+    def _do_apply(self, tail_call=False, dummy_frame=False):
+        assert not tail_call or not dummy_frame
+
         closure = self.s.pop()
         args = self.s.pop()
 
@@ -238,18 +279,26 @@ class Secd:
         if not args.is_proper():
             raise RunError(f'Argument list not proper: {args}')
 
-        self.d.append((self.s, self.e, self.c))
+        if dummy_frame:
+            # code specific to "rap" instruction: replace an already existing
+            # dummy frame.
+
+            if closure.e[0] != self.dummy_frame:
+                raise RunError('No dummy frame.')
+
+            # note that we don't store e[0] on d, since it contains the dummy
+            # frame. in normal 'ap' that does not exist, so we can store the
+            # entire contents of e.
+            self.d.append((self.s, self.e[1:], self.c))
+
+            # replace dummy frame with actual frame
+            closure.e[0] = args
+        elif not tail_call:
+            self.d.append((self.s, self.e, self.c))
+
         if self.debug: print(f'ap {self.c} => {closure.c}')
-        if closure.has_rest_param():
-            if len(args) < closure.nparams:
-                raise RunError(f'Invalid number of function arguments')
-            args = args.to_list()
-            rest = List.from_list(args[closure.nparams:])
-            args = args[:closure.nparams] + [rest]
-            args = List.from_list(args)
 
-        args = args.to_list()
-
+        args = self.fit_args(closure, args)
         if isinstance(closure, Continuation):
             if len(args) != 1:
                 raise RunError(
@@ -261,6 +310,9 @@ class Secd:
             self.d = closure.d
         else:
             self.s, self.e, self.c = [], [args] + closure.e, closure.c
+
+    def run_ap(self):
+        self._do_apply(tail_call=False)
 
     def run_ret(self):
         retval = self.s.pop()
@@ -410,66 +462,10 @@ class Secd:
         if self.debug: print(f'dum')
 
     def run_rap(self):
-        closure = self.s.pop()
-        args = self.s.pop()
-
-        if not isinstance(closure, Closure):
-            raise RunError(f'Cannot call non-function value: {closure}')
-        if not isinstance(args, List):
-            raise RunError(f'Invalid argument list: {args}')
-        if not args.is_proper():
-            raise RunError(f'Argument list not proper: {args}')
-
-        if closure.e[0] != self.dummy_frame:
-            raise RunError('No dummy frame.')
-
-        if closure.has_rest_param():
-            raise RunError('rap does not support rest arguments')
-
-        # note that we don't store e[0] on d, since it contains the dummy frame.
-        # in normal 'ap' that does not exist, so we can store the entire
-        # contents of e.
-        self.d.append((self.s, self.e[1:], self.c))
-
-        # replace dummy frame with actual frame
-        closure.e[0] = args
-
-        if self.debug: print(f'rap {self.c} => {closure.c}')
-        self.s, self.e, self.c = [], closure.e, closure.c
+        self._do_apply(dummy_frame=True)
 
     def run_tap(self):
-        closure = self.s.pop()
-        args = self.s.pop()
-
-        if not isinstance(closure, Closure):
-            raise RunError(f'Cannot call non-function value: {closure}')
-        if not isinstance(args, List):
-            raise RunError(f'Invalid argument list: {args}')
-        if not args.is_proper():
-            raise RunError(f'Argument list not proper: {args}')
-
-        if self.debug: print(f'tap {self.c} => {closure.c}')
-        if closure.has_rest_param():
-            if len(args) < closure.nparams:
-                raise RunError(f'Invalid number of function arguments')
-            args = args.to_list()
-            rest = List.from_list(args[closure.nparams:])
-            args = args[:closure.nparams] + [rest]
-            args = List.from_list(args)
-
-        args = args.to_list()
-
-        if isinstance(closure, Continuation):
-            if len(args) != 1:
-                raise RunError(
-                    'Continuation should be passed one, and only one, '
-                    'argument.')
-            self.s = closure.s + [args[0]]
-            self.e = closure.e
-            self.c = closure.c
-            self.d = closure.d
-        else:
-            self.s, self.e, self.c = [], [args] + closure.e, closure.c
+        self._do_apply(tail_call=True)
 
     def run_drop(self):
         value = self.s.pop()

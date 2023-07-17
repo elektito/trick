@@ -149,19 +149,17 @@ class String:
 
 
 class Closure:
-    def __init__(self, c, e, nargs=None):
+    def __init__(self, c, e, *, nparams: int, rest_param: bool):
         self.c = c
         self.e = e
-        self.nparams = nargs
-
-    def has_rest_param(self):
-        return self.nparams is not None
+        self.nparams = nparams
+        self.rest_param = rest_param
 
     def __repr__(self):
-        if self.has_rest_param():
-            return f'<Closure nargs={self.nparams} c={self.c} e={self.e}>'
+        if self.rest_param:
+            return f'<Closure nparams={self.nparams}+rest c={self.c} e={self.e}>'
         else:
-            return f'<Closure c={self.c} e={self.e}>'
+            return f'<Closure nparams={self.nparams} c={self.c} e={self.e}>'
 
 
 class Continuation(Closure):
@@ -171,8 +169,8 @@ class Continuation(Closure):
         self.c = c
         self.d = [i for i in d] # shallow copy
 
-    def has_rest_param(self):
-        return False
+        self.nparams = 1
+        self.rest_param = False
 
     def __repr__(self):
         return f'<Continuation s={self.s} e={self.e} c={self.c} d={self.d}>'

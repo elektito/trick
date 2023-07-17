@@ -113,11 +113,15 @@ def _assemble(expr, start_offset: int, strings, symbols) -> bytes:
 
             i += 2
         elif instr == 'ldf':
-            if not isinstance(expr[i], list):
-                raise AssembleError(f'Invalid argument for ldf: {expr[i]}')
-            body = expr[i]
-            i += 1
+            if not isinstance(expr[i], int):
+                raise AssembleError(f'Invalid first argument for ldf: {expr[i]}')
+            if not isinstance(expr[i + 1], list):
+                raise AssembleError(f'Invalid second argument for ldf: {expr[i+1]}')
+            nargs = expr[i]
+            body = expr[i + 1]
+            i += 2
             code += bytes([0x43])
+            code += nargs.to_bytes(length=4, byteorder='little', signed=True)
             body_code = _assemble(body, start_offset + len(code) + 4, strings, symbols)
             code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
             code += body_code
@@ -132,26 +136,6 @@ def _assemble(expr, start_offset: int, strings, symbols) -> bytes:
             code += bytes([0x44])
             code += frame.to_bytes(length=2, byteorder='little', signed=False)
             code += index.to_bytes(length=2, byteorder='little', signed=False)
-        elif instr == 'ldfx':
-            if not isinstance(expr[i], list):
-                raise AssembleError(f'Invalid argument for ldfx: {expr[i]}')
-            args = expr[i]
-            i += 1
-
-            if len(args) != 2 or \
-               not isinstance(args[0], int) or \
-               not isinstance(args[1], list):
-                raise AssembleError(f'Invalid argument for ldfx: {expr[i]}')
-
-            nargs, body = args
-            if nargs < 0 or nargs > 255:
-                raise AssembleError(f'Invalid nargs value for ldfx: {nargs}')
-
-            code += bytes([0x45])
-            code += bytes([nargs])
-            body_code = _assemble(body, start_offset + len(code) + 4, strings, symbols)
-            code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
-            code += body_code
         elif instr == 'ldstr':
             s = expr[i]
             i += 1

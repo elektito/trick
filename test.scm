@@ -305,7 +305,6 @@
 (equal? #\A #\A)
 (equal? 'foo 'foo)
 (equal? 1 1)
-(equal? 1 1 1)
 (not (equal? 1 2))
 (equal? '(1 foo 2) '(1 foo 2))
 (not (equal? '(1 foo 2) '(1 foo 2 3)))

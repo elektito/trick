@@ -192,7 +192,9 @@ class Macro:
         try:
             func_call_code = compile_form(func_call, self.env)
         except CompileError as e:
-            raise CompileError(f'During macro expansion of {self.name}: {e}')
+            raise CompileError(
+                f'Compile error during macro expansion of '
+                f'{self.name}: {e}')
 
         code = toplevel_code + func_call_code
         assembled = assemble(code)
@@ -204,10 +206,10 @@ class Macro:
         except UserError:
             err = machine.s[-1]
             msg = format_user_error(err)
-            msg = 'During macro expansion: ' + msg
+            msg = f'During macro expansion of {self.name}: {msg}'
             raise CompileError(msg)
         except RunError as e:
-            raise CompileError(f'Run error during macro expansion: {e}')
+            raise CompileError(f'Run error during macro expansion of "{self.name}": {e}')
 
         if len(machine.s) == 0:
             raise CompileError(f'Internal error: macro did not return anything')
@@ -322,6 +324,12 @@ def compile_lambda(expr, env):
     if rest_param:
         params = params + [rest_param]
 
+    # we store the number of parameters here, becaues when we compile the body
+    # further down, the params value might change in case there are "define"
+    # forms in the body. we will use this original value when writing the "ldf"
+    # instruction though.
+    original_nparams = len(params)
+
     new_env = [params] + env
 
     # expr: (lambda . (params . body))
@@ -337,9 +345,9 @@ def compile_lambda(expr, env):
         body_code[-2:] = [S('tap')]
 
     if rest_param:
-        code = [S('ldfx'), [len(params) - 1, body_code]]
+        code = [S('ldf'), -original_nparams, body_code]
     else:
-        code = [S('ldf'), body_code]
+        code = [S('ldf'), original_nparams, body_code]
 
     return code
 
@@ -361,7 +369,7 @@ def compile_symbol(sym: Symbol, env):
             func_code += [S('ld'), [0, i]]
         func_code += prim['code']
         func_code += [S('ret')]
-        return [S('ldf'), func_code]
+        return [S('ldf'), prim['nargs'], func_code]
 
     if sym.name.startswith(':'):
         return [S('ldsym'), sym]
