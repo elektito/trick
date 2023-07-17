@@ -585,7 +585,7 @@ class Secd:
         value = self.s.pop()
         self.symvals[symnum] = value
 
-        if self.debug: print(f'set {symnum} => {value}')
+        if self.debug: print(f'set {self.symtab[symnum]} => {value}')
 
     def run_get(self):
         symnum = self.code[self.c:self.c+4]
@@ -603,7 +603,7 @@ class Secd:
                 raise RunError(f'Unknown symbol number set: {symnum}')
 
         self.s.append(value)
-        if self.debug: print(f'get {symnum} => {value}')
+        if self.debug: print(f'get {self.symtab[symnum]} => {value}')
 
     def run_error(self):
         if self.debug: print(f'error')
