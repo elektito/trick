@@ -10,10 +10,12 @@ from secd import RunError, Secd, UserError
 from utils import format_user_error
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Run test suite.')
-    args = parser.parse_args()
+def configure_argparse(parser: argparse.ArgumentParser):
+    parser.description = 'Run a Trick REPL'
+    parser.set_defaults(func=main)
 
+
+def main(args):
     with open('stdlib.scm') as f:
         text = f.read()
 
@@ -55,7 +57,3 @@ def main():
         else:
             result = machine.s[-1]
             print(result)
-
-
-if __name__ == '__main__':
-    main()

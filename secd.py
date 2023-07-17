@@ -781,9 +781,8 @@ class Secd:
         if self.debug: print(f'setcdr pair={pair} value={value}')
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description='Run binary SECD instructions.')
+def configure_argparse(parser: argparse.ArgumentParser):
+    parser.description = 'Run a binary SECD program'
 
     parser.add_argument(
         'input', default='-', nargs='?',
@@ -794,8 +793,10 @@ def main():
         '--debug', '-g', action='store_true', default=False,
         help='Enable debug mode.')
 
-    args = parser.parse_args()
+    parser.set_defaults(func=main)
 
+
+def main(args):
     if args.input == '-':
         code = sys.stdin.buffer.read()
     else:
@@ -827,7 +828,3 @@ def print_value(v):
         print(v)
     else:
         raise RunError(f'Unknown type to print: {v}')
-
-
-if __name__ == '__main__':
-    main()

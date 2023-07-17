@@ -690,9 +690,8 @@ def compile_toplevel(text):
     return code
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description='Run SECD instructions written in sexpr form.')
+def configure_argparse(parser: argparse.ArgumentParser):
+    parser.description = 'Compile Trick scheme program into SECD assembly.'
 
     parser.add_argument(
         'input', default='-', nargs='?',
@@ -717,8 +716,10 @@ def main():
         '--eval', '-e', metavar='EXPR', dest='eval_expr',
         help='Compile and run the given expression, and print the result.')
 
-    args = parser.parse_args()
+    parser.set_defaults(func=main)
 
+
+def main(args):
     text = ''
     for lib in args.lib:
         with open(lib) as f:
@@ -788,7 +789,3 @@ def main():
     secd_code = List.from_list_recursive(secd_code)
 
     print(secd_code)
-
-
-if __name__ == '__main__':
-    main()

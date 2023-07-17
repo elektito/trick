@@ -253,18 +253,19 @@ def assemble(code: (Pair | list), start_offset: int = 0) -> bytes:
     return assembled
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description='Assemble SECD instructions written in sexpr form '
-        'into binary machine code.')
+def configure_argparse(parser: argparse.ArgumentParser):
+    parser.description = 'Assemble SECD instructions written in ' \
+        's-expr form into a binary SECD module.'
 
     parser.add_argument(
         'input', default='-', nargs='?',
         help='Input file. Stdin is used if not specified or a dash (-) '
         'is passed instead. Defaults to reading from stdin.')
 
-    args = parser.parse_args()
+    parser.set_defaults(func=main)
 
+
+def main(args):
     if args.input == '-':
         text = sys.stdin.read()
     else:
@@ -288,7 +289,3 @@ def main():
         sys.exit(1)
 
     sys.stdout.buffer.write(code)
-
-
-if __name__ == '__main__':
-    main()
