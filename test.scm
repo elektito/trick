@@ -282,6 +282,37 @@
 
 ;; list
 
+(equal? 1 (caar '((1) 2)))
+(equal? 2 (cadr '(1 2)))
+(equal? '(2) (cdar '((1 2) 3)))
+(equal? '(3 4) (cddr '(1 2 3 4)))
+
+(equal? 1 (caaar '(((1 2) 8 9) 20 30)))
+(equal? 5 (caadr '(1 (5 6) 7 100)))
+(equal? '(2 3) (cadar '((1 (2 3)) 100)))
+(equal? 3 (caddr '(1 2 3 4)))
+(equal? '(2 3) (cdaar '(((1 2 3) 50) 100)))
+(equal? '(3) (cdadr '(1 (2 3) 4 5)))
+(equal? '(3) (cddar '((1 2 3) 4)))
+(equal? '(4 5) (cdddr '(1 2 3 4 5)))
+
+(equal? 1 (caaaar '((((1 2) 80) 90) 100)))
+(equal? 2 (caaadr '(1 ((2)) 3 4)))
+(equal? '(2 3) (caadar '((1 ((2 3) 4) 5 6 7) 100)))
+(equal? 3 (caaddr '(1 2 (3 10) 4 5)))
+(equal? 2 (cadaar '(((1 2 3 4) 90) 100)))
+(equal? 10 (cadadr '(1 (2 10 20 30) 3 4 5)))
+(equal? 3 (caddar '((1 2 3 4 5) 100)))
+(equal? 4 (cadddr '(1 2 3 4 5)))
+(equal? '(2 3) (cdaaar '((((1 2 3) 80) 90) 100)))
+(equal? '(20) (cdaadr '(1 ((10 20) 2) 3 4)))
+(equal? '(3) (cdadar '((1 (2 3) 4 5) 6 7)))
+(equal? '(10 20) (cdaddr '(1 2 (3 10 20) 4 5)))
+(equal? '(3 4) (cddaar '(((1 2 3 4) 90) 100)))
+(equal? '(20) (cddadr '(1 (2 10 20) 3)))
+(equal? '(4) (cdddar '((1 2 3 4) 100)))
+(equal? '(5 6) (cddddr '(1 2 3 4 5 6)))
+
 (eq? 0 (length '()))
 (eq? 1 (length '(1)))
 (eq? 2 (length '(1 2)))
@@ -294,6 +325,11 @@
 (equal? (range 0 5) '(0 1 2 3 4))
 (equal? (range 5 0) '())
 (equal? (range -5 -2) '(-5 -4 -3))
+
+(equal? '() (reverse '()))
+(equal? '(1) (reverse '(1)))
+(equal? '(1 2 3) (reverse '(3 2 1)))
+(equal? '(1 (2 3) 4 5) (reverse '(5 4 (2 3) 1)))
 
 ;; equality
 
