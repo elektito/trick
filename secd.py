@@ -33,6 +33,27 @@ class Secd:
         self.symvals = {}
         self.next_gensym_number = 1
 
+    def create_continuation(self, offset: int = 0, e=None):
+        return Continuation(
+            self.s,
+            self.e if e is None else e,
+            self.c + offset,
+            self.d)
+
+    def resume_continuation(self, cont: Continuation, retvals: list):
+        self.s = cont.s
+        self.e = cont.e
+        self.c = cont.c
+
+        if retvals == []:
+            # maybe we'll make this meaningful in the future, but not for now
+            raise NotImplementedError
+        elif len(retvals) == 1:
+            self.s.append(retvals[0])
+        else:
+            # multiple values...not implemented yet
+            raise NotImplementedError
+
     def run(self):
         funcs = {
             0x01: self.run_nil,
@@ -207,14 +228,14 @@ class Secd:
         self.c += 4
 
         cond = self.s.pop()
-        self.d.append(self.c + true_len + false_len)
+        self.d.append(self.create_continuation(offset=true_len + false_len))
         if cond == Bool(False):
             self.c += true_len
 
         if self.debug: print(f'sel cond={cond}')
 
     def run_join(self):
-        self.c = self.d.pop()
+        self.resume_continuation(self.d.pop(), retvals=[self.s[-1]])
         if self.debug: print(f'join')
 
     def run_ldf(self):
@@ -289,12 +310,15 @@ class Secd:
             # note that we don't store e[0] on d, since it contains the dummy
             # frame. in normal 'ap' that does not exist, so we can store the
             # entire contents of e.
-            self.d.append((self.s, self.e[1:], self.c))
+            self.d.append(self.create_continuation(offset=0, e=self.e[1:]))
 
             # replace dummy frame with actual frame
             closure.e[0] = args
         elif not tail_call:
-            self.d.append((self.s, self.e, self.c))
+            self.d.append(self.create_continuation())
+        else:
+            # tail call: don't add a new continuation
+            pass
 
         if self.debug: print(f'{name} {self.c} => {closure.c}')
 
@@ -316,8 +340,7 @@ class Secd:
 
     def run_ret(self):
         retval = self.s.pop()
-        self.s, self.e, self.c = self.d.pop()
-        self.s.append(retval)
+        self.resume_continuation(self.d.pop(), [retval])
         if self.debug: print(f'ret retval={retval}')
 
     def run_print(self):
@@ -620,13 +643,13 @@ class Secd:
         if not isinstance(closure, Closure):
             raise RunError(f'ccc with non-function value: {closure}')
 
-        self.d.append((self.s, self.e, self.c))
+        cont = self.create_continuation()
+        args = List.from_list([cont])
+        self.d.append(cont)
 
-        cont = Continuation(self.s, self.e, self.c, self.d)
-        args = [cont]
-
-        self.s, self.e, self.c = [], [args] + closure.e, closure.c
-        if self.debug: print(f'ccc cont={cont} closure={closure}')
+        self.s.append(args)
+        self.s.append(closure)
+        self._do_apply('ccc')
 
     def run_i2ch(self):
         char_code = self.s.pop()
