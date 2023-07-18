@@ -29,6 +29,13 @@
   (define foo)
   (eq? foo '()))
 
+(let ((ls '()))
+  (let f ((x 5))
+    (unless (= x 0)
+      (set! ls (cons x ls))
+      (f (1- x))))
+  (equal? ls '(1 2 3 4 5)))
+
 (eq? 100 (if #t 100 200))
 (eq? 200 (if #f 100 200))
 (eq? 100 (if 0 100 200))

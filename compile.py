@@ -413,6 +413,40 @@ def compile_let(expr, env):
     if len(expr) < 2:
         raise CompileError(f'Invalid number of arguments for let: {expr}')
 
+    # convert named let to letrec
+    if isinstance(expr[1], Symbol):
+        if len(expr) < 3:
+            raise CompileError(f'Invalid number of arguments for named-let: {expr}')
+
+        # this:
+        #    (let f bindings . body)
+        # will be converted to
+        #    (letrec ((f (lambda ,@(var-names) body) ,@(var-values)))
+        #      (f ,@(var-values))
+
+        let_name = expr[1]
+        bindings = expr[2]
+        let_body = expr.cdr.cdr.cdr
+        check_let_bindings(bindings, 'named-let')
+
+        var_names = List.from_list([i[0] for i in bindings])
+        var_values = [i[1] for i in bindings]
+
+        lambda_expr = List.from_list(
+            [S('lambda'), var_names] + let_body.to_list()
+        )
+
+        letrec_binding = List.from_list([let_name, lambda_expr])
+        letrec_bindings = List.from_list([letrec_binding])
+
+        letrec_expr = List.from_list([
+            S('letrec'),
+            letrec_bindings,
+            List.from_list([let_name] + var_values),
+        ])
+
+        return compile_letrec(letrec_expr, env)
+
     bindings = expr[1]
     check_let_bindings(bindings, 'let')
 
