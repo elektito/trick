@@ -18,9 +18,6 @@ class Symbol:
         else:
             self.short_name = name
 
-    def id(self):
-        return self.name
-
     def __eq__(self, other):
         if not isinstance(other, Symbol):
             return False
@@ -56,10 +53,6 @@ class Bool:
             raise TypeError('Invalid boolean value')
 
         self.value = value
-
-    def id(self):
-        # booleans are eq if they have the same value
-        return self.value
 
     def is_true(self):
         return self.value
@@ -126,18 +119,11 @@ class Char:
     def __repr__(self):
         return f'<Char {self}>'
 
-    def id(self):
-        return self.char_code
-
 
 class String:
     def __init__(self, value: str):
         assert isinstance(value, str)
         self.value = value
-
-    def id(self):
-        # strings are eq only if they are the same object
-        return id(self)
 
     def __hash__(self):
         return hash(self.value)

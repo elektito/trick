@@ -592,15 +592,7 @@ class Secd:
     def run_eq(self):
         x = self.s.pop()
         y = self.s.pop()
-        if isinstance(x, int) or isinstance(y, int):
-            result = (x == y)
-        elif isinstance(x, Nil) or isinstance(y, Nil):
-            result = (x == y)
-        elif isinstance(x, Pair) or isinstance(y, Pair):
-            result = (id(x) == id(y))
-        else:
-            result = (x.id() == y.id())
-        result = Bool(result)
+        result = Bool(x == y)
         self.s.append(result)
         if self.debug: print(f'eq {result}')
 
