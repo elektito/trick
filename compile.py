@@ -796,7 +796,7 @@ def main(args):
         compile_toplevel(text)  # compile libs
         form, _ = read(args.compile_expr)
         result = compile_form(form, [])
-        print(result)
+        print(List.from_list_recursive(result))
         sys.exit(0)
 
     if args.eval_expr:
