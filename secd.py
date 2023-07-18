@@ -332,7 +332,12 @@ class Secd:
             self.c = closure.c
             self.d = closure.d
         else:
-            self.s, self.e, self.c = [], [args] + closure.e, closure.c
+            if dummy_frame:
+                # we've already placed the arguments inside closure.e, so we
+                # won't need to add the arguments to e here
+                self.s, self.e, self.c = [], closure.e, closure.c
+            else:
+                self.s, self.e, self.c = [], [args] + closure.e, closure.c
 
     def run_ap(self):
         self._do_apply('ap', tail_call=False)
