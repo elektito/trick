@@ -343,15 +343,15 @@
           (all? (cdr values))
           #f)))
 
-(define (map1 func arg-lists)
-  (if (or (null? arg-lists)
-          (any? (mapcar null? arg-lists)))
-      '()
-      (cons (apply func (mapcar car arg-lists))
-            (map1 func (mapcar cdr arg-lists)))))
+(define (map1 func arg-lists acc)
+  (if (any? (mapcar null? arg-lists))
+      (reverse acc)
+      (map1 func
+            (mapcar cdr arg-lists)
+            (cons (apply func (mapcar car arg-lists)) acc))))
 
 (define (map func . arg-lists)
-  (map1 func arg-lists))
+  (map1 func arg-lists '()))
 
 ;; more list operations
 
