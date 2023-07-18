@@ -1,26 +1,29 @@
+from uuid import uuid4
+
+
 DEFAULT_ENCODING = 'utf-8'
 
 
 class Symbol:
-    def __init__(self, name, *, unique=False):
+    gensym_number = 0
+
+    def __init__(self, name, *, short_name=None):
         assert isinstance(name, str)
+        assert not short_name or isinstance(short_name, str)
+
         self.name = name
-        self.unique = unique
+
+        if short_name:
+            self.short_name = short_name
+        else:
+            self.short_name = name
 
     def id(self):
-        if self.unique:
-            # unique symbols (gensyms) are only the same if they refer to the
-            # same object
-            return id(self)
-        else:
-            # normal symbols are eq if they have the same name
-            return self.name
+        return self.name
 
     def __eq__(self, other):
         if not isinstance(other, Symbol):
             return False
-        elif self.unique:
-            return id(self) == id(other)
         else:
             return self.name == other.name
 
@@ -28,13 +31,23 @@ class Symbol:
         return hash(self.name)
 
     def __str__(self):
-        return self.name
+        return self.short_name
 
     def __repr__(self):
-        if self.unique:
-            return f'<Symbol {self.name} (unique)>'
+        if self.short_name != self.name:
+            return f'<Symbol {self.short_name} (full={self.name})>'
         else:
             return f'<Symbol {self.name}>'
+
+    @staticmethod
+    def gensym():
+        Symbol.gensym_number += 1
+        gensym_number = Symbol.gensym_number
+        uid = str(uuid4()).replace('-', '')
+
+        short_name = f'#:{gensym_number}'
+        full_name = f'#:{uid}-{gensym_number}'
+        return Symbol(full_name, short_name=short_name)
 
 
 class Bool:

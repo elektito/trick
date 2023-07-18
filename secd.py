@@ -31,7 +31,6 @@ class Secd:
         self.strtab = [String('')]
         self.symtab = []
         self.symvals = {}
-        self.next_gensym_number = 1
 
     def create_continuation(self, offset: int = 0, e=None):
         return Continuation(
@@ -633,8 +632,7 @@ class Secd:
         raise UserError('User error')
 
     def run_gensym(self):
-        sym = Symbol(f'#:{self.next_gensym_number}', unique=True)
-        self.next_gensym_number += 1
+        sym = Symbol.gensym()
         self.s.append(sym)
         if self.debug: print(f'gensym {sym}')
 
