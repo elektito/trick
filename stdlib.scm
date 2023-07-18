@@ -353,6 +353,20 @@
 (define (map func . arg-lists)
   (map1 func arg-lists '()))
 
+(define (for-each proc . arg-lists)
+  ;; we can't use map here because map's results depend on the order of argument
+  ;; evaluation, which is unspecified in scheme, and in our implementation is
+  ;; actually from right to left.
+  (call/cc
+   (lambda (exit)
+     (when (null? arg-lists)
+       (exit #f))
+     (let loop ((arg-lists arg-lists))
+       (when (any? (mapcar null? arg-lists))
+         (exit #f))
+       (apply proc (mapcar car arg-lists))
+       (loop (mapcar cdr arg-lists))))))
+
 ;; more list operations
 
 (define (length ls)

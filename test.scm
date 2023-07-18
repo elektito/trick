@@ -651,6 +651,23 @@
   (and (= r 1000)
        (equal? ls '(bar foo (2 1 100) (1 2 100) (0 3 100)))))
 
+;;
+
+(equal? '(15 27 39)
+        (map + '(1 2 3) '(4 5 6) '(10 20 30)))
+
+(equal? '(15 27)
+        (map + '(1 2) '(4 5 6) '(10 20 30)))
+
+;; for-each (unlike map) is guaranteed to apply the function from left to right,
+;; so we test it differently.
+(let ((ls '()))
+  (for-each
+   (lambda x
+     (set! ls (cons x ls)))
+   '(1 2 3 4 5) '(10 20 30 40))
+  (equal? '((4 40) (3 30) (2 20) (1 10)) ls))
+
 ;; call/cc tests
 ;;
 ;; some tests adapted from chibi scheme test suite. see:
