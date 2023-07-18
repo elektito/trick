@@ -219,13 +219,13 @@ class Macro:
 
 
 def macro_expand(form):
-    while isinstance(form, list) and \
+    while isinstance(form, Pair) and \
           len(form) > 0 and \
           isinstance(form[0], Symbol):
         macro = macros.get(form[0].name)
         if macro is None:
             break
-        form = macro.expand(form[1:])
+        form = macro.expand(form.cdr)
 
     return form
 
