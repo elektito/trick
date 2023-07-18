@@ -309,6 +309,26 @@
       `(let (,(car bindings))
          (let* ,(cdr bindings) ,@body))))
 
+(define-macro (do iteration-spec test-and-tail-seq . body)
+  (let* ((test (car test-and-tail-seq))
+         (tail-seq (cdr test-and-tail-seq))
+         (var-names (map car iteration-spec))
+         (var-inits (map cadr iteration-spec))
+         (nexts (map (lambda (x)
+                       (if (>= (length x) 3)
+                           (caddr x)
+                           (car x)))
+                     iteration-spec))
+         (bindings (map list var-names var-inits)))
+    (with-gensyms (exit-gc let-gc)
+      `(call/cc
+        (lambda (,exit-gc)
+          (let ,let-gc ,bindings
+               (unless ,test
+                 (,exit-gc (begin ,@tail-seq)))
+               ,@body
+               (,let-gc ,@nexts)))))))
+
 (define (any? values)
   (if (null? values)
       #f

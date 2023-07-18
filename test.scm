@@ -637,6 +637,20 @@
 (equal? `(a `(b ,(foo ,(car '(3 6))) c) d)
         '(a `(b ,(foo 3) c) d))
 
+;;
+
+(let* ((ls '())
+       (r (do ((i 0 (+ i 1))
+               (j 3 (- j 1))
+               (x 100))
+              ((< i 3)
+               (set! ls (cons 'foo ls))
+               (set! ls (cons 'bar ls))
+               1000)
+            (set! ls (cons (list i j x) ls)))))
+  (and (= r 1000)
+       (equal? ls '(bar foo (2 1 100) (1 2 100) (0 3 100)))))
+
 ;; call/cc tests
 ;;
 ;; some tests adapted from chibi scheme test suite. see:
