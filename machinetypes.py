@@ -1,4 +1,4 @@
-DEFAULT_ENCODING = 'ascii'
+DEFAULT_ENCODING = 'utf-8'
 
 
 class Symbol:
