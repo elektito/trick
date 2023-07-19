@@ -701,6 +701,14 @@
           (lambda x x)))
 (= -1 (call-with-values * -))
 
+(let*-values (((a b) (values 1 2))
+              ((x y) (values a b)))
+  (equal? '(1 2 1 2) (list a b x y)))
+
+(let*-values (((a b) (values 1 2))
+              (x (values a b)))
+  (equal? '(1 2 (1 2)) (list a b x)))
+
 ;; call/cc tests
 ;;
 ;; some tests adapted from chibi scheme test suite. see:

@@ -535,3 +535,10 @@
 (define (call-with-values producer consumer)
   (let ((vals (#$values->list (producer))))
     (apply consumer vals)))
+
+(define-macro (let*-values bindings . body)
+  (if (null? bindings)
+      `(begin ,@body)
+      `(call-with-values (lambda () ,(cadar bindings))
+        (lambda ,(caar bindings)
+          (let*-values ,(cdr bindings) ,@body)))))
