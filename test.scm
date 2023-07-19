@@ -679,6 +679,26 @@
    '(1 2 3 4 5) '(10 20 30 40))
   (equal? '((4 40) (3 30) (2 20) (1 10)) ls))
 
+;; values
+
+(equal? '(4 5)
+        (call-with-values
+            (lambda () (values 4 5))
+          (lambda (a b) (list a b))))
+(equal? '()
+        (call-with-values
+            (lambda () (values))
+          (lambda x x)))
+(equal? '(4 5)
+        (call-with-values
+            (lambda () (call/cc (lambda (k) (k 4 5))))
+          (lambda (a b) (list a b))))
+(equal? '()
+        (call-with-values
+            (lambda () (call/cc (lambda (k) (k))))
+          (lambda x x)))
+(= -1 (call-with-values * -))
+
 ;; call/cc tests
 ;;
 ;; some tests adapted from chibi scheme test suite. see:

@@ -24,7 +24,11 @@ def main():
     with open('stdlib.scm') as f:
         text = f.read()
 
-    lib_asm = compile_toplevel(text)
+    try:
+        lib_asm = compile_toplevel(text)
+    except CompileError as e:
+        print('Compile error when compiling tests:', e)
+        exit(1)
 
     with open('test.scm') as f:
         text = f.read()
@@ -81,9 +85,9 @@ def main():
         else:
             if len(machine.s) != 1:
                 if len(machine.s) == 0:
-                    errors.append((expr, 'Expression did not return anything'))
+                    errors.append((expr, 'Expression did not leave anything on the stack'))
                 else:
-                    errors.append((expr, f'Expression returned more than one value (stack={machine.s})'))
+                    errors.append((expr, f'Expression left more than one value on the stack ({machine.s})'))
                 if args.verbose:
                     print('Error')
                 else:
@@ -91,21 +95,34 @@ def main():
                 if args.stop_on_failure:
                     break
             else:
-                result = machine.s[-1]
-                success += 1
-                if result:
+                result = machine.s.pop_multiple()
+                if len(result) != 1:
+                    errors.append(
+                        (expr,
+                         f'Expression returned {len(result)} values '
+                         f'instead of a single boolean'))
                     if args.verbose:
-                        print('Success')
+                        print('Error')
                     else:
-                        print('.', end='', flush=True)
-                else:
-                    if args.verbose:
-                        print('Failed')
-                    else:
-                        print('F', end='', flush=True)
-                    fails.append(expr)
+                        print('E', end='', flush=True)
                     if args.stop_on_failure:
                         break
+                else:
+                    result = result[0]
+                    success += 1
+                    if result:
+                        if args.verbose:
+                            print('Success')
+                        else:
+                            print('.', end='', flush=True)
+                    else:
+                        if args.verbose:
+                            print('Failed')
+                        else:
+                            print('F', end='', flush=True)
+                        fails.append(expr)
+                        if args.stop_on_failure:
+                            break
 
     print()
     if fails:

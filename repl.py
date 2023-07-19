@@ -49,11 +49,12 @@ def main(args):
         try:
             machine.run()
         except UserError:
-            err = machine.s[-1]
+            err = machine.s.top()
             msg = format_user_error(err)
             print(msg)
         except RunError as e:
             print(e)
         else:
-            result = machine.s[-1]
-            print(result)
+            result = machine.s.pop_multiple()
+            for r in result.as_list():
+                print(r)

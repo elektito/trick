@@ -170,13 +170,13 @@ class Closure:
 
 class Continuation(Closure):
     def __init__(self, s, e, c, d):
-        self.s = [i for i in s] # shallow copy
+        self.s = s.copy()
         self.e = e
         self.c = c
         self.d = [i for i in d] # shallow copy
 
-        self.nparams = 1
-        self.rest_param = False
+        self.nparams = 0
+        self.rest_param = True
 
     def __repr__(self):
         return f'<Continuation s={self.s} e={self.e} c={self.c} d={self.d}>'
@@ -428,3 +428,24 @@ class Pair(List):
                 prev = new_pair
 
             return start
+
+
+class Values:
+    def __init__(self, values):
+        assert isinstance(values, list)
+        self._values = values
+
+    def as_list(self):
+        return self._values
+
+    def __getitem__(self, index):
+        return self._values[index]
+
+    def __len__(self):
+        return len(self._values)
+
+    def __eq__(self, other):
+        raise ValueError('Attempting to compare a Values object')
+
+    def __repr__(self):
+        return f'<Values {self._values}>'

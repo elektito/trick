@@ -26,6 +26,14 @@ primcalls = {
         'code': [S('ccc')],
     },
     'call/cc': 'call-with-current-continuation',
+    '#$values->list': {
+        'nargs': 1,
+        'code': [S('m2l')],
+    },
+    '#$list->values': {
+        'nargs': 1,
+        'code': [S('l2m')],
+    },
     'print': {
         'nargs': 1,
         'code': [S('print')],
@@ -214,7 +222,7 @@ class Macro:
         if len(machine.s) == 0:
             raise CompileError(f'Internal error: macro did not return anything')
 
-        expanded = machine.s[-1]
+        expanded = machine.s.top()
         return expanded
 
 

@@ -526,3 +526,12 @@
   (if (null? (cdr strings))
       #t
       (all? (pairwise string=?' strings))))
+
+;; values
+
+(define (values . things)
+  (call/cc (lambda (k) (apply k things))))
+
+(define (call-with-values producer consumer)
+  (let ((vals (#$values->list (producer))))
+    (apply consumer vals)))
