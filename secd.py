@@ -61,7 +61,7 @@ class Stack:
             if instr_name:
                 prefix = f'{instr_name}: '
             raise RunError(
-                f'{prefix}Expected argument of type "{type}", got: '
+                f'{prefix}Expected argument of type "{type.__name__}", got: '
                 f'{value}')
 
         return value
