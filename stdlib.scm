@@ -324,7 +324,7 @@
       `(call/cc
         (lambda (,exit-gc)
           (let ,let-gc ,bindings
-               (unless ,test
+               (when ,test
                  (,exit-gc (begin ,@tail-seq)))
                ,@body
                (,let-gc ,@nexts)))))))
