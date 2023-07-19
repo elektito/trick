@@ -11,6 +11,17 @@
 (eq? '() '())
 (not (eq? '() 'nil))
 
+(eqv? #t #t)
+(eqv? #f #f)
+(eqv? 1 1)
+(eqv? 'foo 'foo)
+(eqv? #\space #\x20)
+(eqv? '() '())
+(let ((x "foo"))
+  (eqv? x x))
+(let ((x (lambda (a) a)))
+  (eqv? x x))
+
 (symbol=? 'foo 'foo)
 (not (symbol=? 'foo 'bar))
 

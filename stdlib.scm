@@ -54,14 +54,14 @@
   (not (<= x y)))
 (define (>= x y)
   (not (< x y)))
-(define (zero? x) (eq? x 0))
+(define (zero? x) (eqv? x 0))
 (define (negative? x) (< x 0))
 (define (positive? x) (> x 0))
 
 (define (= . numbers)
   (if (null? (cdr numbers))
       #t
-      (all? (pairwise eq? numbers))))
+      (all? (pairwise eqv? numbers))))
 
 ;; list utilities
 
@@ -160,7 +160,7 @@
 (define (pairwise fn ls)
   (cond ((< (length ls) 2)
          (error :arg-error :msg "Invalid number of arguments for pairwise"))
-        ((eq? (length ls) 2)
+        ((eqv? (length ls) 2)
          (list (fn (car ls) (cadr ls))))
         (#t
          (cons (fn (car ls) (cadr ls))
@@ -264,11 +264,11 @@
 
 (define (bq-process form level)
   (cond ((atom? form)
-         (if (eq? level 1)
+         (if (= level 1)
              (list 'quote form)
              form))
         ((bq-is-unquote form)
-         (if (eq? level 1)
+         (if (= level 1)
              (cadr form)
              (bq-process-list form (- level 1))))
         ((bq-is-unquote-splicing form)
@@ -400,6 +400,11 @@
 
 ;; general comparison
 
+(define (eqv? x y)
+  ;; for our current implementation, eq? already does the same thing as eqv?
+  ;; should
+  (eq? x y))
+
 (define (equal? x y)
   (cond ((not (eq? (type x) (type y)))
          #f)
@@ -407,14 +412,14 @@
         ((pair? x) (and (equal? (car x) (car y))
                         (equal? (cdr x) (cdr y))))
         ((string? x) (string=? x y))
-        (#t (eq? x y))))
+        (#t (eqv? x y))))
 
 ;; characters
 
 (define (char=? . chars)
   (if (null? (cdr chars))
       #t
-      (all? (pairwise eq? chars))))
+      (all? (pairwise eqv? chars))))
 
 (define (char<? . chars)
   (if (null? (cdr chars))
@@ -514,7 +519,7 @@
   (apply string ls))
 
 (define (string=?' s1 s2)
-  (and (eq? (string-length s1) (string-length s2))
+  (and (eqv? (string-length s1) (string-length s2))
        (all? (map char=? (string->list s1) (string->list s2)))))
 
 (define (string=? . strings)
