@@ -685,6 +685,14 @@
 (equal? '(1 2 3 4) (append '(1) '(2 3) '(4)))
 (equal? '(a) (append '() '(a)))
 
+(equal? '(b . 20) (assq 'b '((a . 10) (b . 20) (c . 30))))
+(equal? #f (assq 'd '((a . 10) (b . 20) (c . 30))))
+(equal? #f (assq 'a '()))
+
+(equal? '(20 . b) (assv 20 '((10 . a) (20 . b) (30 . c))))
+(equal? #f (assv 40 '((10 . a) (20 . b) (30 . c))))
+(equal? #f (assv 10 '()))
+
 ;; values
 
 (equal? '(4 5)

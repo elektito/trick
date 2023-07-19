@@ -379,6 +379,16 @@
       '()
       (append1 (car lists) (apply append (cdr lists)))))
 
+(define (assq obj alist)
+  (if (null? alist)
+      #f
+      (if (eq? obj (caar alist))
+          (car alist)
+          (assq obj (cdr alist)))))
+
+(define (assv obj alist)
+  (assq obj alist))
+
 ;; more list operations
 
 (define (length ls)
