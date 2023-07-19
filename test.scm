@@ -721,6 +721,25 @@
               (x (values a b)))
   (equal? '(1 2 (1 2)) (list a b x)))
 
+(let-values (((x y) (values 1 2)))
+  (and (= x 1)
+       (= y 2)))
+
+(let-values (((x y) (values 1 2))
+             (foo (values 10 20))
+             ((a b c) (values 3 4 5)))
+  (and (= x 1)
+       (= y 2)
+       (= a 3)
+       (= b 4)
+       (equal? foo '(10 20))))
+
+(let-values ((x (values 1 2)))
+  (equal? x '(1 2)))
+
+(let-values ((() (values)))
+  #t)
+
 ;; call/cc tests
 ;;
 ;; some tests adapted from chibi scheme test suite. see:

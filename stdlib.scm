@@ -564,3 +564,42 @@
       `(call-with-values (lambda () ,(cadar bindings))
         (lambda ,(caar bindings)
           (let*-values ,(cdr bindings) ,@body)))))
+
+;; receives the bindings list passed to let-values and returns an alist mapping
+;; each variable name in it to a gensym.
+(define (lv-map-vars bindings)
+  (apply append
+         (map (lambda (b)
+                (let ((formals (car b)))
+                  (if (symbol? formals)
+                      (list (cons formals (gensym)))
+                      (map (lambda (s) (cons s (gensym)))
+                           formals))))
+              bindings)))
+
+;; given a list of bindings passed to let-values, and an alist created by
+;; lv-map-vars, and returns a new bindings list in which all names are mapped to
+;; their counterpart in the alist.
+(define (lv-convert-to-temps bindings alist)
+  (map (lambda (b)
+         (let ((formals (car b)))
+           (if (symbol? formals)
+               (cons (cdr (assq formals alist)) (cdr b))
+               (cons (map (lambda (f)
+                            (cdr (assq f alist)))
+                          formals)
+                     (cdr b)))))
+       bindings))
+
+;; given an alist created by lv-map-vars, creates a let binding list that maps
+;; names passed by the user to gensyms
+(define (lv-create-rebindings alist)
+  (map (lambda (pair)
+         (list (car pair) (cdr pair)))
+       alist))
+
+(define-macro (let-values bindings . body)
+  (let ((mapping (lv-map-vars bindings)))
+    `(let*-values ,(lv-convert-to-temps bindings mapping)
+       (let ,(lv-create-rebindings mapping)
+         ,@body))))
