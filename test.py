@@ -109,8 +109,8 @@ def main():
                         break
                 else:
                     result = result[0]
-                    success += 1
                     if result:
+                        success += 1
                         if args.verbose:
                             print('Success')
                         else:
