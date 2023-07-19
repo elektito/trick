@@ -420,6 +420,14 @@
 (define (reverse ls)
   (reverse1 ls '()))
 
+(define (list-tail ls k)
+  (if (zero? k)
+      ls
+      (list-tail (cdr ls) (1- k))))
+
+(define (list-ref ls k)
+  (car (list-tail ls k)))
+
 ;; general comparison
 
 (define (eqv? x y)

@@ -354,6 +354,12 @@
 (equal? '(1 2 3) (reverse '(3 2 1)))
 (equal? '(1 (2 3) 4 5) (reverse '(5 4 (2 3) 1)))
 
+(equal? '(c d e f) (list-tail '(a b c d e f) 2))
+(equal? '(a b c d e f) (list-tail '(a b c d e f) 0))
+
+(equal? 'c (list-ref '(a b c d e f) 2))
+(equal? 'a (list-ref '(a b c d e f) 0))
+
 ;; equality
 
 (not (eq? (gensym) (gensym)))
