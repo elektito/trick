@@ -13,6 +13,13 @@ class Symbol:
 
         self.name = name
 
+        # if short_name is not set and the name has the same format as a gensym
+        # name, parse the short name. so for #:uuuuniiiquuueeid-12, we set the
+        # short name to #:12.
+        if short_name is None and name.startswith('#:') and '-' in name:
+            after_dash = name[name.index('-')+1:]
+            short_name = f'#:{after_dash}'
+
         if short_name:
             self.short_name = short_name
         else:
