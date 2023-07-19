@@ -367,6 +367,18 @@
        (apply proc (mapcar car arg-lists))
        (loop (mapcar cdr arg-lists))))))
 
+(define (append1 ls1 ls2)
+  (if (null? ls1)
+      ls2
+      (if (null? ls2)
+          ls1
+          (cons (car ls1) (append1 (cdr ls1) ls2)))))
+
+(define (append . lists)
+  (if (null? lists)
+      '()
+      (append1 (car lists) (apply append (cdr lists)))))
+
 ;; more list operations
 
 (define (length ls)
