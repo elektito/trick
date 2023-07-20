@@ -160,7 +160,7 @@ def _assemble(expr, start_offset: int, strings, symbols) -> bytes:
             if not isinstance(sym, Symbol):
                 raise AssembleError(f'Invalid argument for ldstr: {sym}')
             try:
-                symnum = symbols.index(Symbol)
+                symnum = symbols.index(sym)
             except ValueError:
                 symbols.append(sym)
                 symnum = len(symbols) - 1
