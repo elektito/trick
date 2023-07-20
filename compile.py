@@ -532,8 +532,6 @@ def compile_define(expr, env):
     name, value = parse_define_form(expr, 'define')
 
     if env == []:
-        if name in defined_symbols:
-            raise CompileError(f'Duplicate definition: {name}')
         defined_symbols.add(name)
 
         code = compile_form(value, env)
@@ -543,6 +541,8 @@ def compile_define(expr, env):
         # value)
         code += [S('dup'), S('set'), name]
     else:
+        if name in env[0]:
+            raise CompileError(f'Duplicate local definition: {name}')
         env[0].append(name)
         code = [S('xp')]
         code += compile_form(value, env)
