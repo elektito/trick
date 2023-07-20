@@ -199,7 +199,7 @@ def _assemble(expr, start_offset: int, strings, symbols) -> bytes:
 
 
 def assemble(code: (Pair | list), start_offset: int = 0) -> bytes:
-    strings = [String("")]
+    strings = []
     symbols = []
 
     if not isinstance(code, (Pair, list)):
@@ -209,9 +209,6 @@ def assemble(code: (Pair | list), start_offset: int = 0) -> bytes:
         code = code.to_list_recursive()
 
     assembled = _assemble(code, start_offset, strings, symbols)
-
-    # empty string is implied
-    strings = strings[1:]
 
     # add symbol strings
     for sym in symbols:
@@ -233,7 +230,7 @@ def assemble(code: (Pair | list), start_offset: int = 0) -> bytes:
         symtab += len(symbols).to_bytes(length=4, byteorder='little', signed=False)
         for sym in symbols:
             sname = String(sym.name)
-            strnum = strings.index(sname) + 1 # plus because of empty string at the beginning of strtab
+            strnum = strings.index(sname)
             symtab += strnum.to_bytes(length=4, byteorder='little', signed=False)
 
     assembled = strtab + symtab + assembled

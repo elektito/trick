@@ -105,7 +105,7 @@ class Secd:
         self.halt_code = None
         self.dummy_frame = object()
         self.debug = False
-        self.strtab = [String('')]
+        self.strtab = []
         self.symtab = []
         self.symvals = {}
 
@@ -559,7 +559,7 @@ class Secd:
         nstrs = self.code[self.c:self.c+4]
         self.c += 4
         nstrs = int.from_bytes(nstrs, byteorder='little', signed=False)
-        self.strtab = [String('')]
+        self.strtab = []
         for _ in range(nstrs):
             length = self.code[self.c:self.c+4]
             self.c += 4
