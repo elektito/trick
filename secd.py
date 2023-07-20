@@ -536,7 +536,7 @@ class Secd:
         self._do_apply('tap', tail_call=True)
 
     def run_drop(self):
-        value = self.s.pop()
+        value = self.s.pop_multiple()
         if self.debug: print(f'drop {value}')
 
     def run_xp(self):
