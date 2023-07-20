@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from machinetypes import Char, List, Nil, Pair, String, Symbol, Bool
+from machinetypes import Char, Integer, List, Nil, Pair, String, Symbol, Bool
 
 
 class ParseError(Exception):
@@ -122,7 +122,7 @@ def _read_char(s: str, i: int) -> tuple[Char, int]:
         return Char(char_code), i
 
 
-def _read(s: str, i: int = 0) -> tuple[None | int | Symbol | List | Bool | String | Char, int]:
+def _read(s: str, i: int = 0) -> tuple[None | Integer | Symbol | List | Bool | String | Char, int]:
     if i >= len(s):
         return None, len(s)
 
@@ -155,18 +155,18 @@ def _read(s: str, i: int = 0) -> tuple[None | int | Symbol | List | Bool | Strin
     elif i < len(s) - 1 and s[i:i+2] == '#x':
         tok, i = _read_token(s, i)
         tok = tok[2:]
-        return int(tok, 16), i
+        return Integer(tok, 16), i
     elif i < len(s) - 1 and s[i:i+2] == '#\\':
         return _read_char(s, i)
     else:
         tok, i = _read_token(s, i)
         try:
-            return int(tok), i
+            return Integer(tok), i
         except ValueError:
             return Symbol(tok), i
 
 
-def read(s: str, i: int = 0) -> tuple[None | int | Symbol | List | Bool | String | Char, int]:
+def read(s: str, i: int = 0) -> tuple[None | Integer | Symbol | List | Bool | String | Char, int]:
     v, i = _read(s, i)
     if v == Symbol('.'):
         raise ParseError('Unexpected dot (.)')

@@ -4,6 +4,54 @@ from uuid import uuid4
 DEFAULT_ENCODING = 'utf-8'
 
 
+class Integer(int):
+    def __new__(cls, n, *args, **kwargs):
+        obj = super().__new__(cls, n, *args, **kwargs)
+        return obj
+
+    def __add__(self, other):
+        return Integer(int(self) + other)
+
+    def __sub__(self, other):
+        return Integer(int(self) - other)
+
+    def __mul__(self, other):
+        return Integer(int(self) * other)
+
+    def __floordiv__(self, other):
+        return Integer(int(self) // other)
+
+    def __mod__(self, other):
+        return Integer(int(self) % other)
+
+    def __abs__(self):
+        return Integer(abs(int(self)))
+
+    def __lshift__(self, other):
+        return Integer(int(self) << other)
+
+    def __rshift__(self, other):
+        return Integer(int(self) >> other)
+
+    def __and__(self, other):
+        return Integer(int(self) & other)
+
+    def __or__(self, other):
+        return Integer(int(self) | other)
+
+    def __xor__(self, other):
+        return Integer(int(self) ^ other)
+
+    def __invert__(self):
+        return Integer(~int(self))
+
+    def __neg__(self):
+        return Integer(-int(self))
+
+    def __pos__(self):
+        return self
+
+
 class Symbol:
     gensym_number = 0
 
@@ -242,9 +290,9 @@ class Pair(List):
             return value
 
     def __init__(self, car, cdr):
-        if not isinstance(car, (int, Bool, String, Char, List, Symbol, Closure)):
+        if not isinstance(car, (Integer, Bool, String, Char, List, Symbol, Closure)):
             raise TypeError(f'Invalid value type for car: {car}')
-        if not isinstance(cdr, (int, Bool, String, Char, List, Symbol, Closure)):
+        if not isinstance(cdr, (Integer, Bool, String, Char, List, Symbol, Closure)):
             raise TypeError(f'Invalid value type for cdr: {cdr}')
 
         self.car = car

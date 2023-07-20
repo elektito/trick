@@ -5,7 +5,7 @@ import argparse
 import unicodedata
 from utils import format_user_error
 from machinetypes import (
-    Bool, Char, List, Nil, Pair, String, Symbol, Closure, Continuation, Values,
+    Bool, Char, Integer, List, Nil, Pair, String, Symbol, Closure, Continuation, Values,
 )
 
 
@@ -35,7 +35,7 @@ class Stack:
             raise ValueError(
                 'Attempting to write a Values object with "push"; use '
                 'push_multiple.')
-        if not isinstance(value, (int, Symbol, List, Char, String, Bool,
+        if not isinstance(value, (Integer, Symbol, List, Char, String, Bool,
                                   Closure)):
             raise ValueError(f'Invalid type being pushed: {repr(value)}')
 
@@ -240,6 +240,7 @@ class Secd:
         value = self.code[self.c:self.c+4]
         self.c += 4
         value = int.from_bytes(value, byteorder='little', signed=True)
+        value = Integer(value)
         self.s.push(value)
         if self.debug: print(f'ldc {value}')
 
@@ -437,34 +438,34 @@ class Secd:
         if self.debug: print(f'halt {self.halt_code}')
 
     def run_iadd(self):
-        arg1 = self.s.pop(int, 'iadd')
-        arg2 = self.s.pop(int, 'iadd')
+        arg1 = self.s.pop(Integer, 'iadd')
+        arg2 = self.s.pop(Integer, 'iadd')
         self.s.push(arg2 + arg1)
         if self.debug: print(f'iadd {arg2} + {arg1}')
 
     def run_isub(self):
-        arg1 = self.s.pop(int, 'isub')
-        arg2 = self.s.pop(int, 'isub')
+        arg1 = self.s.pop(Integer, 'isub')
+        arg2 = self.s.pop(Integer, 'isub')
         self.s.push(arg1 - arg2)
         if self.debug: print(f'isub {arg1} - {arg2}')
 
     def run_imul(self):
-        arg1 = self.s.pop(int, 'imul')
-        arg2 = self.s.pop(int, 'imul')
+        arg1 = self.s.pop(Integer, 'imul')
+        arg2 = self.s.pop(Integer, 'imul')
         self.s.push(arg1 * arg2)
         if self.debug: print(f'imul {arg2} * {arg1}')
 
     def run_idiv(self):
-        a = self.s.pop(int, 'idiv')
-        b = self.s.pop(int, 'idiv')
+        a = self.s.pop(Integer, 'idiv')
+        b = self.s.pop(Integer, 'idiv')
         if b == 0:
             raise RunError('Division by zero')
         self.s.push(a // b)
         if self.debug: print(f'idiv {a} / {b}')
 
     def run_irem(self):
-        a = self.s.pop(int, 'irem')
-        b = self.s.pop(int, 'irem')
+        a = self.s.pop(Integer, 'irem')
+        b = self.s.pop(Integer, 'irem')
         if b == 0:
             raise RunError('Division by zero')
 
@@ -474,55 +475,55 @@ class Secd:
         if self.debug: print(f'irem {a} % {b}')
 
     def run_shr(self):
-        n = self.s.pop(int, 'shr')
-        shift = self.s.pop(int, 'shr')
+        n = self.s.pop(Integer, 'shr')
+        shift = self.s.pop(Integer, 'shr')
         self.s.push((n % 0x100000000) >> shift)  # assuming 32 bits
         if self.debug: print(f'shr {n} >> {shift}')
 
     def run_shl(self):
-        n = self.s.pop(int, 'shl')
-        shift = self.s.pop(int, 'shl')
+        n = self.s.pop(Integer, 'shl')
+        shift = self.s.pop(Integer, 'shl')
         self.s.push(n << shift)
         if self.debug: print(f'shl {n} << {shift}')
 
     def run_asr(self):
-        n = self.s.pop(int, 'asr')
-        shift = self.s.pop(int, 'asr')
+        n = self.s.pop(Integer, 'asr')
+        shift = self.s.pop(Integer, 'asr')
         self.s.push(n >> shift)
         if self.debug: print(f'asr {n} >> {shift}')
 
     def run_bnot(self):
-        n = self.s.pop(int, 'bnot')
+        n = self.s.pop(Integer, 'bnot')
         self.s.push(~n)
         if self.debug: print(f'bnot {n} => {~n}')
 
     def run_band(self):
-        n1 = self.s.pop(int, 'band')
-        n2 = self.s.pop(int, 'band')
+        n1 = self.s.pop(Integer, 'band')
+        n2 = self.s.pop(Integer, 'band')
         self.s.push(n1 & n2)
         if self.debug: print(f'asr {n1} & {n2}')
 
     def run_bor(self):
-        n1 = self.s.pop(int, 'bor')
-        n2 = self.s.pop(int, 'bor')
+        n1 = self.s.pop(Integer, 'bor')
+        n2 = self.s.pop(Integer, 'bor')
         self.s.push(n1 | n2)
         if self.debug: print(f'bor {n1} | {n2}')
 
     def run_bxor(self):
-        n1 = self.s.pop(int, 'bxor')
-        n2 = self.s.pop(int, 'bxor')
+        n1 = self.s.pop(Integer, 'bxor')
+        n2 = self.s.pop(Integer, 'bxor')
         self.s.push(n1 ^ n2)
         if self.debug: print(f'bxor {n1} | {n2}')
 
     def run_ilt(self):
-        arg1 = self.s.pop(int, 'ilt')
-        arg2 = self.s.pop(int, 'ilt')
+        arg1 = self.s.pop(Integer, 'ilt')
+        arg2 = self.s.pop(Integer, 'ilt')
         self.s.push(Bool(True) if arg1 < arg2 else Bool(False))
         if self.debug: print(f'ilt {arg1} < {arg2}')
 
     def run_ile(self):
-        arg1 = self.s.pop(int, 'ile')
-        arg2 = self.s.pop(int, 'ile')
+        arg1 = self.s.pop(Integer, 'ile')
+        arg2 = self.s.pop(Integer, 'ile')
         self.s.push(Bool(True) if arg1 <= arg2 else Bool(False))
         if self.debug: print(f'ile {arg1} <= {arg2}')
 
@@ -678,13 +679,13 @@ class Secd:
         self._do_apply('ccc')
 
     def run_i2ch(self):
-        char_code = self.s.pop(int, 'i2ch')
+        char_code = self.s.pop(Integer, 'i2ch')
         self.s.push(Char(char_code))
         if self.debug: print(f'i2ch {char_code}')
 
     def run_ch2i(self):
         char = self.s.pop(Char, 'ch2i')
-        self.s.push(char.char_code)
+        self.s.push(Integer(char.char_code))
         if self.debug: print(f'ch2i {char}')
 
     def run_ugcat(self):  # unicode general category
@@ -723,11 +724,13 @@ class Secd:
         digit_value = unicodedata.digit(chr(char.char_code), None)
         if digit_value is None:
             digit_value = Bool(False)
+        else:
+            digit_value = Integer(digit_value)
         self.s.push(digit_value)
         if self.debug: print(f'chdv {char}')
 
     def run_mkstr(self):
-        nchars = self.s.pop(int, 'mkstr')
+        nchars = self.s.pop(Integer, 'mkstr')
         fill_char = self.s.pop(Char, 'mkstr')
 
         s = chr(fill_char.char_code) * nchars
@@ -737,7 +740,7 @@ class Secd:
 
     def run_strref(self):
         s = self.s.pop(String, 'strref')
-        idx = self.s.pop(int, 'strref')
+        idx = self.s.pop(Integer, 'strref')
 
         try:
             c = s.value[idx]
@@ -750,7 +753,7 @@ class Secd:
 
     def run_strset(self):
         s = self.s.pop(String, 'strset')
-        idx = self.s.pop(int, 'strset')
+        idx = self.s.pop(Integer, 'strset')
         char = self.s.pop(Char, 'strset')
 
         if idx < 0 or idx >= len(s):
@@ -763,7 +766,7 @@ class Secd:
 
     def run_strlen(self):
         s = self.s.pop(String, 'strlen')
-        self.s.push(len(s))
+        self.s.push(Integer(len(s)))
         if self.debug: print(f'strlen {s} => {len(s)}')
 
     def run_setcar(self):
@@ -839,7 +842,7 @@ def main(args):
 def print_value(v):
     if isinstance(v, String):
         print(v.value)
-    elif isinstance(v, (int, Symbol, Bool, List, Closure, Char)):
+    elif isinstance(v, (Integer, Symbol, Bool, List, Closure, Char)):
         print(v)
     else:
         raise RunError(f'Unknown type to print: {v}')
