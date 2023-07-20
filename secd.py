@@ -821,12 +821,13 @@ def main(args):
     try:
         m.run()
     except UserError:
-        err = m.s[-1]
+        err = m.s.pop()
         msg = format_user_error(err)
         print(f'Run error: {msg}', file=sys.stderr)
         sys.exit(1)
     except RunError as e:
         print('Run error:', e)
+        sys.exit(1)
 
     if m.halt_code is None:
         print('Code exhausted.', file=sys.stderr)
