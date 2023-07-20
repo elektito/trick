@@ -120,6 +120,7 @@ class Secd:
         self.s = cont.s
         self.e = cont.e
         self.c = cont.c
+        self.d = cont.d
 
         if retvals == []:
             self.s.push_multiple([])
