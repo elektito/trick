@@ -7,6 +7,8 @@ DEFAULT_ENCODING = 'utf-8'
 class Integer(int):
     def __new__(cls, n, *args, **kwargs):
         obj = super().__new__(cls, n, *args, **kwargs)
+        obj.src_start = None
+        obj.src_end = None
         return obj
 
     def __add__(self, other):
@@ -73,6 +75,9 @@ class Symbol:
         else:
             self.short_name = name
 
+        self.src_start = None
+        self.src_end = None
+
     def __eq__(self, other):
         if not isinstance(other, Symbol):
             return False
@@ -108,6 +113,9 @@ class Bool:
             raise TypeError('Invalid boolean value')
 
         self.value = value
+
+        self.src_start = None
+        self.src_end = None
 
     def is_true(self):
         return self.value
@@ -155,6 +163,9 @@ class Char:
     def __init__(self, char_code):
         self.char_code = char_code
 
+        self.src_start = None
+        self.src_end = None
+
     def __eq__(self, other):
         if not isinstance(other, Char):
             return False
@@ -179,6 +190,9 @@ class String:
     def __init__(self, value: str):
         assert isinstance(value, str)
         self.value = value
+
+        self.src_start = None
+        self.src_end = None
 
     def __hash__(self):
         return hash(self.value)
@@ -209,6 +223,9 @@ class Closure:
         self.nparams = nparams
         self.rest_param = rest_param
 
+        self.src_start = None
+        self.src_end = None
+
     def __repr__(self):
         if self.rest_param:
             return f'<Closure nparams={self.nparams}+rest c={self.c} e={self.e}>'
@@ -225,6 +242,9 @@ class Continuation(Closure):
 
         self.nparams = 0
         self.rest_param = True
+
+        self.src_start = None
+        self.src_end = None
 
     def __repr__(self):
         return f'<Continuation s={self.s} e={self.e} c={self.c} d={self.d}>'
@@ -252,6 +272,8 @@ class Nil(List):
     def __new__(klass, *args, **kwargs):
         if not isinstance(klass._instance, klass):
             klass._instance = object.__new__(klass, *args, **kwargs)
+            klass._instance.src_start = None
+            klass._instance.src_end = None
         return klass._instance
 
     def __str__(self):
@@ -297,6 +319,9 @@ class Pair(List):
 
         self.car = car
         self.cdr = cdr
+
+        self.src_start = None
+        self.src_end = None
 
     def __str__(self) -> str:
         # (quote . (value . nil))
@@ -482,6 +507,9 @@ class Values:
     def __init__(self, values):
         assert isinstance(values, list)
         self._values = values
+
+        self.src_start = None
+        self.src_end = None
 
     def as_list(self):
         return self._values

@@ -130,40 +130,46 @@ def _read(s: str, i: int = 0) -> tuple[None | Integer | Symbol | List | Bool | S
     if i == len(s):
         return None, len(s)
 
+    start = i
+
     if s[i] == '(':
-        return _read_list(s, i)
+        ret, i = _read_list(s, i)
     elif s[i] == ')':
         raise ParseError('Unbalanced parentheses')
     elif s[i] == '"':
-        return _read_string(s, i)
+        ret, i = _read_string(s, i)
     elif s[i] == "'":
         quoted, i = _read(s, i + 1)
-        return List.from_list([Symbol('quote'), quoted]), i
+        ret = List.from_list([Symbol('quote'), quoted])
     elif s[i] == '`':
         quoted, i = _read(s, i + 1)
-        return List.from_list([Symbol('backquote'), quoted]), i
+        ret = List.from_list([Symbol('backquote'), quoted])
     elif s[i] == ',' and i < len(s) - 1 and s[i+1] == '@':
         unquoted, i = _read(s, i + 2)
-        return List.from_list([Symbol('unquote-splicing'), unquoted]), i
+        ret = List.from_list([Symbol('unquote-splicing'), unquoted])
     elif s[i] == ',':
         unquoted, i = _read(s, i + 1)
-        return List.from_list([Symbol('unquote'), unquoted]), i
+        ret = List.from_list([Symbol('unquote'), unquoted])
     elif i < len(s) - 1 and s[i:i+2] == '#f':
-        return Bool(False), i + 2
+        ret, i = Bool(False), i + 2
     elif i < len(s) - 1 and s[i:i+2] == '#t':
-        return Bool(True), i + 2
+        ret, i = Bool(True), i + 2
     elif i < len(s) - 1 and s[i:i+2] == '#x':
         tok, i = _read_token(s, i)
         tok = tok[2:]
-        return Integer(tok, 16), i
+        ret = Integer(tok, 16)
     elif i < len(s) - 1 and s[i:i+2] == '#\\':
-        return _read_char(s, i)
+        ret, i = _read_char(s, i)
     else:
         tok, i = _read_token(s, i)
         try:
-            return Integer(tok), i
+            ret = Integer(tok)
         except ValueError:
-            return Symbol(tok), i
+            ret = Symbol(tok)
+
+    ret.src_start = start
+    ret.src_end = i
+    return ret, i
 
 
 def read(s: str, i: int = 0) -> tuple[None | Integer | Symbol | List | Bool | String | Char, int]:
