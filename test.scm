@@ -762,6 +762,7 @@
                       (exit x)))
                 '(54 0 37 -3 245 19))
            #t)))
+(eq? 100 (call/cc (lambda (k) 100)))
 
 
 ;; make sure primitive functions are available as normal functions
