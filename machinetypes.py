@@ -491,7 +491,10 @@ class Pair(List):
         if l == []:
             return Nil()
         else:
-            start = Pair(l[0], Nil())
+            if isinstance(l[0], list):
+                start = Pair(Pair.from_list_recursive(l[0]), Nil())
+            else:
+                start = Pair(l[0], Nil())
             prev = start
             for elem in l[1:]:
                 if isinstance(elem, list):
