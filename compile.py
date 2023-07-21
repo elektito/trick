@@ -6,7 +6,7 @@ import pickle
 import base64
 from read import read, ParseError
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String
-from assemble import assemble
+from assemble import Assembler
 from secd import RunError, Secd, UserError
 from utils import format_user_error
 
@@ -200,7 +200,7 @@ class Macro:
                 f'{self.name}: {e}')
 
         code = compiler.toplevel_code + func_call_code
-        assembled = assemble(code)
+        assembled = compiler.assembler.assemble(code)
 
         machine = Secd(assembled)
 
@@ -223,6 +223,7 @@ class Macro:
 
 class Compiler:
     def __init__(self):
+        self.assembler = Assembler()
         self.macros = {}
         self.toplevel_code = []
         self.defined_symbols = set()
@@ -808,10 +809,11 @@ def main(args):
         sys.exit(0)
 
     if args.eval_expr:
+        assembler = Assembler()
         code = compiler.compile_toplevel(text)  # compile libs
         expr, _ = read(args.eval_expr)
         code += compiler.compile_form(expr, [])
-        code = assemble(code)
+        code = assembler.assemble(code)
         m = Secd(code)
         try:
             m.run()

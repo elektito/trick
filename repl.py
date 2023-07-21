@@ -2,7 +2,7 @@
 
 import argparse
 import readline
-from assemble import assemble
+from assemble import Assembler
 from compile import Compiler, CompileError
 from read import ParseError, read
 from secd import RunError, Secd, UserError
@@ -43,8 +43,9 @@ def main(args):
             print(f'Compile error: {e}')
             continue
 
+        assembler = Assembler()
         asm = lib_asm + expr_asm
-        code = assemble(asm)
+        code = assembler.assemble(asm)
         machine = Secd(code)
         try:
             machine.run()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-from assemble import assemble
+from assemble import Assembler
 from compile import Compiler, CompileError
 from read import read
 from secd import RunError, Secd, UserError
@@ -25,6 +25,7 @@ def main():
         text = f.read()
 
     compiler  = Compiler()
+    assembler = Assembler()
 
     try:
         lib_asm = compiler.compile_toplevel(text)
@@ -62,7 +63,7 @@ def main():
             continue
 
         asm = lib_asm + expr_asm
-        code = assemble(asm)
+        code = assembler.assemble(asm)
         machine = Secd(code)
         try:
             machine.run()
