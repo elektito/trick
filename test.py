@@ -51,7 +51,7 @@ def main():
         if args.verbose:
             print(f'[{i+1}] Running: {expr} ', end='', flush=True)
         try:
-            expr_asm = compiler.compile_form(expr, [])
+            expr_asm = compiler.compile_form(expr, [], 0)
         except CompileError as e:
             errors.append((expr, e))
             if args.verbose:

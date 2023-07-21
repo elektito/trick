@@ -38,7 +38,7 @@ def main(args):
             continue
 
         try:
-            expr_asm = compiler.compile_form(expr, [])
+            expr_asm = compiler.compile_form(expr, [], 0)
         except CompileError as e:
             print(f'Compile error: {e}')
             continue
