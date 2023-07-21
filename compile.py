@@ -826,8 +826,9 @@ def main(args):
         sys.exit(0)
 
     if args.eval_expr:
-        text += '\n' + args.eval_expr
-        code = compile_toplevel(text)
+        code = compile_toplevel(text)  # compile libs
+        expr, _ = read(args.eval_expr)
+        code += compile_form(expr, [])
         code = assemble(code)
         m = Secd(code)
         try:
@@ -842,7 +843,7 @@ def main(args):
             elif len(m.s) > 1:
                 print('Error: more than one result')
                 sys.exit(1)
-            print(m.s[-1])
+            print(m.s.top())
 
         sys.exit(0)
 
