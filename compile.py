@@ -2,6 +2,8 @@
 
 import sys
 import argparse
+import pickle
+import base64
 from read import read, ParseError
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String
 from assemble import assemble
@@ -14,6 +16,7 @@ toplevel_code = []
 defined_symbols = set()
 set_symbols = set()
 read_symbols = set()
+dbg_info = []
 
 
 def S(s: str) -> Symbol:
@@ -719,6 +722,8 @@ def compile_toplevel(text):
 
         form = macro_expand(form)
 
+        code_start = len(code)
+
         if isinstance(form, Pair) and len(form) > 0 and form[0] == S('define-macro'):
             process_define_macro(form, toplevel_env)
             form_code = []
@@ -732,6 +737,15 @@ def compile_toplevel(text):
             code = form_code
         elif form_code != []:
             code += [S('drop')] + form_code
+
+        code_end = len(code)
+        dbg_info.append({
+            'form': form,
+            'src_start': form.src_start,
+            'src_end': form.src_end,
+            'code_start': code_start,
+            'code_end': code_end,
+        })
 
     if code != []:
         code += [S('drop')]
@@ -772,6 +786,10 @@ def configure_argparse(parser: argparse.ArgumentParser):
     parser.add_argument(
         '--eval', '-e', metavar='EXPR', dest='eval_expr',
         help='Compile and run the given expression, and print the result.')
+
+    parser.add_argument(
+        '--dbg-info', '-g', action='store_true',
+        help='Enable debug info.')
 
     parser.set_defaults(func=main)
 
@@ -843,6 +861,15 @@ def main(args):
         print(f'Compile error: {e}', file=sys.stderr)
         sys.exit(1)
 
-    secd_code = List.from_list_recursive(secd_code)
+    output = [
+        [S('code'), secd_code],
+    ]
 
-    print(secd_code)
+    if args.dbg_info:
+        output.append([
+            S('dbginfo'), String(base64.b64encode(pickle.dumps(dbg_info)).decode('ascii')),
+        ])
+
+    output = List.from_list_recursive(output)
+
+    print(output)
