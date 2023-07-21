@@ -215,7 +215,7 @@ class Macro:
         try:
             machine.run()
         except UserError:
-            err = machine.s[-1]
+            err = machine.s.top()
             msg = format_user_error(err)
             msg = f'During macro expansion of {self.name}: {msg}'
             raise CompileError(msg)
