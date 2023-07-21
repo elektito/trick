@@ -2,7 +2,7 @@
 
 import argparse
 from assemble import assemble
-from compile import CompileError, compile_form, compile_toplevel
+from compile import Compiler, CompileError
 from read import read
 from secd import RunError, Secd, UserError
 from utils import format_user_error
@@ -24,8 +24,10 @@ def main():
     with open('stdlib.scm') as f:
         text = f.read()
 
+    compiler  = Compiler()
+
     try:
-        lib_asm = compile_toplevel(text)
+        lib_asm = compiler.compile_toplevel(text)
     except CompileError as e:
         print('Compile error when compiling tests:', e)
         exit(1)
@@ -48,7 +50,7 @@ def main():
         if args.verbose:
             print(f'[{i+1}] Running: {expr} ', end='', flush=True)
         try:
-            expr_asm = compile_form(expr, [])
+            expr_asm = compiler.compile_form(expr, [])
         except CompileError as e:
             errors.append((expr, e))
             if args.verbose:
@@ -65,7 +67,7 @@ def main():
         try:
             machine.run()
         except UserError:
-            err = machine.s[-1]
+            err = machine.s.top()
             msg = format_user_error(err)
             errors.append((expr, msg))
             if args.verbose:

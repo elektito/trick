@@ -3,8 +3,7 @@
 import argparse
 import readline
 from assemble import assemble
-from compile import CompileError, compile_form, compile_toplevel
-from machinetypes import Symbol
+from compile import Compiler, CompileError
 from read import ParseError, read
 from secd import RunError, Secd, UserError
 from utils import format_user_error
@@ -19,7 +18,8 @@ def main(args):
     with open('stdlib.scm') as f:
         text = f.read()
 
-    lib_asm = compile_toplevel(text)
+    compiler = Compiler()
+    lib_asm = compiler.compile_toplevel(text)
 
     while True:
         try:
@@ -38,7 +38,7 @@ def main(args):
             continue
 
         try:
-            expr_asm = compile_form(expr, [])
+            expr_asm = compiler.compile_form(expr, [])
         except CompileError as e:
             print(f'Compile error: {e}')
             continue
