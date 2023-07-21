@@ -3,7 +3,7 @@
 import sys
 import argparse
 from read import read, ParseError
-from machinetypes import Bool, Char, List, Nil, Pair, Symbol, String
+from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String
 from assemble import assemble
 from secd import RunError, Secd, UserError
 from utils import format_user_error
@@ -286,7 +286,7 @@ def process_define_macro(expr, env):
 
 
 def compile_int(expr, env):
-    return [S('ldc'), expr]
+    return [S('ldc'), Integer(expr)]
 
 
 def compile_if(expr, env):
@@ -353,9 +353,9 @@ def compile_lambda(expr, env):
         body_code[-2:] = [S('tap')]
 
     if rest_param:
-        code = [S('ldf'), -original_nparams, body_code]
+        code = [S('ldf'), Integer(-original_nparams), body_code]
     else:
-        code = [S('ldf'), original_nparams, body_code]
+        code = [S('ldf'), Integer(original_nparams), body_code]
 
     return code
 
@@ -374,17 +374,17 @@ def compile_symbol(sym: Symbol, env):
             # primitive is a synonoym of another one. look it up again.
             prim = primcalls[prim]
         for i in range(prim['nargs'] - 1, -1, -1):
-            func_code += [S('ld'), [0, i]]
+            func_code += [S('ld'), [Integer(0), Integer(i)]]
         func_code += prim['code']
         func_code += [S('ret')]
-        return [S('ldf'), prim['nargs'], func_code]
+        return [S('ldf'), Integer(prim['nargs']), func_code]
 
     if sym.name.startswith(':'):
         return [S('ldsym'), sym]
 
     for i, frame in enumerate(env):
         if sym in frame:
-            return [S('ld'), [i, frame.index(sym)]]
+            return [S('ld'), [Integer(i), Integer(frame.index(sym))]]
 
     read_symbols.add(sym)
     return [S('get'), sym]
@@ -402,7 +402,7 @@ def compile_bool(s: Bool, env):
 
 
 def compile_char(ch: Char, env):
-    return [S('ldc'), ch.char_code, S('i2ch')]
+    return [S('ldc'), Integer(ch.char_code), S('i2ch')]
 
 
 def check_let_bindings(bindings, let_name):
@@ -690,7 +690,7 @@ def compile_form(expr, env):
 
     if isinstance(expr, List):
         secd_code = compile_list(expr, env)
-    elif isinstance(expr, int):
+    elif isinstance(expr, Integer):
         secd_code = compile_int(expr, env)
     elif isinstance(expr, Symbol):
         secd_code = compile_symbol(expr, env)
