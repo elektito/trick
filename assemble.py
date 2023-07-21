@@ -202,7 +202,7 @@ class Assembler:
 
         return code
 
-    def assemble(self, code: (Pair | list), start_offset: int = 0) -> bytes:
+    def assemble(self, code: (Pair | list)) -> bytes:
         strings = []
         symbols = []
 
@@ -212,7 +212,7 @@ class Assembler:
         if isinstance(code, Pair):
             code = code.to_list_recursive()
 
-        assembled = self._assemble(code, start_offset, strings, symbols)
+        assembled = self._assemble(code, 0, strings, symbols)
 
         # add symbol strings
         for sym in symbols:
@@ -278,7 +278,7 @@ def main(args):
         sys.exit(1)
 
     try:
-        code = assembler.assemble(expr, 0)
+        code = assembler.assemble(expr)
     except AssembleError as e:
         print(f'Assemble error: {e}', file=sys.stderr)
         sys.exit(1)
