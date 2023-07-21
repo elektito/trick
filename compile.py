@@ -183,8 +183,6 @@ class Macro:
         self.env = env
 
     def expand(self, args, compiler):
-        global toplevel_code
-
         quoted_args = [
             List.from_list([S('quote'), a])
             for a in args
@@ -690,7 +688,6 @@ class Compiler:
         return secd_code
 
     def compile_toplevel(self, text):
-        global toplevel_code
 
         offset = 0
         code = []
