@@ -50,16 +50,25 @@ class Stack:
         "read top of the stack without popping it"
 
         if len(self.s) == 0:
-            raise RunError('Attempting to read from an empty stack')
+            prefix = ''
+            if instr_name:
+                prefix = f'{instr_name}: '
+            raise RunError(f'{prefix}Attempting to read from an empty stack')
 
         value = self.s[-1]
         if isinstance(value, Values):
             if len(value) == 1:
                 value = value[0]
             elif len(value) == 0:
-                raise RunError('Reading a value when zero is available.')
+                prefix = ''
+                if instr_name:
+                    prefix = f'{instr_name}: '
+                raise RunError(f'{prefix}Reading a value when zero is available.')
             else:
-                raise RunError('Reading a value when multiple is available.')
+                prefix = ''
+                if instr_name:
+                    prefix = f'{instr_name}: '
+                raise RunError(f'{prefix}Reading a value when multiple is available.')
 
         if type and not isinstance(value, type):
             prefix = ''
@@ -192,7 +201,10 @@ class Secd:
     def print_stack_frame(self, i, fasl, c):
         dbginfo = fasl.get_extra_section('dbginfo')
         if not dbginfo:
-            print(f'[{i}] <no debug info in fasl>')
+            if fasl.filename:
+                print(f'[{i}] <no debug info in fasl "{fasl.filename}">')
+            else:
+                print(f'[{i}] <no debug info in fasl>')
             return
 
         if not dbginfo.source_file:
