@@ -86,8 +86,13 @@ def main():
         if not args.output:
             name, _ = os.path.splitext(args.compile)
             args.output = name + '.fasl'
-        compile_src_file_to_fasl(args.compile, args.output, args.lib,
-                                 dbg_info=args.dbg_info)
+        try:
+            compile_src_file_to_fasl(
+                args.compile, args.output, args.lib,
+                dbg_info=args.dbg_info)
+        except compile.CompileError as e:
+            print('Compile error:', e)
+            sys.exit(1)
     elif args.compile_expr:
         lib_fasls = load_fasl_files(args.lib)
         compiler = compile.Compiler(lib_fasls)
