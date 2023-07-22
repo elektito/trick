@@ -256,10 +256,10 @@ class Secd:
 
     def resume_continuation(self, cont: Continuation, retvals: list):
         self.cur_fasl = cont.fasl
-        self.s = cont.s
-        self.e = cont.e
+        self.s = cont.s.copy()
+        self.e = [i for i in cont.e]
         self.c = cont.c
-        self.d = cont.d
+        self.d = [i for i in cont.d]
 
         if retvals == []:
             self.s.push_multiple([])
@@ -493,9 +493,9 @@ class Secd:
             rest_args = args[0]
             v = Values(rest_args.to_list())
             self.s = closure.s.extended([v])
-            self.e = closure.e
+            self.e = [i for i in closure.e]
             self.c = closure.c
-            self.d = closure.d
+            self.d = [i for i in closure.d]
         else:
             if dummy_frame:
                 # we've already placed the arguments inside closure.e, so we
