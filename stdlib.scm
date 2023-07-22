@@ -132,16 +132,10 @@
       (cons (func (car args))
             (mapcar func (cdr args)))))
 
-;; begin, when, unless, cond
+;; begin and cond
 
 (define-macro (begin . body)
   (list (concat (list 'lambda '()) body)))
-
-(define-macro (when c . body)
-  `(if ,c (begin ,@body) #f))
-
-(define-macro (unless c . body)
-  `(if ,c #f (begin ,@body)))
 
 (define-macro (cond . arms)
   (if (null? arms)
@@ -284,6 +278,12 @@
    (bq-process form 1)))
 
 ;; more macros now that we have backquote!
+
+(define-macro (when c . body)
+  `(if ,c (begin ,@body) #f))
+
+(define-macro (unless c . body)
+  `(if ,c #f (begin ,@body)))
 
 (define-macro (with-gensyms names . body)
   `(let ,(mapcar (lambda (name) `(,name (gensym))) names)
