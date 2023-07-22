@@ -217,7 +217,8 @@ class String:
 
 
 class Closure:
-    def __init__(self, c, e, *, nparams: int, rest_param: bool):
+    def __init__(self, c, e, fasl, *, nparams: int, rest_param: bool):
+        self.fasl = fasl
         self.c = c
         self.e = e
         self.nparams = nparams
@@ -234,7 +235,8 @@ class Closure:
 
 
 class Continuation(Closure):
-    def __init__(self, s, e, c, d):
+    def __init__(self, s, e, c, d, fasl):
+        self.fasl = fasl
         self.s = s.copy()
         self.e = e
         self.c = c
@@ -350,7 +352,7 @@ class Pair(List):
         return s
 
     def __repr__(self):
-        return f'<Pair car={self.car} cdr={self.cdr}>'
+        return str(self)
 
     def __len__(self) -> int:
         if self.cdr == Nil():

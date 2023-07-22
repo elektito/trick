@@ -3,6 +3,7 @@
 import sys
 import argparse
 import unicodedata
+from fasl import Fasl
 from utils import format_user_error
 from machinetypes import (
     Bool, Char, Integer, List, Nil, Pair, String, Symbol, Closure, Continuation, Values,
@@ -104,9 +105,7 @@ class Stack:
 
 
 class Secd:
-    def __init__(self, code):
-        self.code = code
-
+    def __init__(self, program, libs):
         self.s = Stack()
         self.e = []
         self.c = 0
@@ -114,32 +113,15 @@ class Secd:
         self.halt_code = None
         self.dummy_frame = object()
         self.debug = False
-        self.strtab = []
-        self.symtab = []
         self.symvals = {}
 
-    def create_continuation(self, offset: int = 0, e=None):
-        return Continuation(
-            self.s,
-            self.e if e is None else e,
-            self.c + offset,
-            self.d)
+        assert isinstance(program, Fasl)
+        assert all(isinstance(i, Fasl) for i in libs)
+        self.program = program
+        self.libs = libs
+        self.cur_fasl = None
 
-    def resume_continuation(self, cont: Continuation, retvals: list):
-        self.s = cont.s
-        self.e = cont.e
-        self.c = cont.c
-        self.d = cont.d
-
-        if retvals == []:
-            self.s.push_multiple([])
-        elif len(retvals) == 1:
-            self.s.push(retvals[0])
-        else:
-            self.s.push_multiple(retvals)
-
-    def run(self):
-        funcs = {
+        self.op_funcs = {
             0x01: self.run_nil,
             0x02: self.run_true,
             0x03: self.run_false,
@@ -204,13 +186,47 @@ class Secd:
             0x4a: self.run_set,
             0x4b: self.run_get,
         }
-        code_len = len(self.code)
-        while self.c < code_len and self.halt_code is None:
-            opcode = self.code[self.c]
+
+    def create_continuation(self, offset: int = 0, e=None):
+        return Continuation(
+            self.s,
+            self.e if e is None else e,
+            self.c + offset,
+            self.d,
+            self.cur_fasl)
+
+    def resume_continuation(self, cont: Continuation, retvals: list):
+        self.cur_fasl = cont.fasl
+        self.s = cont.s
+        self.e = cont.e
+        self.c = cont.c
+        self.d = cont.d
+
+        if retvals == []:
+            self.s.push_multiple([])
+        elif len(retvals) == 1:
+            self.s.push(retvals[0])
+        else:
+            self.s.push_multiple(retvals)
+
+    def run(self):
+        for fasl in self.libs:
+            self.execute_fasl(fasl)
+        self.execute_fasl(self.program)
+
+    def execute_fasl(self, fasl):
+        self.cur_fasl = fasl
+        self.c = 0
+        while self.halt_code is None:
+            try:
+                opcode = self.cur_fasl.code[self.c]
+            except IndexError:
+                break
+
             self.c += 1
 
             try:
-                func = funcs[opcode]
+                func = self.op_funcs[opcode]
             except KeyError:
                 raise RunError(f'Invalid op-code: {opcode}')
 
@@ -218,21 +234,20 @@ class Secd:
 
     def intern(self, name):
         sym = Symbol(name)
-        if sym not in self.symtab:
+        if sym not in self.cur_fasl.symtab:
             sname = String(name)
-            if sname not in self.strtab:
-                self.strtab.append(sname)
-            self.symtab.append(sym)
+            if sname not in self.cur_fasl.strtab:
+                self.cur_fasl.strtab.append(sname)
+            self.cur_fasl.symtab.append(sym)
         return sym
 
     def find_procedure_name(self, procedure):
-        for symnum, value in self.symvals.items():
+        for sym, value in self.symvals.items():
             if value == procedure:
                 break
         else:
             return None
 
-        sym = self.symtab[symnum]
         return sym.name
 
     def run_nil(self):
@@ -246,34 +261,34 @@ class Secd:
         if self.debug: print(f'cons {car} onto {cdr}')
 
     def run_ldc(self):
-        value = self.code[self.c:self.c+4]
+        value = self.cur_fasl.code[self.c:self.c+4]
         self.c += 4
         value = int.from_bytes(value, byteorder='little', signed=True)
         self.s.pushx(Integer(value))
         if self.debug: print(f'ldc {value}')
 
     def run_ldstr(self):
-        strnum = self.code[self.c:self.c+4]
+        strnum = self.cur_fasl.code[self.c:self.c+4]
         self.c += 4
         strnum = int.from_bytes(strnum, byteorder='little', signed=True)
-        s = self.strtab[strnum]
+        s = self.cur_fasl.strtab[strnum]
         self.s.push(s)
         if self.debug: print(f'ldstr {s}')
 
     def run_ldsym(self):
-        symnum = self.code[self.c:self.c+4]
+        symnum = self.cur_fasl.code[self.c:self.c+4]
         self.c += 4
         symnum = int.from_bytes(symnum, byteorder='little', signed=True)
         try:
-            s = self.symtab[symnum]
+            s = self.cur_fasl.symtab[symnum]
         except IndexError:
-            raise RunError(f'Invalid symbol index: {symnum} (symtab size: {len(self.symtab)})')
+            raise RunError(f'Invalid symbol index: {symnum} (symtab size: {len(self.cur_fasl.symtab)})')
         self.s.push(s)
         if self.debug: print(f'ldsym {s}')
 
     def run_ld(self):
-        frame_idx = self.code[self.c:self.c+2]
-        index = self.code[self.c+2:self.c+4]
+        frame_idx = self.cur_fasl.code[self.c:self.c+2]
+        index = self.cur_fasl.code[self.c+2:self.c+4]
         self.c += 4
 
         frame_idx = int.from_bytes(frame_idx, byteorder='little', signed=False)
@@ -293,8 +308,8 @@ class Secd:
         if self.debug: print(f'ld [{frame_idx}, {index}] -- frame={frame} value={value}')
 
     def run_st(self):
-        frame_idx = self.code[self.c:self.c+2]
-        index = self.code[self.c+2:self.c+4]
+        frame_idx = self.cur_fasl.code[self.c:self.c+2]
+        index = self.cur_fasl.code[self.c+2:self.c+4]
         self.c += 4
 
         frame_idx = int.from_bytes(frame_idx, byteorder='little', signed=False)
@@ -305,11 +320,11 @@ class Secd:
         if self.debug: print(f'st {value} => [{frame_idx}, {index}]')
 
     def run_sel(self):
-        true_len = self.code[self.c:self.c+4]
+        true_len = self.cur_fasl.code[self.c:self.c+4]
         true_len = int.from_bytes(true_len, byteorder='little', signed=False)
         self.c += 4
 
-        false_len = self.code[self.c:self.c+4]
+        false_len = self.cur_fasl.code[self.c:self.c+4]
         false_len = int.from_bytes(false_len, byteorder='little', signed=False)
         self.c += 4
 
@@ -326,8 +341,8 @@ class Secd:
         if self.debug: print(f'join')
 
     def run_ldf(self):
-        nparams = self.code[self.c:self.c+4]
-        body_size = self.code[self.c+4:self.c+8]
+        nparams = self.cur_fasl.code[self.c:self.c+4]
+        body_size = self.cur_fasl.code[self.c+4:self.c+8]
         nparams = int.from_bytes(nparams, byteorder='little', signed=True)
         body_size = int.from_bytes(body_size, byteorder='little', signed=False)
         self.c += 8
@@ -336,7 +351,9 @@ class Secd:
             nparams = -nparams - 1
         else:
             rest_param = False
-        closure = Closure(self.c, self.e, nparams=nparams, rest_param=rest_param)
+        closure = Closure(
+            self.c, self.e, self.cur_fasl,
+            nparams=nparams, rest_param=rest_param)
         self.s.pushx(closure)
         self.c += body_size
         if self.debug: print(f'ldf body_size={body_size}')
@@ -401,6 +418,8 @@ class Secd:
         else:
             # tail call: don't add a new continuation
             pass
+
+        self.cur_fasl = closure.fasl
 
         if self.debug: print(f'{name} {self.c} => {closure.c}')
 
@@ -564,35 +583,35 @@ class Secd:
         if self.debug: print(f'false')
 
     def run_strtab(self):
-        nstrs = self.code[self.c:self.c+4]
+        nstrs = self.cur_fasl.code[self.c:self.c+4]
         self.c += 4
         nstrs = int.from_bytes(nstrs, byteorder='little', signed=False)
-        self.strtab = []
+        self.cur_fasl.strtab = []
         for _ in range(nstrs):
-            length = self.code[self.c:self.c+4]
+            length = self.cur_fasl.code[self.c:self.c+4]
             self.c += 4
             length = int.from_bytes(length, byteorder='little', signed=False)
-            s = self.code[self.c:self.c+length]
+            s = self.cur_fasl.code[self.c:self.c+length]
             s = String.from_bytes(s)
-            self.strtab.append(s)
+            self.cur_fasl.strtab.append(s)
             self.c += length
 
         if self.debug: print(f'strtab {nstrs}')
 
     def run_symtab(self):
-        if self.symtab != []:
+        if self.cur_fasl.symtab != []:
             raise RunError('Multiple symtab instructions')
-        nsyms = self.code[self.c:self.c+4]
+        nsyms = self.cur_fasl.code[self.c:self.c+4]
         self.c += 4
         nsyms = int.from_bytes(nsyms, byteorder='little', signed=False)
         strnums = []
         for _ in range(nsyms):
-            strnum = self.code[self.c:self.c+4]
+            strnum = self.cur_fasl.code[self.c:self.c+4]
             self.c += 4
             strnum = int.from_bytes(strnum, byteorder='little', signed=False)
             strnums.append(strnum)
 
-        self.symtab = [Symbol(self.strtab[i].value) for i in strnums]
+        self.cur_fasl.symtab = [Symbol(self.cur_fasl.strtab[i].value) for i in strnums]
         if self.debug: print(f'symtab {nsyms}')
 
     def run_car(self):
@@ -638,32 +657,38 @@ class Secd:
         if self.debug: print(f'eq {result}')
 
     def run_set(self):
-        symnum = self.code[self.c:self.c+4]
-        self.c += 4
-        symnum = int.from_bytes(symnum, byteorder='little', signed=True)
-
-        value = self.s.pop()
-        self.symvals[symnum] = value
-
-        if self.debug: print(f'set {self.symtab[symnum]} => {value}')
-
-    def run_get(self):
-        symnum = self.code[self.c:self.c+4]
+        symnum = self.cur_fasl.code[self.c:self.c+4]
         self.c += 4
         symnum = int.from_bytes(symnum, byteorder='little', signed=True)
 
         try:
+            sym = self.cur_fasl.symtab[symnum]
+        except IndexError:
+            raise RunError(f'Invalid symbol number for "set": {symnum}')
+
+        value = self.s.pop()
+        self.symvals[sym] = value
+
+        if self.debug: print(f'set {sym} => {value}')
+
+    def run_get(self):
+        symnum = self.cur_fasl.code[self.c:self.c+4]
+        self.c += 4
+        symnum = int.from_bytes(symnum, byteorder='little', signed=True)
+
+        try:
+            sym = self.cur_fasl.symtab[symnum]
+        except IndexError:
+            raise RunError(f'Invalid symbol number for "get": {symnum}')
+
+        try:
             # leave the set value on the stack as the return value of set
-            value = self.symvals[symnum]
+            value = self.symvals[sym]
         except KeyError:
-            if 0 <= symnum < len(self.symtab):
-                sym = self.symtab[symnum]
-                raise RunError(f'Attempt to read unset symbol: {sym} ({symnum})')
-            else:
-                raise RunError(f'Unknown symbol number set: {symnum}')
+            raise RunError(f'Attempt to read unset symbol: {sym} ({symnum})')
 
         self.s.push(value)
-        if self.debug: print(f'get {self.symtab[symnum]} => {value}')
+        if self.debug: print(f'get {self.cur_fasl.symtab[symnum]} => {value}')
 
     def run_error(self):
         if self.debug: print(f'error')
@@ -809,8 +834,12 @@ def configure_argparse(parser: argparse.ArgumentParser):
 
     parser.add_argument(
         'input', default='-', nargs='?',
-        help='Input file. Stdin is used if not specified or a dash (-) '
-        'is passed instead. Defaults to reading from stdin.')
+        help='Input FASL file. Stdin is used if not specified or a '
+        'dash (-) is passed instead. Defaults to reading from stdin.')
+
+    parser.add_argument(
+        '--lib', '-l', action='append', default=[],
+        help='Add a FASL to be loaded as a library.')
 
     parser.add_argument(
         '--debug', '-g', action='store_true', default=False,
@@ -821,12 +850,17 @@ def configure_argparse(parser: argparse.ArgumentParser):
 
 def main(args):
     if args.input == '-':
-        code = sys.stdin.buffer.read()
+        fasl = Fasl.load(sys.stdin.buffer)
     else:
         with open(args.input, 'rb') as f:
-            code = f.read()
+            fasl = Fasl.load(f)
 
-    m = Secd(code)
+    lib_fasls = []
+    for lib in args.lib:
+        with open(lib, 'rb') as f:
+            lib_fasls.append(Fasl.load(f))
+
+    m = Secd(fasl, lib_fasls)
     m.debug = args.debug
     try:
         m.run()

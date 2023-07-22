@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
-from assemble import Assembler
-from compile import Compiler, CompileError
+from compile import CompileError
+from fasl import Fasl
 from read import read
 from secd import RunError, Secd, UserError
-from utils import format_user_error
+from utils import compile_expr_to_fasl, ensure_fasl, format_user_error
 
 
 def main():
@@ -21,17 +21,11 @@ def main():
 
     args = parser.parse_args()
 
-    with open('stdlib.scm') as f:
-        text = f.read()
+    ensure_fasl('stdlib.scm')
+    with open('stdlib.fasl', 'rb') as f:
+        stdlib_fasl = Fasl.load(f)
 
-    compiler  = Compiler()
-    assembler = Assembler()
-
-    try:
-        lib_asm = compiler.compile_toplevel(text)
-    except CompileError as e:
-        print('Compile error when compiling tests:', e)
-        exit(1)
+    libs = [stdlib_fasl]
 
     with open('test.scm') as f:
         text = f.read()
@@ -50,8 +44,9 @@ def main():
     for i, expr in enumerate(test_exprs):
         if args.verbose:
             print(f'[{i+1}] Running: {expr} ', end='', flush=True)
+
         try:
-            expr_asm = compiler.compile_form(expr, [], 0)
+            expr_fasl = compile_expr_to_fasl(expr, libs)
         except CompileError as e:
             errors.append((expr, e))
             if args.verbose:
@@ -62,9 +57,7 @@ def main():
                 break
             continue
 
-        asm = lib_asm + expr_asm
-        code = assembler.assemble(asm)
-        machine = Secd(code)
+        machine = Secd(expr_fasl, libs)
         try:
             machine.run()
         except UserError:

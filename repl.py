@@ -4,9 +4,10 @@ import argparse
 import readline
 from assemble import Assembler
 from compile import Compiler, CompileError
+from fasl import Fasl
 from read import ParseError, read
 from secd import RunError, Secd, UserError
-from utils import format_user_error
+from utils import compile_expr_to_fasl, ensure_fasl, format_user_error
 
 
 def configure_argparse(parser: argparse.ArgumentParser):
@@ -15,11 +16,13 @@ def configure_argparse(parser: argparse.ArgumentParser):
 
 
 def main(args):
-    with open('stdlib.scm') as f:
-        text = f.read()
+    ensure_fasl('stdlib.scm')
+    with open('stdlib.fasl', 'rb') as f:
+        stdlib_fasl = Fasl.load(f)
 
-    compiler = Compiler()
-    lib_asm = compiler.compile_toplevel(text)
+    libs = [stdlib_fasl]
+
+    compiler = Compiler(libs)
 
     while True:
         try:
@@ -38,15 +41,12 @@ def main(args):
             continue
 
         try:
-            expr_asm = compiler.compile_form(expr, [], 0)
+            expr_fasl = compile_expr_to_fasl(expr, libs)
         except CompileError as e:
             print(f'Compile error: {e}')
             continue
 
-        assembler = Assembler()
-        asm = lib_asm + expr_asm
-        code = assembler.assemble(asm)
-        machine = Secd(code)
+        machine = Secd(expr_fasl, libs)
         try:
             machine.run()
         except UserError:
@@ -59,3 +59,8 @@ def main(args):
             result = machine.s.pop_multiple()
             for r in result.as_list():
                 print(r)
+
+        # if the expression was a definition, add the fasl to the our list of
+        # libraries, so it's available to future expressions.
+        if len(expr_fasl.defines) > 0:
+            libs.append(expr_fasl)

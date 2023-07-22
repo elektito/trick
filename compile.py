@@ -3,6 +3,7 @@
 import sys
 import argparse
 from dbginfo import DebugInfoRecord
+from fasl import DefineInfo, Fasl
 from read import read, ParseError
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String
 from assemble import Assembler
@@ -175,73 +176,101 @@ class CompileError(Exception):
     pass
 
 
-class Macro:
-    def __init__(self, name, lambda_form, env):
-        self.name = name
-        self.lambda_form = lambda_form
-        self.env = env
+class Compiler:
+    def __init__(self, libs):
+        self.assembler = Assembler()
+        self.macros = []
+        self.defined_symbols: dict[Symbol, DefineInfo] = {}
+        self.set_symbols = set()
+        self.read_symbols = set()
+        self.dbg_info = []
+        self.defines_fasl = Fasl()
+        self.libs = libs
 
-    def expand(self, args, compiler):
+        # add library macros to our macro list
+        for lib in libs:
+            for sym, info in lib.defines.items():
+                if info.is_macro:
+                    self.macros.append(sym.name)
+
+        # for now, we'll treat everything as a library
+        self.compiling_library = True
+
+    def macro_expand(self, form, env):
+        while isinstance(form, Pair) and \
+              len(form) > 0 and \
+              isinstance(form[0], Symbol):
+            name_sym = form[0]
+            macro_name_sym = S(f'#m:{name_sym.name}')
+            if macro_name_sym.name not in self.macros:
+                break
+
+            args = form.cdr
+            form = self.expand_single_macro(macro_name_sym, args, env)
+
+        return form
+
+    def macro_expand_full(self, form, env):
+        while isinstance(form, Pair) and \
+              len(form) > 0 and \
+              isinstance(form[0], Symbol):
+            name_sym = form[0]
+            macro_name_sym = S(f'#m:{name_sym.name}')
+            if macro_name_sym.name not in self.macros:
+                break
+
+            args = form.cdr
+            form = self.expand_single_macro(macro_name_sym, args, env)
+
+        rest = form.cdr
+        while rest != Nil():
+            if isinstance(rest.car, Pair):
+                rest.car = self.macro_expand_full(rest.car, env)
+            rest = rest.cdr
+
+        return form
+
+    def expand_single_macro(self, name_sym, args, env):
         quoted_args = [
             List.from_list([S('quote'), a])
             for a in args
         ]
         quoted_args = List.from_list(quoted_args)
 
-        func_call = Pair(self.lambda_form, quoted_args)
+        func_call = Pair(name_sym, quoted_args)
+
         try:
-            func_call_code = compiler.compile_form(
-                func_call,
-                self.env,
-                start_offset=len(compiler.toplevel_code),
-                no_dbginfo=True)
+            func_call_code = self.compile_func_call(
+                func_call, env,
+                start_offset=0,  # don't care
+            )
         except CompileError as e:
             raise CompileError(
                 f'Compile error during macro expansion of '
-                f'{self.name}: {e}')
+                f'{name_sym}: {e}')
 
-        code = compiler.toplevel_code + func_call_code
-        assembled = compiler.assembler.assemble(code)
+        fasl = Fasl()
+        self.assembler.assemble(func_call_code, fasl)
 
-        machine = Secd(assembled)
+        libs = [self.defines_fasl] + self.libs
+
+        machine = Secd(fasl, libs)
 
         try:
             machine.run()
         except UserError:
             err = machine.s.top()
             msg = format_user_error(err)
-            msg = f'During macro expansion of {self.name}: {msg}'
+            msg = f'During macro expansion of {name_sym}: {msg}'
             raise CompileError(msg)
         except RunError as e:
-            raise CompileError(f'Run error during macro expansion of "{self.name}": {e}')
+            raise CompileError(f'Run error during macro expansion of "{name_sym}": {e}')
 
         if len(machine.s) == 0:
             raise CompileError(f'Internal error: macro did not return anything')
 
         expanded = machine.s.top()
         return expanded
-
-
-class Compiler:
-    def __init__(self):
-        self.assembler = Assembler()
-        self.macros = {}
-        self.toplevel_code = []
-        self.defined_symbols = set()
-        self.set_symbols = set()
-        self.read_symbols = set()
-        self.dbg_info = []
-
-    def macro_expand(self, form):
-        while isinstance(form, Pair) and \
-              len(form) > 0 and \
-              isinstance(form[0], Symbol):
-            macro = self.macros.get(form[0].name)
-            if macro is None:
-                break
-            form = macro.expand(form.cdr, self)
-
-        return form
 
     def parse_define_form(self, expr, name):
         if len(expr) < 2:
@@ -279,14 +308,30 @@ class Compiler:
         return name, value
 
     def process_define_macro(self, expr, env):
+        # we'll be compiling the macro almost exactly the same as we compile a
+        # regular top-level define. we only set the define type as a macro in
+        # self.defined_symbols.
+
         name, lambda_form = self.parse_define_form(expr, 'define-macro')
         if len(expr) < 3:
             raise CompileError('Not enough arguments for define-macro')
 
-        name = name.name
-        self.macros[name] = Macro(name, lambda_form, env)
+        # we'll define the macro as a function under another name, in order to
+        # make sure the macro is not run as a function by accident (for example,
+        # due to the fact that the macro is being used before being defined
+        # inside another macro)
+        macro_name = S(f'#m:{name}')
 
-        return []
+        if macro_name in self.macros:
+            raise CompileError(f'Duplicate macro definition: {name}')
+        self.defined_symbols[macro_name] = DefineInfo(is_macro=True)
+
+        code = self.compile_form(lambda_form, env, start_offset=0)
+        code += [S('dup'), S('set'), macro_name]
+
+        self.macros.append(macro_name.name)
+        
+        return code
 
     def compile_int(self, expr, env):
         return [S('ldc'), Integer(expr)]
@@ -533,7 +578,7 @@ class Compiler:
         name, value = self.parse_define_form(expr, 'define')
 
         if env == []:
-            self.defined_symbols.add(name)
+            self.defined_symbols[name] = DefineInfo(is_macro=False)
 
             code = self.compile_form(value, env, start_offset)
 
@@ -567,7 +612,7 @@ class Compiler:
 
         for i, frame in enumerate(env):
             if name in frame:
-                code += [S('st'), [i, frame.index(name)]]
+                code += [S('st'), [Integer(i), Integer(frame.index(name))]]
                 break
         else:
             code += [S('set'), name]
@@ -683,7 +728,7 @@ class Compiler:
             return self.compile_func_call(expr, env, start_offset)
 
     def compile_form(self, expr, env, start_offset, *, no_dbginfo=False):
-        expr = self.macro_expand(expr)
+        expr = self.macro_expand(expr, env)
 
         if isinstance(expr, List):
             secd_code = self.compile_list(expr, env, start_offset)
@@ -720,19 +765,38 @@ class Compiler:
         code = []
         toplevel_env = []
         while src_offset < len(text):
-            form, src_offset = read(text, src_offset)
+            try:
+                form, src_offset = read(text, src_offset)
+            except ParseError as e:
+                raise CompileError(f'Parse error: {e}')
             if form is None:  # eof
                 break
 
-            form = self.macro_expand(form)
+            form = self.macro_expand(form, toplevel_env)
             asm_start = len(code)
 
             if isinstance(form, Pair) and len(form) > 0 and form[0] == S('define-macro'):
-                self.process_define_macro(form, toplevel_env)
-                form_code = []
+                form_code = self.process_define_macro(form, toplevel_env)
+                if isinstance(form[1], Symbol):
+                    defined_sym = form[1]     # (define-macro foo value)
+                else:
+                    defined_sym = form[1][0]  # (define-macro (foo . formals) . body)
+
+                self.defines_fasl.add_define(defined_sym, is_macro=True)
+                self.assembler.assemble(form_code, self.defines_fasl)
+
+                # if we're not compiling a library, do not include the macro
+                # code in the output.
+                if not self.compiling_library:
+                    form_code = []
             elif isinstance(form, Pair) and len(form) > 0 and form[0] == S('define'):
                 form_code = self.compile_form(form, toplevel_env, asm_offset)
-                self.toplevel_code += form_code
+                if isinstance(form[1], Symbol):
+                    defined_sym = form[1]     # (define foo value)
+                else:
+                    defined_sym = form[1][0]  # (define (foo . formals) . body)
+                self.defines_fasl.add_define(defined_sym, is_macro=False)
+                self.assembler.assemble(form_code, self.defines_fasl)
             else:
                 form_code = self.compile_form(form, toplevel_env, asm_offset)
 
@@ -747,13 +811,19 @@ class Compiler:
         if code != []:
             code += [S('drop')]
 
+        all_defines = set(self.defined_symbols.keys())
+        for lib in self.libs:
+            all_defines |= set(lib.defines)
+
         for sym in self.set_symbols:
-            if sym not in self.defined_symbols:
+            macro_name = S(f'#m:{sym.name}')
+            if sym not in all_defines and not macro_name in all_defines:
                 raise CompileError(
                     f'Symbol {sym} is set at some point but never defined')
 
         for sym in self.read_symbols:
-            if sym not in self.defined_symbols:
+            macro_name = S(f'#m:{sym.name}')
+            if sym not in all_defines and not macro_name in all_defines:
                 raise CompileError(f'Symbol {sym} is read at some point but never defined')
 
         return code
@@ -769,21 +839,7 @@ def configure_argparse(parser: argparse.ArgumentParser):
 
     parser.add_argument(
         '--lib', '-l', action='append', default=[],
-        help='Add a library file to be loaded before input file.')
-
-    parser.add_argument(
-        '--macro-expand', '-m', metavar='EXPR', dest='macro_expr',
-        help='Macro-expand the given expression (only first term is '
-        'expanded).')
-
-    parser.add_argument(
-        '--compile-expr', '-c', metavar='EXPR', dest='compile_expr',
-        help='Compile and output assembly for the given expression, '
-        'after loading libraries.')
-
-    parser.add_argument(
-        '--eval', '-e', metavar='EXPR', dest='eval_expr',
-        help='Compile and run the given expression, and print the result.')
+        help='Add a library FASL to be loaded when compiling.')
 
     parser.add_argument(
         '--dbg-info', '-g', action='store_true',
@@ -793,66 +849,18 @@ def configure_argparse(parser: argparse.ArgumentParser):
 
 
 def main(args):
-    text = ''
+    lib_fasls = []
     for lib in args.lib:
-        with open(lib) as f:
-            text += f.read()
+        with open(lib, 'rb') as f:
+            lib_fasls.append(Fasl.load(f))
 
-    compiler = Compiler()
-
-    if args.macro_expr:
-        compiler.compile_toplevel(text)  # compile libs
-
-        try:
-            form, _ = read(args.macro_expr)
-        except ParseError as e:
-            print(f'Parse error during macro expansion: {e}')
-            sys.exit(1)
-
-        try:
-            result = compiler.macro_expand(form)
-        except CompileError as e:
-            print(e)
-            sys.exit(1)
-        else:
-            print(result)
-            sys.exit(0)
-
-    if args.compile_expr:
-        compiler.compile_toplevel(text)  # compile libs
-        form, _ = read(args.compile_expr)
-        result = compiler.compile_form(form, [], 0)
-        print(List.from_list_recursive(result))
-        sys.exit(0)
-
-    if args.eval_expr:
-        assembler = Assembler()
-        code = compiler.compile_toplevel(text)  # compile libs
-        expr, _ = read(args.eval_expr)
-        code += compiler.compile_form(expr, [], 0)
-        code = assembler.assemble(code)
-        m = Secd(code)
-        try:
-            m.run()
-        except RunError as e:
-            print('Error:', e)
-            sys.exit(1)
-        else:
-            if len(m.s) == 0:
-                print('Error: no result')
-                sys.exit(1)
-            elif len(m.s) > 1:
-                print('Error: more than one result')
-                sys.exit(1)
-            print(m.s.top())
-
-        sys.exit(0)
+    compiler = Compiler(lib_fasls)
 
     if args.input == '-':
-        text += sys.stdin.read()
+        text = sys.stdin.read()
     else:
         with open(args.input) as f:
-            text += f.read()
+            text = f.read()
 
     try:
         secd_code = compiler.compile_toplevel(text)
