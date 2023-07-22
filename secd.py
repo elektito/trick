@@ -119,6 +119,7 @@ class Secd:
         assert all(isinstance(i, Fasl) for i in libs)
         self.program = program
         self.libs = libs
+        self.libs_loaded = False
         self.cur_fasl = None
 
         self.op_funcs = {
@@ -209,9 +210,15 @@ class Secd:
         else:
             self.s.push_multiple(retvals)
 
-    def run(self):
+    def load_libs(self):
+        if self.libs_loaded:
+            return
         for fasl in self.libs:
             self.execute_fasl(fasl)
+        self.libs_loaded = True
+
+    def run(self):
+        self.load_libs()
         self.execute_fasl(self.program)
 
     def execute_fasl(self, fasl):

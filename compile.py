@@ -245,6 +245,10 @@ class Compiler:
 
         machine = Secd(fasl, libs)
 
+        # since we want to push arguments on the stack, load the libraries first
+        # to make sure they won't interfere with what we push.
+        machine.load_libs()
+
         # push the arguments directly on the machine stack. this is a better
         # approach than generating code for the quoted forms of the arguments.
         # not only it requires less code, but also we're passing the exact same
