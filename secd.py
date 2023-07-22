@@ -41,6 +41,9 @@ class Stack:
 
         self.s.append(value)
 
+    def pushx(self, value):
+        self.s.append(value)
+
     def top(self, type=None, instr_name=None):
         "read top of the stack without popping it"
 
@@ -70,6 +73,12 @@ class Stack:
         value = self.top(type, instr_name)
         self.s.pop()
         return value
+
+    def topx(self):
+        return self.s[-1]
+
+    def popx(self):
+        return self.s.pop()
 
     def push_multiple(self, values):
         assert isinstance(values, list)
@@ -227,21 +236,20 @@ class Secd:
         return sym.name
 
     def run_nil(self):
-        self.s.push(Nil())
+        self.s.pushx(Nil())
         if self.debug: print('nil')
 
     def run_cons(self):
         car = self.s.pop()
         cdr = self.s.pop()
-        self.s.push(Pair(car, cdr))
+        self.s.pushx(Pair(car, cdr))
         if self.debug: print(f'cons {car} onto {cdr}')
 
     def run_ldc(self):
         value = self.code[self.c:self.c+4]
         self.c += 4
         value = int.from_bytes(value, byteorder='little', signed=True)
-        value = Integer(value)
-        self.s.push(value)
+        self.s.pushx(Integer(value))
         if self.debug: print(f'ldc {value}')
 
     def run_ldstr(self):
@@ -329,7 +337,7 @@ class Secd:
         else:
             rest_param = False
         closure = Closure(self.c, self.e, nparams=nparams, rest_param=rest_param)
-        self.s.push(closure)
+        self.s.pushx(closure)
         self.c += body_size
         if self.debug: print(f'ldf body_size={body_size}')
 
@@ -421,38 +429,36 @@ class Secd:
         if self.debug: print(f'ret retval={retvals}')
 
     def run_print(self):
-        v = self.s.top()  # leave the value on stack as return value
+        v = self.s.topx()  # leave the value on stack as return value
         if self.debug: print(f'print {v}')
         print_value(v)
 
     def run_printc(self):
-        n = self.s.top()  # leave the value on stack as return value
+        n = self.s.topx()  # leave the value on stack as return value
         if self.debug: print(f'printc {n}')
         print(chr(n), end='')
 
     def run_halt(self):
-        self.halt_code = self.s.pop()
-        if not isinstance(self.halt_code, int):
-            raise RunError(f'Non-numeric halt code: {self.halt_code}')
-        self.s.push(Nil())  # return nil
+        self.halt_code = self.s.pop(int, 'halt')
+        self.s.pushx(Nil())  # return nil
         if self.debug: print(f'halt {self.halt_code}')
 
     def run_iadd(self):
         arg1 = self.s.pop(Integer, 'iadd')
         arg2 = self.s.pop(Integer, 'iadd')
-        self.s.push(arg2 + arg1)
+        self.s.pushx(arg2 + arg1)
         if self.debug: print(f'iadd {arg2} + {arg1}')
 
     def run_isub(self):
         arg1 = self.s.pop(Integer, 'isub')
         arg2 = self.s.pop(Integer, 'isub')
-        self.s.push(arg1 - arg2)
+        self.s.pushx(arg1 - arg2)
         if self.debug: print(f'isub {arg1} - {arg2}')
 
     def run_imul(self):
         arg1 = self.s.pop(Integer, 'imul')
         arg2 = self.s.pop(Integer, 'imul')
-        self.s.push(arg1 * arg2)
+        self.s.pushx(arg1 * arg2)
         if self.debug: print(f'imul {arg2} * {arg1}')
 
     def run_idiv(self):
@@ -460,7 +466,7 @@ class Secd:
         b = self.s.pop(Integer, 'idiv')
         if b == 0:
             raise RunError('Division by zero')
-        self.s.push(a // b)
+        self.s.pushx(a // b)
         if self.debug: print(f'idiv {a} / {b}')
 
     def run_irem(self):
@@ -471,60 +477,60 @@ class Secd:
 
         result = abs(a) % abs(b) * (1,-1)[a < 0]
 
-        self.s.push(result)
+        self.s.pushx(result)
         if self.debug: print(f'irem {a} % {b}')
 
     def run_shr(self):
         n = self.s.pop(Integer, 'shr')
         shift = self.s.pop(Integer, 'shr')
-        self.s.push((n % 0x100000000) >> shift)  # assuming 32 bits
+        self.s.pushx((n % 0x100000000) >> shift)  # assuming 32 bits
         if self.debug: print(f'shr {n} >> {shift}')
 
     def run_shl(self):
         n = self.s.pop(Integer, 'shl')
         shift = self.s.pop(Integer, 'shl')
-        self.s.push(n << shift)
+        self.s.pushx(n << shift)
         if self.debug: print(f'shl {n} << {shift}')
 
     def run_asr(self):
         n = self.s.pop(Integer, 'asr')
         shift = self.s.pop(Integer, 'asr')
-        self.s.push(n >> shift)
+        self.s.pushx(n >> shift)
         if self.debug: print(f'asr {n} >> {shift}')
 
     def run_bnot(self):
         n = self.s.pop(Integer, 'bnot')
-        self.s.push(~n)
+        self.s.pushx(~n)
         if self.debug: print(f'bnot {n} => {~n}')
 
     def run_band(self):
         n1 = self.s.pop(Integer, 'band')
         n2 = self.s.pop(Integer, 'band')
-        self.s.push(n1 & n2)
+        self.s.pushx(n1 & n2)
         if self.debug: print(f'asr {n1} & {n2}')
 
     def run_bor(self):
         n1 = self.s.pop(Integer, 'bor')
         n2 = self.s.pop(Integer, 'bor')
-        self.s.push(n1 | n2)
+        self.s.pushx(n1 | n2)
         if self.debug: print(f'bor {n1} | {n2}')
 
     def run_bxor(self):
         n1 = self.s.pop(Integer, 'bxor')
         n2 = self.s.pop(Integer, 'bxor')
-        self.s.push(n1 ^ n2)
+        self.s.pushx(n1 ^ n2)
         if self.debug: print(f'bxor {n1} | {n2}')
 
     def run_ilt(self):
         arg1 = self.s.pop(Integer, 'ilt')
         arg2 = self.s.pop(Integer, 'ilt')
-        self.s.push(Bool(True) if arg1 < arg2 else Bool(False))
+        self.s.pushx(Bool(True) if arg1 < arg2 else Bool(False))
         if self.debug: print(f'ilt {arg1} < {arg2}')
 
     def run_ile(self):
         arg1 = self.s.pop(Integer, 'ile')
         arg2 = self.s.pop(Integer, 'ile')
-        self.s.push(Bool(True) if arg1 <= arg2 else Bool(False))
+        self.s.pushx(Bool(True) if arg1 <= arg2 else Bool(False))
         if self.debug: print(f'ile {arg1} <= {arg2}')
 
     def run_dum(self):
@@ -546,15 +552,15 @@ class Secd:
         if self.debug: print(f'xp')
 
     def run_dup(self):
-        self.s.push(self.s.top())
-        if self.debug: print(f'dup {self.s.top()}')
+        self.s.pushx(self.s.topx())
+        if self.debug: print(f'dup {self.s.topx()}')
 
     def run_true(self):
-        self.s.push(Bool(True))
+        self.s.pushx(Bool(True))
         if self.debug: print(f'true')
 
     def run_false(self):
-        self.s.push(Bool(False))
+        self.s.pushx(Bool(False))
         if self.debug: print(f'false')
 
     def run_strtab(self):
@@ -592,17 +598,17 @@ class Secd:
     def run_car(self):
         pair = self.s.pop(Pair, 'car')
         car = pair.car
-        self.s.push(car)
+        self.s.pushx(car)
         if self.debug: print(f'car => {car}')
 
     def run_cdr(self):
         pair = self.s.pop(Pair, 'cdr')
         cdr = pair.cdr
-        self.s.push(cdr)
+        self.s.pushx(cdr)
         if self.debug: print(f'cdr => {cdr}')
 
     def run_type(self):
-        v = self.s.pop()
+        v = self.s.popx()
         if v == Nil():
             result = self.intern('nil')
         elif isinstance(v, Symbol):
@@ -621,14 +627,14 @@ class Secd:
             result = self.intern('char')
         else:
             raise RunError(f'Unknown type: {v}')
-        self.s.push(result)
+        self.s.pushx(result)
         if self.debug: print(f'type {type(v)} => {result}')
 
     def run_eq(self):
         x = self.s.pop()
         y = self.s.pop()
         result = Bool(x == y)
-        self.s.push(result)
+        self.s.pushx(result)
         if self.debug: print(f'eq {result}')
 
     def run_set(self):
@@ -665,7 +671,7 @@ class Secd:
 
     def run_gensym(self):
         sym = Symbol.gensym()
-        self.s.push(sym)
+        self.s.pushx(sym)
         if self.debug: print(f'gensym {sym}')
 
     def run_ccc(self): # call/cc
@@ -674,37 +680,37 @@ class Secd:
         args = List.from_list([cont])
         self.d.append(cont)
 
-        self.s.push(args)
-        self.s.push(closure)
+        self.s.pushx(args)
+        self.s.pushx(closure)
         self._do_apply('ccc')
 
     def run_i2ch(self):
         char_code = self.s.pop(Integer, 'i2ch')
-        self.s.push(Char(char_code))
+        self.s.pushx(Char(char_code))
         if self.debug: print(f'i2ch {char_code}')
 
     def run_ch2i(self):
         char = self.s.pop(Char, 'ch2i')
-        self.s.push(Integer(char.char_code))
+        self.s.pushx(Integer(char.char_code))
         if self.debug: print(f'ch2i {char}')
 
     def run_ugcat(self):  # unicode general category
         char = self.s.pop(Char, 'ugcat')
         cat = unicodedata.category(chr(char.char_code))
         sym = self.intern(cat)
-        self.s.push(sym)
+        self.s.pushx(sym)
         if self.debug: print(f'ugcat {char}')
 
     def run_chup(self):
         char = self.s.pop(Char, 'chup')
         new_char = Char(ord(chr(char.char_code).upper()))
-        self.s.push(new_char)
+        self.s.pushx(new_char)
         if self.debug: print(f'chup {char}')
 
     def run_chdn(self):
         char = self.s.pop(Char, 'chdn')
         new_char = Char(ord(chr(char.char_code).lower()))
-        self.s.push(new_char)
+        self.s.pushx(new_char)
         if self.debug: print(f'chdn {char}')
 
     def run_chfd(self):
@@ -716,7 +722,7 @@ class Secd:
             # seems to be doing the same thing.
             folded_char = chr(char.char_code).lower()
         new_char = Char(ord(folded_char))
-        self.s.push(new_char)
+        self.s.pushx(new_char)
         if self.debug: print(f'chfd {char}')
 
     def run_chdv(self):
@@ -726,7 +732,7 @@ class Secd:
             digit_value = Bool(False)
         else:
             digit_value = Integer(digit_value)
-        self.s.push(digit_value)
+        self.s.pushx(digit_value)
         if self.debug: print(f'chdv {char}')
 
     def run_mkstr(self):
@@ -735,7 +741,7 @@ class Secd:
 
         s = chr(fill_char.char_code) * nchars
         s = String(s)
-        self.s.push(s)
+        self.s.pushx(s)
         if self.debug: print(f'mkstr {nchars} * {fill_char}')
 
     def run_strref(self):
@@ -748,7 +754,7 @@ class Secd:
             raise RunError(f'Invalid index {idx} for string {s}')
 
         c = Char(ord(c))
-        self.s.push(c)
+        self.s.pushx(c)
         if self.debug: print(f'strref: s={s} idx={idx} => {c}')
 
     def run_strset(self):
@@ -761,12 +767,12 @@ class Secd:
 
         s.value = s.value[:idx] + chr(char.char_code) + s.value[idx + 1:]
 
-        self.s.push(s)
+        self.s.pushx(s)
         if self.debug: print(f'strset: idx={idx} char={char} => {s}')
 
     def run_strlen(self):
         s = self.s.pop(String, 'strlen')
-        self.s.push(Integer(len(s)))
+        self.s.pushx(Integer(len(s)))
         if self.debug: print(f'strlen {s} => {len(s)}')
 
     def run_setcar(self):
@@ -774,7 +780,7 @@ class Secd:
         value = self.s.pop()
 
         pair.car = value
-        self.s.push(pair)
+        self.s.pushx(pair)
         if self.debug: print(f'setcar pair={pair} value={value}')
 
     def run_setcdr(self):
@@ -782,19 +788,19 @@ class Secd:
         value = self.s.pop()
 
         pair.cdr = value
-        self.s.push(pair)
+        self.s.pushx(pair)
         if self.debug: print(f'setcdr pair={pair} value={value}')
 
     def run_m2l(self):
         v = self.s.pop_multiple()
         result = List.from_list(v.as_list())
-        self.s.push(result)
+        self.s.pushx(result)
         if self.debug: print(f'm2l')
 
     def run_l2m(self):
         v = self.s.pop(List, 'l2m')
         result = Values(v.to_list())
-        self.s.push(result)
+        self.s.pushx(result)
         if self.debug: print(f'l2m')
 
 
