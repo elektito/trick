@@ -237,30 +237,21 @@ class Compiler:
         return form
 
     def expand_single_macro(self, name_sym, args, env):
-        quoted_args = [
-            List.from_list([S('quote'), a])
-            for a in args
-        ]
-        quoted_args = List.from_list(quoted_args)
-
-        func_call = Pair(name_sym, quoted_args)
-
-        try:
-            func_call_code = self.compile_func_call(
-                func_call, env,
-                start_offset=0,  # don't care
-            )
-        except CompileError as e:
-            raise CompileError(
-                f'Compile error during macro expansion of '
-                f'{name_sym}: {e}')
-
         fasl = Fasl()
+        func_call_code = [S('get'), name_sym, S('ap')]
         self.assembler.assemble(func_call_code, fasl)
 
         libs = [self.defines_fasl] + self.libs
 
         machine = Secd(fasl, libs)
+
+        # push the arguments directly on the machine stack. this is a better
+        # approach than generating code for the quoted forms of the arguments.
+        # not only it requires less code, but also we're passing the exact same
+        # code objects/lists we have here in the compiler, and if they are
+        # incorporated in the macro output, they still have any source
+        # locations/debug info associated with them.
+        machine.s.push(args)
 
         try:
             machine.run()
