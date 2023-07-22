@@ -11,7 +11,7 @@ class AssembleError(Exception):
 
 
 class Assembler:
-    def _assemble(self, expr, start_offset: int, strings, symbols) -> bytes:
+    def _assemble(self, expr, strings, symbols) -> bytes:
         if not isinstance(expr, list):
             raise AssembleError('Input not a list')
 
@@ -108,10 +108,9 @@ class Assembler:
 
                 code += bytes([0x42])
 
-                true_body = self._assemble(expr[i], start_offset + 8, strings, symbols)
+                true_body = self._assemble(expr[i], strings, symbols)
                 false_body = self._assemble(
                     expr[i + 1],
-                    start_offset + len(code) + 8 + len(true_body),
                     strings,
                     symbols)
 
@@ -131,7 +130,7 @@ class Assembler:
                 i += 2
                 code += bytes([0x43])
                 code += nargs.to_bytes(length=4, byteorder='little', signed=True)
-                body_code = self._assemble(body, start_offset + len(code) + 4, strings, symbols)
+                body_code = self._assemble(body, strings, symbols)
                 code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
                 code += body_code
             elif instr == 'st':
@@ -212,7 +211,7 @@ class Assembler:
         if isinstance(code, Pair):
             code = code.to_list_recursive()
 
-        assembled = self._assemble(code, 0, strings, symbols)
+        assembled = self._assemble(code, strings, symbols)
 
         # add symbol strings
         for sym in symbols:
