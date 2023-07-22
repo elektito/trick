@@ -205,8 +205,14 @@ class Compiler:
             if macro_name_sym.name not in self.macros:
                 break
 
+            src_start = form.src_start
+            src_end = form.src_end
+
             args = form.cdr
             form = self.expand_single_macro(macro_name_sym, args, env)
+
+            form.src_start = src_start
+            form.src_end = src_end
 
         return form
 
@@ -305,6 +311,9 @@ class Compiler:
         else:
             raise CompileError(f'Malformed {name}.')
 
+        value.src_start = expr.src_start
+        value.src_end = expr.src_end
+
         return name, value
 
     def process_define_macro(self, expr, env):
@@ -341,8 +350,8 @@ class Compiler:
         if len(expr) not in (3, 4):
             raise CompileError(f'Invalid number of arguments for if: {expr}')
 
-        cond_code = self.compile_form(expr[1], env, start_offset)
-        true_code = self.compile_form(expr[2], env, start_offset + len(cond_code)) + [S('join')]
+        cond_code = self.compile_form(expr[1], env, 0)
+        true_code = self.compile_form(expr[2], env, 0) + [S('join')]
         if len(expr) == 4:
             false_start_offset = start_offset + len(cond_code) + len(true_code)
             false_code = self.compile_form(expr[3], env, false_start_offset) + [S('join')]
@@ -388,14 +397,11 @@ class Compiler:
 
         new_env = [params] + env
 
-        # +2 is for "ldf <n>" (two tokens) that precedes the body code
-        body_start_offset = start_offset + 2
-
         # expr: (lambda . (params . body))
         body = expr.cddr()
         body_code = []
         for i, e in enumerate(body):
-            body_code += self.compile_form(e, new_env, body_start_offset)
+            body_code += self.compile_form(e, new_env, len(body_code))
             if i < len(body) - 1:
                 body_code.append(S('drop'))
 
@@ -489,6 +495,9 @@ class Compiler:
                 [S('lambda'), var_names] + let_body.to_list()
             )
 
+            lambda_expr.src_start = expr.src_start
+            lambda_expr.src_end = expr.src_end
+
             letrec_binding = List.from_list([let_name, lambda_expr])
             letrec_bindings = List.from_list([letrec_binding])
 
@@ -497,6 +506,9 @@ class Compiler:
                 letrec_bindings,
                 List.from_list([let_name] + var_values),
             ])
+
+            letrec_expr.src_start = expr.src_start
+            letrec_expr.src_end = expr.src_end
 
             return self.compile_letrec(letrec_expr, env, start_offset)
 
@@ -517,6 +529,13 @@ class Compiler:
         # ((lambda . ( params . body )) . args)
         lambda_form = Pair(S('lambda'), Pair(vars, body))
         lambda_call = Pair(lambda_form, values)
+
+        lambda_form.src_start = expr.src_start
+        lambda_form.src_end = expr.src_end
+
+        lambda_call.src_start = expr.src_start
+        lambda_call.src_end = expr.src_end
+
         return self.compile_form(lambda_call, env, start_offset)
 
     def compile_letrec(self, expr, env, start_offset):
@@ -535,15 +554,24 @@ class Compiler:
             if not isinstance(v, Symbol):
                 raise CompileError(f'Invalid let variable: {v}')
 
+        if values != Nil():
+            for v, b in zip(values, bindings):
+                v.src_start = b.cdar().src_start
+                v.src_end = b.cdar().src_end
+
         secd_code = [S('dum'), S('nil')]
         for v in reversed(values.to_list()):
             v_start_offset = start_offset + len(secd_code)
             secd_code += self.compile_form(v, [vars] + env, v_start_offset) + [S('cons')]
 
         # ((lambda . ( params . body )) . args)
-        lambda_form = Pair(S('lambda'), Pair(vars, body))
-        lambda_start_offset = start_offset + len(lambda_form)
-        secd_code += self.compile_form(lambda_form, env, lambda_start_offset)
+        lambda_call = Pair(S('lambda'), Pair(vars, body))
+
+        lambda_call.src_start = expr.src_start
+        lambda_call.src_end = expr.src_end
+
+        lambda_start_offset = start_offset + len(lambda_call)
+        secd_code += self.compile_form(lambda_call, env, lambda_start_offset)
 
         secd_code += [S('rap')]
 
@@ -747,17 +775,18 @@ class Compiler:
 
         if not no_dbginfo:
             self.add_dbginfo_record(
-                expr.src_start,
-                expr.src_end,
+                expr,
                 start_offset,
                 start_offset + len(secd_code),
             )
 
         return secd_code
 
-    def add_dbginfo_record(self, src_start, src_end, asm_start, asm_end):
+    def add_dbginfo_record(self, form, asm_start, asm_end):
+        if form.src_start is None or form.src_end is None:
+            return
         self.dbg_info.append(
-            DebugInfoRecord(src_start, src_end, asm_start, asm_end))
+            DebugInfoRecord(form.src_start, form.src_end, asm_start, asm_end, form))
 
     def compile_toplevel(self, text):
         src_offset = 0
@@ -806,7 +835,7 @@ class Compiler:
                 code += [S('drop')] + form_code
 
             self.add_dbginfo_record(
-                form.src_start, form.src_end, asm_start, len(code))
+                form, asm_start, len(code))
 
         if code != []:
             code += [S('drop')]
