@@ -12,10 +12,6 @@ class FaslError(Exception):
 
 
 class FaslSection:
-    def dump(self, output):
-        body = self.serialize()
-        output.write(body)
-
     @property
     def name(self):
         raise NotImplementedError
@@ -26,6 +22,57 @@ class FaslSection:
 
 class FaslDbgInfoSection(FaslSection):
     section_id = 1
+
+    def __init__(self, source_file):
+        self.source_file = source_file
+        self.records = []
+
+    def add_record(self, src_start, src_end, asm_start, asm_end):
+        self.records.append((src_start, src_end, asm_start, asm_end))
+
+    @property
+    def name(self):
+        return 'dbginfo'
+
+    def serialize(self) -> bytes:
+        result = b''
+
+        filename = self.source_file if self.source_file else ''
+        result += struct.pack('<I', len(filename))
+        result += filename.encode(DEFAULT_ENCODING)
+
+        result += struct.pack('<I', len(self.records))
+        for src_start, src_end, asm_start, asm_end in self.records:
+            result += struct.pack(
+                '<IIII', src_start, src_end, asm_start, asm_end)
+
+        return result
+
+    @staticmethod
+    def deserialize(data: bytes):
+        section = FaslDbgInfoSection(source_file=None)
+
+        i = 0
+
+        filename_len, = struct.unpack('<I', data[i:i+4])
+        i += 4
+        filename_bytes = data[i:i+filename_len]
+        i += filename_len
+        filename = filename_bytes.decode(DEFAULT_ENCODING)
+        if filename:
+            section.source_file = filename
+
+        nrecords, = struct.unpack('<I', data[i:i+4])
+        i += 4
+        for _ in range(nrecords):
+            src_start, src_end, asm_start, asm_end = struct.unpack(
+                '<IIII', data[i:i+16])
+            section.add_record(src_start, src_end, asm_start, asm_end)
+            i += 16
+
+        assert i == len(data)
+
+        return section
 
 
 class DefineInfo:
@@ -49,7 +96,8 @@ class DefineInfo:
 
 
 class Fasl:
-    def __init__(self, *, empty=False):
+    def __init__(self, *, filename=None):
+        self.filename = filename
         self.strtab = []
         self.symtab = []
         self.defines = {}
@@ -59,12 +107,12 @@ class Fasl:
     def add_extra_section(self, section: FaslSection):
         self.extra_sections.append(section)
 
-    def get_extra_section(self, name) -> FaslSection:
+    def get_extra_section(self, name) -> (None | FaslSection):
         for section in self.extra_sections:
             if section.name == name:
                 return section
 
-        raise ValueError(f'No such sectin: {name}')
+        return None
 
     def add_define(self, sym: Symbol, is_macro=False):
         assert isinstance(sym, Symbol)
@@ -126,13 +174,14 @@ class Fasl:
 
         # write sections
         for section in self.extra_sections:
+            data = section.serialize()
             output.write(struct.pack(
-                '<II', section.section_id, section.size()))
-            section.dump(output)
+                '<II', section.section_id, len(data)))
+            output.write(data)
 
     @staticmethod
-    def load(input):
-        fasl = Fasl(empty=True)
+    def load(input, filename=None):
+        fasl = Fasl(filename=filename)
 
         magic = input.read(8)
         if magic != FASL_MAGIC:
@@ -161,7 +210,7 @@ class Fasl:
         fasl.code = input.read(csize)
 
         for i in range(nsecs):
-            section_id, size, = struct.unpack('<II', input.read(4))
+            section_id, size, = struct.unpack('<II', input.read(8))
             body = input.read(size)
             klass = get_class_from_section_id(section_id)
             section = klass.deserialize(body)
@@ -192,7 +241,7 @@ def configure_argparse(parser: argparse.ArgumentParser):
 
 def main(args):
     with open(args.input, 'rb') as f:
-        fasl = Fasl.load(f)
+        fasl = Fasl.load(f, args.input)
 
     strings = List.from_list_recursive(fasl.strtab)
     symbols = List.from_list_recursive(fasl.symtab)

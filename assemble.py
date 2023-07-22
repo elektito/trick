@@ -12,7 +12,11 @@ class AssembleError(Exception):
 
 
 class Assembler:
-    def _assemble(self, expr, fasl: Fasl) -> bytes:
+    def __init__(self):
+        self.dbg_info = []
+        self.dbg_start_stack = []
+
+    def _assemble(self, expr, fasl: Fasl, offset: int) -> bytes:
         if not isinstance(expr, list):
             raise AssembleError('Input not a list')
 
@@ -21,6 +25,20 @@ class Assembler:
         while i < len(expr):
             instr = expr[i]
             i += 1
+
+            if instr.name == ':start':
+                src_start = expr[i]
+                i += 1
+                asm_start = offset + len(code)
+                self.dbg_start_stack.append((src_start, asm_start))
+                continue
+            elif instr.name == ':end':
+                src_end = expr[i]
+                i += 1
+                src_start, asm_start = self.dbg_start_stack.pop()
+                asm_end = offset + len(code)
+                self.dbg_info.append((src_start, src_end, asm_start, asm_end))
+                continue
 
             if not isinstance(instr, Symbol):
                 raise AssembleError(f'Instruction not a symbol: {instr}')
@@ -109,10 +127,8 @@ class Assembler:
 
                 code += bytes([0x42])
 
-                true_body = self._assemble(expr[i], fasl)
-                false_body = self._assemble(
-                    expr[i + 1],
-                    fasl)
+                true_body = self._assemble(expr[i], fasl, offset + len(code) + 8)
+                false_body = self._assemble(expr[i + 1], fasl, offset + len(code) + 8 + len(true_body))
 
                 code += len(true_body).to_bytes(length=4, byteorder='little', signed=False)
                 code += len(false_body).to_bytes(length=4, byteorder='little', signed=False)
@@ -130,7 +146,7 @@ class Assembler:
                 i += 2
                 code += bytes([0x43])
                 code += nargs.to_bytes(length=4, byteorder='little', signed=True)
-                body_code = self._assemble(body, fasl)
+                body_code = self._assemble(body, fasl, offset + len(code) + 4)
                 code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
                 code += body_code
             elif instr == 'st':
@@ -188,7 +204,8 @@ class Assembler:
         if isinstance(code, Pair):
             code = code.to_list_recursive()
 
-        assembled = self._assemble(code, fasl)
+        self.dbg_info = []
+        assembled = self._assemble(code, fasl, 0)
         fasl.code += assembled
 
         return assembled

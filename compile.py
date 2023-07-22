@@ -2,7 +2,6 @@
 
 import sys
 import argparse
-from dbginfo import DebugInfoRecord
 from fasl import DefineInfo, Fasl
 from read import read, ParseError
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String
@@ -183,7 +182,6 @@ class Compiler:
         self.defined_symbols: dict[Symbol, DefineInfo] = {}
         self.set_symbols = set()
         self.read_symbols = set()
-        self.dbg_info = []
         self.defines_fasl = Fasl()
         self.libs = libs
 
@@ -330,7 +328,7 @@ class Compiler:
             raise CompileError(f'Duplicate macro definition: {name}')
         self.defined_symbols[macro_name] = DefineInfo(is_macro=True)
 
-        code = self.compile_form(lambda_form, env, start_offset=0)
+        code = self.compile_form(lambda_form, env)
         code += [S('dup'), S('set'), macro_name]
 
         self.macros.append(macro_name.name)
@@ -341,20 +339,19 @@ class Compiler:
         return [S('ldc'), Integer(expr)]
 
 
-    def compile_if(self, expr, env, start_offset):
+    def compile_if(self, expr, env):
         if len(expr) not in (3, 4):
             raise CompileError(f'Invalid number of arguments for if: {expr}')
 
-        cond_code = self.compile_form(expr[1], env, 0)
-        true_code = self.compile_form(expr[2], env, 0) + [S('join')]
+        cond_code = self.compile_form(expr[1], env)
+        true_code = self.compile_form(expr[2], env) + [S('join')]
         if len(expr) == 4:
-            false_start_offset = start_offset + len(cond_code) + len(true_code)
-            false_code = self.compile_form(expr[3], env, false_start_offset) + [S('join')]
+            false_code = self.compile_form(expr[3], env) + [S('join')]
         else:
             false_code = [S('nil'), S('join')]
         return cond_code + [S('sel')] + [true_code] + [false_code]
 
-    def compile_lambda(self, expr, env, start_offset):
+    def compile_lambda(self, expr, env):
         if len(expr) < 3:
             raise CompileError(f'Invalid number of arguments for lambda: {expr}')
 
@@ -396,7 +393,7 @@ class Compiler:
         body = expr.cddr()
         body_code = []
         for i, e in enumerate(body):
-            body_code += self.compile_form(e, new_env, len(body_code))
+            body_code += self.compile_form(e, new_env)
             if i < len(body) - 1:
                 body_code.append(S('drop'))
 
@@ -463,7 +460,7 @@ class Compiler:
             if not isinstance(pair, Pair) or len(pair) != 2 or not isinstance(pair[0], Symbol):
                 raise CompileError(f'Invalid {let_name} binding: {pair}')
 
-    def compile_let(self, expr, env, start_offset):
+    def compile_let(self, expr, env):
         if len(expr) < 2:
             raise CompileError(f'Invalid number of arguments for let: {expr}')
 
@@ -505,7 +502,7 @@ class Compiler:
             letrec_expr.src_start = expr.src_start
             letrec_expr.src_end = expr.src_end
 
-            return self.compile_letrec(letrec_expr, env, start_offset)
+            return self.compile_letrec(letrec_expr, env)
 
         bindings = expr[1]
         self.check_let_bindings(bindings, 'let')
@@ -531,9 +528,9 @@ class Compiler:
         lambda_call.src_start = expr.src_start
         lambda_call.src_end = expr.src_end
 
-        return self.compile_form(lambda_call, env, start_offset)
+        return self.compile_form(lambda_call, env)
 
-    def compile_letrec(self, expr, env, start_offset):
+    def compile_letrec(self, expr, env):
         if len(expr) < 2:
             raise CompileError(f'Invalid number of arguments for letrec: {expr}')
 
@@ -556,8 +553,7 @@ class Compiler:
 
         secd_code = [S('dum'), S('nil')]
         for v in reversed(values.to_list()):
-            v_start_offset = start_offset + len(secd_code)
-            secd_code += self.compile_form(v, [vars] + env, v_start_offset) + [S('cons')]
+            secd_code += self.compile_form(v, [vars] + env) + [S('cons')]
 
         # ((lambda . ( params . body )) . args)
         lambda_call = Pair(S('lambda'), Pair(vars, body))
@@ -565,45 +561,40 @@ class Compiler:
         lambda_call.src_start = expr.src_start
         lambda_call.src_end = expr.src_end
 
-        lambda_start_offset = start_offset + len(lambda_call)
-        secd_code += self.compile_form(lambda_call, env, lambda_start_offset)
-
+        secd_code += self.compile_form(lambda_call, env)
         secd_code += [S('rap')]
 
         return secd_code
 
-    def compile_func_call(self, expr, env, start_offset):
+    def compile_func_call(self, expr, env):
         secd_code = [S('nil')]
         for arg in reversed(expr.to_list()[1:]):
-            arg_start_offset = start_offset + len(secd_code)
-            secd_code += self.compile_form(arg, env, arg_start_offset)
+            secd_code += self.compile_form(arg, env)
             secd_code += [S('cons')]
-        func_start_offset = start_offset + len(secd_code)
-        secd_code += self.compile_form(expr[0], env, func_start_offset)
+        secd_code += self.compile_form(expr[0], env)
         secd_code += [S('ap')]
         return secd_code
 
-    def compile_apply(self, expr, env, start_offset):
+    def compile_apply(self, expr, env):
         if len(expr) != 3:
             raise CompileError('Invalid number of arguments for #$apply')
 
         # compile second argument which should be a list
-        secd_code = self.compile_form(expr[2], env, start_offset)
+        secd_code = self.compile_form(expr[2], env)
 
         # compile first argument which should be a function
-        secd_code += self.compile_form(
-            expr[1], env, start_offset + len(secd_code))
+        secd_code += self.compile_form(expr[1], env)
 
         secd_code += [S('ap')]
         return secd_code
 
-    def compile_define(self, expr, env, start_offset):
+    def compile_define(self, expr, env):
         name, value = self.parse_define_form(expr, 'define')
 
         if env == []:
             self.defined_symbols[name] = DefineInfo(is_macro=False)
 
-            code = self.compile_form(value, env, start_offset)
+            code = self.compile_form(value, env)
 
             # the "dup" instructions makes sure "define" leaves its value on the
             # stack (because all primitive forms are supposed to have a return
@@ -614,12 +605,12 @@ class Compiler:
                 raise CompileError(f'Duplicate local definition: {name}')
             env[0].append(name)
             code = [S('xp')]
-            code += self.compile_form(value, env, start_offset + len(code))
+            code += self.compile_form(value, env)
             code += [S('dup'), S('st'), [0, len(env[0]) - 1]]
 
         return code
 
-    def compile_set(self, expr, env, start_offset):
+    def compile_set(self, expr, env):
         if len(expr) != 3:
             raise CompileError(f'Invalid number of arguments for set!')
 
@@ -628,7 +619,7 @@ class Compiler:
 
         name = expr[1]
         value = expr[2]
-        code = self.compile_form(value, env, start_offset)
+        code = self.compile_form(value, env)
 
         # leave the value on the stack as return value of set!
         code += [S('dup')]
@@ -643,28 +634,26 @@ class Compiler:
 
         return code
 
-    def compile_quoted_form(self, form, env, start_offset):
+    def compile_quoted_form(self, form, env):
         if isinstance(form, Nil):
             return [S('nil')]
         elif isinstance(form, Pair):
-            car = self.compile_quoted_form(
-                form.car, env, start_offset)
-            cdr = self.compile_quoted_form(
-                form.cdr, env, start_offset + len(car))
+            car = self.compile_quoted_form(form.car, env)
+            cdr = self.compile_quoted_form(form.cdr, env)
             return cdr + car + [S('cons')]
         elif isinstance(form, Symbol):
             return [S('ldsym'), form]
         else:
             # other atoms evaluate to themselves, quoted or not
-            return self.compile_form(form, env, start_offset)
+            return self.compile_form(form, env)
 
-    def compile_quote(self, expr, env, start_offset):
+    def compile_quote(self, expr, env):
         if len(expr) != 2:
             raise CompileError(f'Invalid number of arguments for quote.')
 
-        return self.compile_quoted_form(expr[1], env, start_offset)
+        return self.compile_quoted_form(expr[1], env)
 
-    def compile_error(self, expr, env, start_offset):
+    def compile_error(self, expr, env):
         if len(expr) < 2 or len(expr) % 2 != 0:
             raise CompileError(f'Invalid number of arguments for error')
 
@@ -688,13 +677,13 @@ class Compiler:
 
         code = [S('nil')]
         for arg in reversed(error_args):
-            code += self.compile_form(arg, env, start_offset + len(code))
+            code += self.compile_form(arg, env)
             code += [S('cons')]
         code += [S('error')]
 
         return code
 
-    def compile_primcall(self, expr, env, desc, start_offset):
+    def compile_primcall(self, expr, env, desc):
         if isinstance(desc, str):
             desc = primcalls[desc]
 
@@ -704,13 +693,12 @@ class Compiler:
 
         code = []
         for i in range(nargs - 1, -1, -1):
-            code += self.compile_form(
-                expr[i + 1], env, start_offset + len(code))
+            code += self.compile_form(expr[i + 1], env)
 
         code += desc['code']
         return code
 
-    def compile_list(self, expr, env, start_offset):
+    def compile_list(self, expr, env):
         if expr == Nil():
             raise CompileError('Empty list is not a valid form')
 
@@ -737,55 +725,48 @@ class Compiler:
             compile_func = special_forms.get(name)
             if name in special_forms:
                 compile_func = special_forms[name]
-                return compile_func(expr, env, start_offset)
+                return compile_func(expr, env)
             elif name in primcalls:
                 prim = primcalls[name]
-                return self.compile_primcall(expr, env, prim, start_offset)
+                return self.compile_primcall(expr, env, prim)
             elif name in self.macros:
                 macro = self.macros[name]
                 new_form = macro.expand(expr.cdr)
-                return self.compile_form(new_form, env, start_offset)
+                return self.compile_form(new_form, env)
             else:
-                return self.compile_func_call(expr, env, start_offset)
+                return self.compile_func_call(expr, env)
         else:
-            return self.compile_func_call(expr, env, start_offset)
+            return self.compile_func_call(expr, env)
 
-    def compile_form(self, expr, env, start_offset, *, no_dbginfo=False):
+    def compile_form(self, expr, env):
         expr = self.macro_expand(expr, env)
 
+        secd_code = []
+        if expr.src_start is not None and expr.src_end is not None:
+            secd_code += [S(':start'), Integer(expr.src_start)]
+
         if isinstance(expr, List):
-            secd_code = self.compile_list(expr, env, start_offset)
+            secd_code += self.compile_list(expr, env)
         elif isinstance(expr, Integer):
-            secd_code = self.compile_int(expr, env)
+            secd_code += self.compile_int(expr, env)
         elif isinstance(expr, Symbol):
-            secd_code = self.compile_symbol(expr, env)
+            secd_code += self.compile_symbol(expr, env)
         elif isinstance(expr, String):
-            secd_code = self.compile_string(expr, env)
+            secd_code += self.compile_string(expr, env)
         elif isinstance(expr, Bool):
-            secd_code = self.compile_bool(expr, env)
+            secd_code += self.compile_bool(expr, env)
         elif isinstance(expr, Char):
-            secd_code = self.compile_char(expr, env)
+            secd_code += self.compile_char(expr, env)
         else:
             raise CompileError(f'Invalid value: {expr}')
 
-        if not no_dbginfo:
-            self.add_dbginfo_record(
-                expr,
-                start_offset,
-                start_offset + len(secd_code),
-            )
+        if expr.src_start is not None and expr.src_end is not None:
+            secd_code += [S(':end'), Integer(expr.src_end)]
 
         return secd_code
 
-    def add_dbginfo_record(self, form, asm_start, asm_end):
-        if form.src_start is None or form.src_end is None:
-            return
-        self.dbg_info.append(
-            DebugInfoRecord(form.src_start, form.src_end, asm_start, asm_end, form))
-
     def compile_toplevel(self, text):
         src_offset = 0
-        asm_offset = 0
         code = []
         toplevel_env = []
         while src_offset < len(text):
@@ -814,7 +795,7 @@ class Compiler:
                 if not self.compiling_library:
                     form_code = []
             elif isinstance(form, Pair) and len(form) > 0 and form[0] == S('define'):
-                form_code = self.compile_form(form, toplevel_env, asm_offset)
+                form_code = self.compile_form(form, toplevel_env)
                 if isinstance(form[1], Symbol):
                     defined_sym = form[1]     # (define foo value)
                 else:
@@ -822,15 +803,12 @@ class Compiler:
                 self.defines_fasl.add_define(defined_sym, is_macro=False)
                 self.assembler.assemble(form_code, self.defines_fasl)
             else:
-                form_code = self.compile_form(form, toplevel_env, asm_offset)
+                form_code = self.compile_form(form, toplevel_env)
 
             if code == []:
                 code = form_code
             elif form_code != []:
                 code += [S('drop')] + form_code
-
-            self.add_dbginfo_record(
-                form, asm_start, len(code))
 
         if code != []:
             code += [S('drop')]
@@ -876,7 +854,7 @@ def main(args):
     lib_fasls = []
     for lib in args.lib:
         with open(lib, 'rb') as f:
-            lib_fasls.append(Fasl.load(f))
+            lib_fasls.append(Fasl.load(f, lib))
 
     compiler = Compiler(lib_fasls)
 

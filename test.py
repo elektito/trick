@@ -21,9 +21,11 @@ def main():
 
     args = parser.parse_args()
 
-    ensure_fasl('stdlib.scm')
-    with open('stdlib.fasl', 'rb') as f:
-        stdlib_fasl = Fasl.load(f)
+    stdlib_src_filename = 'stdlib.scm'
+    stdlib_fasl_filename = 'stdlib.fasl'
+    ensure_fasl(stdlib_src_filename)
+    with open(stdlib_fasl_filename, 'rb') as f:
+        stdlib_fasl = Fasl.load(f, stdlib_fasl_filename)
 
     libs = [stdlib_fasl]
 

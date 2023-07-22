@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 import argparse
 import unicodedata
@@ -187,6 +188,51 @@ class Secd:
             0x4a: self.run_set,
             0x4b: self.run_get,
         }
+
+    def print_stack_frame(self, i, fasl, c):
+        dbginfo = fasl.get_extra_section('dbginfo')
+        if not dbginfo:
+            print(f'[{i}] <no debug info in fasl>')
+            return
+
+        if not dbginfo.source_file:
+            print(f'[{i}] <fasl has no source file>')
+            return
+
+        matches = []
+        for src_start, src_end, asm_start, asm_end in dbginfo.records:
+            if asm_start <= c < asm_end:
+                matches.append((src_start, src_end, asm_start, asm_end))
+
+        if len(matches) == 0:
+            print(f'[{i}] <no matching record in debug info>')
+            return
+
+        best_src_start, best_src_end = None, None
+        best_asm_start, best_asm_end = None, None
+        for src_start, src_end, asm_start, asm_end in matches:
+            if best_src_start is None or (asm_end - asm_start) < (best_asm_end - best_asm_start):
+                best_src_start = src_start
+                best_src_end = src_end
+                best_asm_start = asm_start
+                best_asm_end = asm_end
+
+        if fasl.filename is not None:
+            fasl_modify_time = os.path.getmtime(fasl.filename)
+            src_modify_time = os.path.getmtime(dbginfo.source_file)
+            if src_modify_time > fasl_modify_time:
+                print(f'WARNING: source file {dbginfo.source_file} is '
+                      f'newer than fasl {fasl.filename}')
+
+        with open(dbginfo.source_file) as f:
+            text = f.read()
+
+        print(f'[{i}] {text[best_src_start:best_src_end]}')
+
+    def print_stack_trace(self):
+        self.print_stack_frame(0, self.cur_fasl, self.c - 1)
+        for i, cont in enumerate(reversed(self.d), 1):
+            self.print_stack_frame(i, cont.fasl, cont.c - 1)
 
     def create_continuation(self, offset: int = 0, e=None):
         return Continuation(
@@ -860,12 +906,12 @@ def main(args):
         fasl = Fasl.load(sys.stdin.buffer)
     else:
         with open(args.input, 'rb') as f:
-            fasl = Fasl.load(f)
+            fasl = Fasl.load(f, args.input)
 
     lib_fasls = []
     for lib in args.lib:
         with open(lib, 'rb') as f:
-            lib_fasls.append(Fasl.load(f))
+            lib_fasls.append(Fasl.load(f, lib))
 
     m = Secd(fasl, lib_fasls)
     m.debug = args.debug
@@ -875,9 +921,11 @@ def main(args):
         err = m.s.pop()
         msg = format_user_error(err)
         print(f'Run error: {msg}', file=sys.stderr)
+        m.print_stack_trace()
         sys.exit(1)
     except RunError as e:
         print('Run error:', e)
+        m.print_stack_trace()
         sys.exit(1)
 
     if m.halt_code is None:

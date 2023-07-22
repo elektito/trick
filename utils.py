@@ -1,5 +1,5 @@
 import os
-from fasl import Fasl
+from fasl import Fasl, FaslDbgInfoSection
 from machinetypes import Symbol
 
 
@@ -20,14 +20,15 @@ def format_user_error(err):
     return msg
 
 
-def compile_src_file_to_fasl(input_filename, output_filename, libs=[]):
+def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
+                             dbg_info=False):
     from compile import Compiler
     from assemble import Assembler
 
     lib_fasls = []
     for lib in libs:
         with open(lib, 'rb') as f:
-            lib_fasls.append(Fasl.load(f))
+            lib_fasls.append(Fasl.load(f, lib))
 
     compiler = Compiler(lib_fasls)
     with open(input_filename) as f:
@@ -40,6 +41,12 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[]):
     assembler = Assembler()
     assembler.assemble(asm_code, fasl)
 
+    if dbg_info:
+        section = FaslDbgInfoSection(source_file=input_filename)
+        for src_start, src_end, asm_start, asm_end in assembler.dbg_info:
+            section.add_record(src_start, src_end, asm_start, asm_end)
+        fasl.add_extra_section(section)
+
     with open(output_filename, 'wb') as f:
         fasl.dump(f)
 
@@ -51,7 +58,7 @@ def compile_expr_to_fasl(expr, lib_fasls=[]) -> Fasl:
     compiler = Compiler(lib_fasls)
 
     fasl = Fasl()
-    asm_code = compiler.compile_form(expr, [], start_offset=0)
+    asm_code = compiler.compile_form(expr, [])
     fasl.defines = compiler.defined_symbols
 
     assembler = Assembler()
@@ -77,7 +84,7 @@ def ensure_fasl(filename, libs=[]):
 
 def load_fasl_file(filename) -> Fasl:
     with open(filename, 'rb') as f:
-        return Fasl.load(f)
+        return Fasl.load(f, filename)
 
 
 def load_fasl_files(filenames) -> list[Fasl]:

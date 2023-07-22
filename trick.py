@@ -55,6 +55,10 @@ def main():
         'defaults to the name of the input file with the extension '
         'changed to .fasl')
 
+    parser.add_argument(
+        '--dbg-info', '-g', action='store_true', default=False,
+        help='Enable adding debug info to FASL.')
+
     subparsers = parser.add_subparsers(help='Trick commands')
 
     compile_parser = subparsers.add_parser('compile')
@@ -82,7 +86,8 @@ def main():
         if not args.output:
             name, _ = os.path.splitext(args.compile)
             args.output = name + '.fasl'
-        compile_src_file_to_fasl(args.compile, args.output, args.lib)
+        compile_src_file_to_fasl(args.compile, args.output, args.lib,
+                                 dbg_info=args.dbg_info)
     elif args.compile_expr:
         lib_fasls = load_fasl_files(args.lib)
         compiler = compile.Compiler(lib_fasls)
