@@ -208,7 +208,10 @@ class Secd:
             return
 
         if not dbginfo.source_file:
-            print(f'[{i}] <fasl has no source file>')
+            if fasl.filename:
+                print(f'[{i}] <fasl "{fasl.filename}" has no source file>')
+            else:
+                print(f'[{i}] <fasl has no source file>')
             return
 
         matches = []
