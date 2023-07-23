@@ -2,7 +2,7 @@
 
 import sys
 import argparse
-from fasl import Fasl
+from fasl import DbgInfoExprRecord, Fasl
 from read import read, ParseError
 from machinetypes import List, Pair, String, Symbol
 
@@ -37,7 +37,12 @@ class Assembler:
                 i += 1
                 src_start, asm_start = self.dbg_start_stack.pop()
                 asm_end = offset + len(code)
-                self.dbg_info.append((src_start, src_end, asm_start, asm_end))
+                self.dbg_info.append(
+                    DbgInfoExprRecord(
+                        src_start,
+                        src_end,
+                        asm_start,
+                        asm_end))
                 continue
 
             if not isinstance(instr, Symbol):

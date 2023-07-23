@@ -4,7 +4,7 @@ import os
 import sys
 import argparse
 import unicodedata
-from fasl import Fasl
+from fasl import DbgInfoExprRecord, Fasl
 from utils import format_user_error
 from machinetypes import (
     Bool, Char, Integer, List, Nil, Pair, String, Symbol, Closure, Continuation, Values,
@@ -215,9 +215,11 @@ class Secd:
             return
 
         matches = []
-        for src_start, src_end, asm_start, asm_end in dbginfo.records:
-            if asm_start <= c < asm_end:
-                matches.append((src_start, src_end, asm_start, asm_end))
+        for r in dbginfo.records:
+            if not isinstance(r, DbgInfoExprRecord):
+                continue
+            if r.asm_start <= c < r.asm_end:
+                matches.append(r)
 
         if len(matches) == 0:
             print(f'[{i}] <no matching record in debug info>')
@@ -225,12 +227,13 @@ class Secd:
 
         best_src_start, best_src_end = None, None
         best_asm_start, best_asm_end = None, None
-        for src_start, src_end, asm_start, asm_end in matches:
-            if best_src_start is None or (asm_end - asm_start) < (best_asm_end - best_asm_start):
-                best_src_start = src_start
-                best_src_end = src_end
-                best_asm_start = asm_start
-                best_asm_end = asm_end
+        for r in matches:
+            if best_src_start is None or \
+               (r.asm_end - r.asm_start) < (best_asm_end - best_asm_start):
+                best_src_start = r.src_start
+                best_src_end = r.src_end
+                best_asm_start = r.asm_start
+                best_asm_end = r.asm_end
 
         if fasl.filename is not None:
             fasl_modify_time = os.path.getmtime(fasl.filename)

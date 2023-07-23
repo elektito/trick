@@ -20,6 +20,73 @@ class FaslSection:
         raise NotImplementedError
 
 
+class DbgInfoRecord:
+    record_id = None
+
+    def serialize(self) -> bytes:
+        result = b''
+        result += struct.pack('<I', self.record_id)
+        result += self._serialize()
+        return result
+
+    def _serialize(self) -> bytes:
+        raise NotImplementedError
+
+    @staticmethod
+    def deserialize(data: bytes, offset: int) -> ('DbgInfoRecord', int):
+        record_id, = struct.unpack('<I', data[offset:offset+4])
+        klass = DbgInfoRecord.find_dbginfo_record_class_by_id(record_id)
+        if klass is None:
+            raise FaslError(f'Unknown debug info record id: {record_id}')
+        return klass._deserialize(data, offset + 4)
+
+    @staticmethod
+    def find_dbginfo_record_class_by_id(record_id) -> 'DbgInfoRecord':
+        for i in globals().values():
+            if isinstance(i, type) and \
+               issubclass(i, DbgInfoRecord) and \
+               i != DbgInfoRecord and \
+               i.record_id == record_id:
+                return i
+        return None
+
+    @staticmethod
+    def _deserialize(data: bytes, offset: int) -> tuple['DbgInfoRecord', int]:
+        raise NotImplementedError
+
+class DbgInfoExprRecord(DbgInfoRecord):
+    record_id = 1
+
+    def __init__(self, src_start, src_end, asm_start, asm_end):
+        self.src_start = src_start
+        self.src_end = src_end
+        self.asm_start = asm_start
+        self.asm_end = asm_end
+
+    def __repr__(self):
+        return \
+            f'<DbgInfoExprRecord src={self.src_start}-{self.src_end} ' \
+            f'asm={self.asm_start}-{self.asm_end}>'
+
+    def _serialize(self) -> bytes:
+        result = struct.pack(
+            '<IIII',
+            self.src_start,
+            self.src_end,
+            self.asm_start,
+            self.asm_end)
+        return result
+
+    @staticmethod
+    def _deserialize(data: bytes, offset: int) -> tuple[DbgInfoRecord, int]:
+        src_start, src_end, asm_start, asm_end = \
+            struct.unpack('<IIII', data[offset:offset+16])
+        record = DbgInfoExprRecord(
+            src_start, src_end, asm_start, asm_end)
+        offset += 16
+        return record, offset
+
+
 class FaslDbgInfoSection(FaslSection):
     section_id = 1
 
@@ -27,8 +94,8 @@ class FaslDbgInfoSection(FaslSection):
         self.source_file = source_file
         self.records = []
 
-    def add_record(self, src_start, src_end, asm_start, asm_end):
-        self.records.append((src_start, src_end, asm_start, asm_end))
+    def add_record(self, record):
+        self.records.append(record)
 
     @property
     def name(self):
@@ -42,9 +109,8 @@ class FaslDbgInfoSection(FaslSection):
         result += filename.encode(DEFAULT_ENCODING)
 
         result += struct.pack('<I', len(self.records))
-        for src_start, src_end, asm_start, asm_end in self.records:
-            result += struct.pack(
-                '<IIII', src_start, src_end, asm_start, asm_end)
+        for r in self.records:
+            result += r.serialize()
 
         return result
 
@@ -65,10 +131,8 @@ class FaslDbgInfoSection(FaslSection):
         nrecords, = struct.unpack('<I', data[i:i+4])
         i += 4
         for _ in range(nrecords):
-            src_start, src_end, asm_start, asm_end = struct.unpack(
-                '<IIII', data[i:i+16])
-            section.add_record(src_start, src_end, asm_start, asm_end)
-            i += 16
+            record, i = DbgInfoRecord.deserialize(data, i)
+            section.add_record(record)
 
         assert i == len(data)
 
