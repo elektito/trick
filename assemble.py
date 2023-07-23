@@ -2,7 +2,7 @@
 
 import sys
 import argparse
-from fasl import DbgInfoExprRecord, Fasl
+from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from read import read, ParseError
 from machinetypes import List, Pair, String, Symbol
 
@@ -14,7 +14,8 @@ class AssembleError(Exception):
 class Assembler:
     def __init__(self):
         self.dbg_info = []
-        self.dbg_start_stack = []
+        self.dbg_expr_start_stack = []
+        self.dbg_define_start_stack = []
 
     def _assemble(self, expr, fasl: Fasl, offset: int) -> bytes:
         if not isinstance(expr, list):
@@ -26,19 +27,44 @@ class Assembler:
             instr = expr[i]
             i += 1
 
-            if instr.name == ':start':
+            if instr.name == ':expr-start':
                 src_start = expr[i]
                 i += 1
                 asm_start = offset + len(code)
-                self.dbg_start_stack.append((src_start, asm_start))
+                self.dbg_expr_start_stack.append((src_start, asm_start))
                 continue
-            elif instr.name == ':end':
+            elif instr.name == ':expr-end':
                 src_end = expr[i]
                 i += 1
-                src_start, asm_start = self.dbg_start_stack.pop()
+                src_start, asm_start = self.dbg_expr_start_stack.pop()
+                if src_start is None or src_end is None:
+                    continue
                 asm_end = offset + len(code)
                 self.dbg_info.append(
                     DbgInfoExprRecord(
+                        src_start,
+                        src_end,
+                        asm_start,
+                        asm_end))
+                continue
+            elif instr.name == ':define-start':
+                defined_sym = expr[i]
+                i += 1
+                src_start = expr[i]
+                i += 1
+                asm_start = offset + len(code)
+                self.dbg_define_start_stack.append((defined_sym, src_start, asm_start))
+                continue
+            elif instr.name == ':define-end':
+                src_end = expr[i]
+                i += 1
+                defined_sym, src_start, asm_start = self.dbg_define_start_stack.pop()
+                asm_end = offset + len(code)
+                if src_start is None or src_end is None:
+                    continue
+                self.dbg_info.append(
+                    DbgInfoDefineRecord(
+                        defined_sym,
                         src_start,
                         src_end,
                         asm_start,

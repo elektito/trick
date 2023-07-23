@@ -4,7 +4,8 @@ import os
 import sys
 import argparse
 import unicodedata
-from fasl import DbgInfoExprRecord, Fasl
+from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
+from snippet import show_snippet
 from utils import format_user_error
 from machinetypes import (
     Bool, Char, Integer, List, Nil, Pair, String, Symbol, Closure, Continuation, Values,
@@ -198,22 +199,8 @@ class Secd:
             0x4b: self.run_get,
         }
 
-    def print_stack_frame(self, i, fasl, c):
+    def find_expr(self, fasl, c):
         dbginfo = fasl.get_extra_section('dbginfo')
-        if not dbginfo:
-            if fasl.filename:
-                print(f'[{i}] <no debug info in fasl "{fasl.filename}">')
-            else:
-                print(f'[{i}] <no debug info in fasl>')
-            return
-
-        if not dbginfo.source_file:
-            if fasl.filename:
-                print(f'[{i}] <fasl "{fasl.filename}" has no source file>')
-            else:
-                print(f'[{i}] <fasl has no source file>')
-            return
-
         matches = []
         for r in dbginfo.records:
             if not isinstance(r, DbgInfoExprRecord):
@@ -222,30 +209,71 @@ class Secd:
                 matches.append(r)
 
         if len(matches) == 0:
-            print(f'[{i}] <no matching record in debug info>')
+            return None
+
+        best = None
+        for r in matches:
+            if best is None or \
+               (r.asm_end - r.asm_start) < (best.asm_end - best.asm_start):
+                best = r
+
+        return best
+
+    def find_define(self, fasl, c):
+        dbginfo = fasl.get_extra_section('dbginfo')
+        matches = []
+        for r in dbginfo.records:
+            if not isinstance(r, DbgInfoDefineRecord):
+                continue
+            if r.asm_start <= c < r.asm_end:
+                matches.append(r)
+
+        if len(matches) == 0:
+            return None
+
+        best = None
+        for r in matches:
+            if best is None or \
+               (r.asm_end - r.asm_start) < (best.asm_end - best.asm_start):
+                best = r
+
+        return best
+
+    def print_stack_frame(self, i, fasl, c):
+        prefix = f'=[{i}]= '
+        dbginfo = fasl.get_extra_section('dbginfo')
+        if not dbginfo:
+            if fasl.filename:
+                print(f'{prefix}<no debug info in fasl "{fasl.filename}">')
+            else:
+                print(f'{prefix}<no debug info in fasl>')
             return
 
-        best_src_start, best_src_end = None, None
-        best_asm_start, best_asm_end = None, None
-        for r in matches:
-            if best_src_start is None or \
-               (r.asm_end - r.asm_start) < (best_asm_end - best_asm_start):
-                best_src_start = r.src_start
-                best_src_end = r.src_end
-                best_asm_start = r.asm_start
-                best_asm_end = r.asm_end
+        source_file = dbginfo.source_file
+        if source_file:
+            with open(source_file) as f:
+                text = f.read()
 
-        if fasl.filename is not None:
-            fasl_modify_time = os.path.getmtime(fasl.filename)
-            src_modify_time = os.path.getmtime(dbginfo.source_file)
-            if src_modify_time > fasl_modify_time:
-                print(f'WARNING: source file {dbginfo.source_file} is '
-                      f'newer than fasl {fasl.filename}')
+            if fasl.filename is not None:
+                fasl_modify_time = os.path.getmtime(fasl.filename)
+                src_modify_time = os.path.getmtime(dbginfo.source_file)
+                if src_modify_time > fasl_modify_time:
+                    print(f'WARNING: source file {dbginfo.source_file} is '
+                          f'newer than fasl {fasl.filename}')
+        else:
+            source_file = '<no source file>'
+            text = ''
 
-        with open(dbginfo.source_file) as f:
-            text = f.read()
+        expr = self.find_expr(fasl, c)
+        define = self.find_define(fasl, c)
 
-        print(f'[{i}] {text[best_src_start:best_src_end]}')
+        if define:
+            print(f'{prefix}{fasl.filename} ({source_file}) -- definition: {define.symbol_name}')
+        else:
+            print(f'{prefix}{fasl.filename} ({source_file})')
+
+        if text:
+            show_snippet(text, expr.src_start, expr.src_end)
 
     def print_stack_trace(self):
         self.print_stack_frame(0, self.cur_fasl, self.c - 1)

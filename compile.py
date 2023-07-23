@@ -742,7 +742,7 @@ class Compiler:
 
         secd_code = []
         if expr.src_start is not None and expr.src_end is not None:
-            secd_code += [S(':start'), Integer(expr.src_start)]
+            secd_code += [S(':expr-start'), Integer(expr.src_start)]
 
         if isinstance(expr, List):
             secd_code += self.compile_list(expr, env)
@@ -760,7 +760,7 @@ class Compiler:
             raise CompileError(f'Invalid value: {expr}')
 
         if expr.src_start is not None and expr.src_end is not None:
-            secd_code += [S(':end'), Integer(expr.src_end)]
+            secd_code += [S(':expr-end'), Integer(expr.src_end)]
 
         return secd_code
 
@@ -799,6 +799,10 @@ class Compiler:
                     defined_sym = form[1]     # (define foo value)
                 else:
                     defined_sym = form[1][0]  # (define (foo . formals) . body)
+                form_code = \
+                    [S(':define-start'), String(defined_sym.name), Integer(form.src_start)] + \
+                    form_code + \
+                    [S(':define-end'), Integer(form.src_end)]
                 self.defines_fasl.add_define(defined_sym, is_macro=False)
                 self.assembler.assemble(form_code, self.defines_fasl)
             else:

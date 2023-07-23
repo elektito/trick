@@ -229,10 +229,6 @@ class Closure:
 
     def __repr__(self):
         return '#<procedure>'
-        if self.rest_param:
-            return f'<Closure nparams={self.nparams}+rest c={self.c} e={self.e}>'
-        else:
-            return f'<Closure nparams={self.nparams} c={self.c} e={self.e}>'
 
 
 class Continuation(Closure):
