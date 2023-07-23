@@ -128,6 +128,8 @@ class Assembler:
                 'setcdr': 0x32,
                 'm2l': 0x33,
                 'l2m': 0x34,
+                'sym2str': 0x35,
+                'str2sym': 0x36,
             }
             opcode = single_byte_instrs.get(instr)
             if opcode is not None:

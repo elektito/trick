@@ -186,6 +186,8 @@ class Secd:
             0x32: self.run_setcdr,
             0x33: self.run_m2l,
             0x34: self.run_l2m,
+            0x35: self.run_sym2str,
+            0x36: self.run_str2sym,
             0x40: self.run_ldc,
             0x41: self.run_ld,
             0x42: self.run_sel,
@@ -936,6 +938,16 @@ class Secd:
         result = Values(v.to_list())
         self.s.pushx(result)
         if self.debug: print(f'l2m')
+
+    def run_sym2str(self):
+        sym = self.s.pop(Symbol, 'sym2str')
+        self.s.pushx(String(sym.name))
+        if self.debug: print(f'sym2str {sym}')
+
+    def run_str2sym(self):
+        name = self.s.pop(String, 'str2sym')
+        self.s.pushx(self.intern(name.value))
+        if self.debug: print(f'str2sym {name}')
 
 
 def configure_argparse(parser: argparse.ArgumentParser):

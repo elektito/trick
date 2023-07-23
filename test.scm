@@ -28,6 +28,9 @@
 (boolean=? #t #t)
 (not (boolean=? #t #f))
 
+(string=? "foo" (symbol->string 'foo))
+(eq? 'bar (string->symbol "bar"))
+
 (let ((x 100))
   (set! x 200)
   (eq? 200 x))

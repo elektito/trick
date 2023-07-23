@@ -167,6 +167,14 @@ primcalls = {
         'nargs': 1,
         'code': [S('strlen')],
     },
+    'symbol->string': {
+        'nargs': 1,
+        'code': [S('sym2str')],
+    },
+    'string->symbol': {
+        'nargs': 1,
+        'code': [S('str2sym')],
+    },
 }
 
 
