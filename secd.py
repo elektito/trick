@@ -277,16 +277,24 @@ class Secd:
 
     def print_stack_trace(self):
         self.print_stack_frame(0, self.cur_fasl, self.c - 1)
-        for i, cont in enumerate(reversed(self.d), 1):
-            self.print_stack_frame(i, cont.fasl, cont.c - 1)
 
-    def create_continuation(self, offset: int = 0, e=None):
+        i = 1
+        for cont in reversed(self.d):
+            # exclude continuations created by the "sel" instruction (for the
+            # "if" primitive). these are not what one usually considers as part
+            # of the stack trace.
+            if cont.kind != 'sel':
+                self.print_stack_frame(i, cont.fasl, cont.c - 1)
+                i += 1
+
+    def create_continuation(self, offset: int = 0, e=None, kind=None):
         return Continuation(
             self.s,
             self.e if e is None else e,
             self.c + offset,
             self.d,
-            self.cur_fasl)
+            self.cur_fasl,
+            kind=kind)
 
     def resume_continuation(self, cont: Continuation, retvals: list):
         self.cur_fasl = cont.fasl
@@ -428,7 +436,9 @@ class Secd:
         self.c += 4
 
         cond = self.s.pop()
-        self.d.append(self.create_continuation(offset=true_len + false_len))
+        self.d.append(self.create_continuation(
+            offset=true_len + false_len,
+            kind='sel'))
         if cond == Bool(False):
             self.c += true_len
 
