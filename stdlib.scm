@@ -6,7 +6,8 @@
       (#$make-string (car args) (cadr args))))
 
 (define (apply fn . args)
-  (#$apply fn (concat (butlast args) (last args))))
+  ;; last argument must be a list
+  (#$apply fn (append (butlast args) (last args))))
 
 ;; type predicates
 
@@ -45,7 +46,6 @@
 
 ;; numeric comparison
 
-
 (define (< x y)
   (#$ilt x y))
 (define (<= x y)
@@ -67,19 +67,19 @@
 
 (define (list . values) values)
 
-(define (concat2 l1 l2)
-  (if (null? l1)
-      l2
-      (cons (car l1) (concat2 (cdr l1) l2))))
+(define (append1 ls1 ls2)
+  (if (null? ls1)
+      ls2
+      (if (null? ls2)
+          ls1
+          (cons (car ls1) (append1 (cdr ls1) ls2)))))
 
-(define (concat1 lists)
+(define (append . lists)
+  ;; notice that we have to use #$apply here, since apply itself depends on
+  ;; "append"
   (if (null? lists)
       '()
-      (concat2 (car lists)
-               (concat1 (cdr lists)))))
-
-(define (concat . lists)
-  (concat1 lists))
+      (append1 (car lists) (#$apply append (cdr lists)))))
 
 (define (last x)
   (if (null? x)
@@ -135,7 +135,7 @@
 ;; begin and cond
 
 (define-macro (begin . body)
-  (list (concat (list 'lambda '()) body)))
+  (list (append (list 'lambda '()) body)))
 
 (define-macro (cond . arms)
   (if (null? arms)
@@ -208,9 +208,9 @@
 ;; backquote
 
 (define (bq-simplify form)
-  ;; if there's an concat in which all arguments are lists of size 1, convert it
+  ;; if there's an append in which all arguments are lists of size 1, convert it
   ;; to a "list" call:
-  ;; (concat '(x) (list y) '(z)) => (list 'x y 'z)
+  ;; (append '(x) (list y) '(z)) => (list 'x y 'z)
   ;;
   ;; if there is a list call in which all forms are quoted, convert it
   ;; to a single quoted list:
@@ -251,7 +251,7 @@
                (bq-process-list form level)))))
 
 (define (bq-process-list form level)
-  (cons 'concat
+  (cons 'append
         (mapcar (lambda (form)
                   (bq-process-list-item form level))
                 form)))
@@ -366,18 +366,6 @@
          (exit #f))
        (apply proc (mapcar car arg-lists))
        (loop (mapcar cdr arg-lists))))))
-
-(define (append1 ls1 ls2)
-  (if (null? ls1)
-      ls2
-      (if (null? ls2)
-          ls1
-          (cons (car ls1) (append1 (cdr ls1) ls2)))))
-
-(define (append . lists)
-  (if (null? lists)
-      '()
-      (append1 (car lists) (apply append (cdr lists)))))
 
 (define (assq obj alist)
   (if (null? alist)
