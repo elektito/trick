@@ -86,7 +86,48 @@ def _read_string(s: str, i: int):
             read_str += s[i]
             escaped = False
         elif s[i] == '\\':
-            escaped = True
+            i += 1
+            if i >= len(s):
+                raise ParseError('String not closed')
+            escape = s[i]
+            map = {
+                'a': '\a',
+                'b': '\b',
+                't': '\t',
+                'n': '\n',
+                'r': '\r',
+                '"': '"',
+                '\\': '\\',
+                '|': '|',
+            }
+            if escape in map:
+                read_str += map[escape]
+            elif escape == ' ' or escape == '\n':
+                newline_idx = s[i:].index('\n')
+                i = newline_idx
+                spaces_after = len(s[i+1:]) - len(s[i+1:].lstrip())
+                i += spaces_after
+            elif escape == 'x':
+                try:
+                    semicolon = s[i+1:].index(';')
+                except ValueError:
+                    raise ParseError('String hex escape not closed')
+                hex_number = s[i+1:i+1+semicolon]
+                try:
+                    char_code = int(hex_number, 16)
+                except ValueError:
+                    raise ParseError(
+                        f'Invalid string hex escape number: "{hex_number}"')
+                try:
+                    char = chr(char_code)
+                except (ValueError, OverflowError):
+                    raise ParseError(
+                        f'Invalid character code in string hex escape: '
+                        f'{hex(char_code)[2:]}')
+                read_str += char
+                i += semicolon + 1
+            else:
+                raise ParseError(f'Invalid escape character: "{escape}"')
         elif s[i] == '"':
             return String(read_str), i + 1
         else:

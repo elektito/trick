@@ -571,6 +571,16 @@
 
 ;; string
 
+(string=? "Hello" "H\x65;llo")
+(char=? #\tab (string-ref "\t" 0))
+(char=? #\newline (string-ref "\n" 0))
+(char=? #\return (string-ref "\r" 0))
+(char=? #\alarm (string-ref "\a" 0))
+(char=? #\backspace (string-ref "\b" 0))
+(char=? #\" (string-ref "\"" 0))
+(char=? #\x7c (string-ref "\|" 0))
+(char=? #\null (string-ref "\x0;" 0))
+
 (string=? (make-string 10 #\A) "AAAAAAAAAA")
 (eq? 10 (string-length (make-string 10 #\A)))
 (eq? 10 (string-length (make-string 10)))
