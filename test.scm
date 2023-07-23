@@ -575,6 +575,8 @@
 ;; string
 
 (string=? "Hello" "H\x65;llo")
+(string=? "foobar" "foo\
+                    bar")
 (char=? #\tab (string-ref "\t" 0))
 (char=? #\newline (string-ref "\n" 0))
 (char=? #\return (string-ref "\r" 0))

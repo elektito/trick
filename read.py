@@ -104,7 +104,7 @@ def _read_string(s: str, i: int):
                 read_str += map[escape]
             elif escape == ' ' or escape == '\n':
                 newline_idx = s[i:].index('\n')
-                i = newline_idx
+                i += newline_idx
                 spaces_after = len(s[i+1:]) - len(s[i+1:].lstrip())
                 i += spaces_after
             elif escape == 'x':
