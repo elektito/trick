@@ -611,3 +611,55 @@
     `(let*-values ,(lv-convert-to-temps bindings mapping)
        (let ,(lv-create-rebindings mapping)
          ,@body))))
+
+;; ====== new call/cc and dynamic-wind
+;; base on the implementation here: https://www.scheme.com/tspl4/control.html#./control:s56
+
+(define winders '())
+
+(define (common-tail x y)
+  (let ((lx (length x))
+        (ly (length y)))
+    (do ((x (if (> lx ly) (list-tail x (- lx ly)) x)
+            (cdr x))
+         (y (if (> ly lx) (list-tail y (- ly lx)) y)
+            (cdr y)))
+        ((eq? x y) x))))
+
+(define (do-wind new)
+  (let ((tail (common-tail new winders)))
+    ;; we'll loop on winders, starting from the first element and moving forward
+    ;; until we reach the common tail.
+    (let f ((ls winders))
+      (unless (eq? ls tail)
+        (set! winders (cdr ls))
+        ((cdar ls)) ; call out-guard
+        (f (cdr ls))))
+    ;; now we'll loop over the new list of winders, starting from right before
+    ;; the last non-common element, moving backwards to the first element,
+    ;; calling in-guards.
+    (let f ((ls new))
+      (unless (eq? ls tail)
+        (f (cdr ls))
+        ((caar ls)) ; call in-guard
+        (set! winders ls)))))
+
+(define (call/cc f)
+  (#$call/cc
+   (lambda (k)
+     (f (let ((save winders))
+          (lambda x
+            (unless (eq? save winders)
+              (do-wind save))
+            (apply k x)))))))
+
+(define (call-with-current-continuation f)
+  (call/cc f))
+
+(define (dynamic-wind in body out)
+  (in)
+  (set! winders (cons (cons in out) winders))
+  (let-values ((ans* (body)))
+    (set! winders (cdr winders))
+    (out)
+    (apply values ans*)))

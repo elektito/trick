@@ -15,11 +15,10 @@ def S(s: str) -> Symbol:
 
 
 primcalls = {
-    'call-with-current-continuation': {
+    '#$call/cc': {
         'nargs': 1,
         'code': [S('ccc')],
     },
-    'call/cc': 'call-with-current-continuation',
     '#$values->list': {
         'nargs': 1,
         'code': [S('m2l')],
