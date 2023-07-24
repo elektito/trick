@@ -1,3 +1,11 @@
+;; let's start by testing some comments
+
+#;100
+#;#f
+#;(a
+   b
+   c)
+
 (eq? 1 1)
 (eq? 'foo 'foo)
 (eq? "foo" "foo")

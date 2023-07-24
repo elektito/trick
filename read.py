@@ -41,6 +41,10 @@ def _skip_whitespace(s: str, i: int) -> int:
             if i >= len(s):
                 return len(s)
 
+        if s[i:i+2] == '#;':
+            # comment out one datum
+            _, i = _read(s, i + 2)
+
         directives = ['#!fold-case', '#!no-fold-case']
         for d in directives:
             if s[i:i+len(d)] == d and (i + len(d) == len(s) or is_separator(s[i+len(d)])):
