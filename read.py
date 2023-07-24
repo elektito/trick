@@ -3,8 +3,25 @@
 from machinetypes import Char, Integer, List, Nil, Pair, String, Symbol, Bool
 
 
+fold_case = False
+
+
 class ParseError(Exception):
     pass
+
+
+def is_separator(c):
+    return c.isspace() or c in "()'`"
+
+
+def perform_directive(directive):
+    global fold_case
+    if directive == '#!fold-case':
+        fold_case = True
+    elif directive == '#!no-fold-case':
+        fold_case = False
+    else:
+        assert False
 
 
 def _skip_whitespace(s: str, i: int) -> int:
@@ -15,6 +32,7 @@ def _skip_whitespace(s: str, i: int) -> int:
                 i += 1
             if i == len(s):
                 return i
+
         if s[i:i+2] == '#|':
             i += 2
             while i < len(s) and s[i:i+2] != '|#':
@@ -22,6 +40,14 @@ def _skip_whitespace(s: str, i: int) -> int:
             i += 2
             if i >= len(s):
                 return len(s)
+
+        directives = ['#!fold-case', '#!no-fold-case']
+        for d in directives:
+            if s[i:i+len(d)] == d and (i + len(d) == len(s) or is_separator(s[i+len(d)])):
+                perform_directive(d)
+                i += len(d)
+                break
+
         if not s[i].isspace():
             return i
         i += 1
@@ -211,6 +237,8 @@ def _read(s: str, i: int = 0) -> tuple[None | Integer | Symbol | List | Bool | S
         try:
             ret = Integer(tok)
         except ValueError:
+            if fold_case:
+                tok = tok.casefold()
             ret = Symbol(tok)
 
     ret.src_start = start

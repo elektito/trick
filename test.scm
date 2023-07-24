@@ -37,9 +37,12 @@
 (string=? "two words" (symbol->string '|two words|))
 (eq? '|two words| '|two\x20;words|)
 (symbol? 'lambda)
-(not (eq? 'abc 'ABC))
 (string=? "!$%&*+-./:<=>?@^_~" (symbol->string '!$%&*+-./:<=>?@^_~))
 (eq? '|\x9;\x9;| '|\t\t|)
+
+(not (eq? 'abc 'AbC))
+(eq? #!fold-case 'abc 'AbC #!no-fold-case)
+(not (eq? 'abc 'AbC))
 
 (let ((x 100))
   (set! x 200)
