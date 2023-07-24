@@ -746,6 +746,9 @@ class Compiler:
             return self.compile_func_call(expr, env)
 
     def compile_form(self, expr, env):
+        if isinstance(expr, Pair) and not expr.is_proper():
+            raise CompileError(f'Cannot compile improper list: {expr}')
+
         expr = self.macro_expand(expr, env)
 
         secd_code = []
