@@ -739,6 +739,8 @@ and still a comment
 (null? (append))
 (equal? '(1 2 3 4) (append '(1) '(2 3) '(4)))
 (equal? '(a) (append '() '(a)))
+(equal? '(a b c . d) (append '(a b) '(c . d)))
+(equal? '(a b c . d) (append '(a b) '(c) 'd))
 
 (equal? '(b . 20) (assq 'b '((a . 10) (b . 20) (c . 30))))
 (equal? #f (assq 'd '((a . 10) (b . 20) (c . 30))))
