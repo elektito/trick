@@ -30,6 +30,11 @@ def _skip_whitespace(s: str, i: int) -> int:
 
 
 def _read_token(s, i):
+    if s[i] == '|':
+        string, i = _read_string(s, i, delim='|')
+        tok = string.value
+        return tok, i
+
     tok = ''
     while i < len(s) and not s[i].isspace() and s[i] not in '()':
         tok += s[i]
@@ -75,8 +80,8 @@ def _read_list(s: str, i: int) -> tuple[List, int]:
     raise ParseError('List not closed')
 
 
-def _read_string(s: str, i: int):
-    assert s[i] == '"'
+def _read_string(s: str, i: int, delim='"'):
+    assert s[i] == delim
 
     i += 1
     read_str = ''
@@ -128,7 +133,7 @@ def _read_string(s: str, i: int):
                 i += semicolon + 1
             else:
                 raise ParseError(f'Invalid escape character: "{escape}"')
-        elif s[i] == '"':
+        elif s[i] == delim:
             return String(read_str), i + 1
         else:
             read_str += s[i]

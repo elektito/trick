@@ -31,6 +31,16 @@
 (string=? "foo" (symbol->string 'foo))
 (eq? 'bar (string->symbol "bar"))
 
+(symbol? '||)
+(string=? "" (symbol->string '||))
+(eq? 'foo '|foo|)
+(string=? "two words" (symbol->string '|two words|))
+(eq? '|two words| '|two\x20;words|)
+(symbol? 'lambda)
+(not (eq? 'abc 'ABC))
+(string=? "!$%&*+-./:<=>?@^_~" (symbol->string '!$%&*+-./:<=>?@^_~))
+(eq? '|\x9;\x9;| '|\t\t|)
+
 (let ((x 100))
   (set! x 200)
   (eq? 200 x))
