@@ -30,8 +30,10 @@ def _skip_whitespace(s: str, i: int) -> int:
             i += 1
             while i < len(s) and s[i] != '\n':
                 i += 1
-            if i == len(s):
-                return i
+            i += 1
+            if i >= len(s):
+                return len(s)
+            continue
 
         if s[i:i+2] == '#|':
             i += 2
@@ -49,20 +51,25 @@ def _skip_whitespace(s: str, i: int) -> int:
                     i += 1
             if level != 0:
                 raise ParseError('Unclosed block comment')
-            i += 2
             if i >= len(s):
                 return len(s)
+            continue
 
         if s[i:i+2] == '#;':
             # comment out one datum
             _, i = _read(s, i + 2)
+            continue
 
         directives = ['#!fold-case', '#!no-fold-case']
+        found_directive = False
         for d in directives:
             if s[i:i+len(d)] == d and (i + len(d) == len(s) or is_separator(s[i+len(d)])):
                 perform_directive(d)
                 i += len(d)
+                found_directive = True
                 break
+        if found_directive:
+            continue
 
         if not s[i].isspace():
             return i

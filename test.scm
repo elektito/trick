@@ -12,7 +12,9 @@ testing nested comments
 still a comment #||#
 |#
 and still a comment
-|#
+|#; a comment right after another
+
+;; and now to more important things!
 
 (eq? 1 1)
 (eq? 'foo 'foo)
