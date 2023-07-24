@@ -232,7 +232,6 @@ def _read(s: str, i: int = 0) -> tuple[None | Integer | Symbol | List | Bool | S
     elif s[i] == '[':
         ret, i = _read_list(s, i, end=']')
     elif s[i] == ')':
-        print(i, repr(s[i-3:i+3]))
         raise ParseError('Unbalanced parentheses')
     elif s[i] == '"':
         ret, i = _read_string(s, i)
