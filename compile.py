@@ -216,6 +216,8 @@ class Compiler:
 
             args = form.cdr
             form = self.expand_single_macro(macro_name_sym, args, env)
+            if isinstance(form, Pair) and not form.is_proper():
+                raise CompileError(f'Macro {macro_name_sym} returned an improper list: {form}')
 
             form.src_start = src_start
             form.src_end = src_end
