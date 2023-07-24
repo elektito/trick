@@ -1,278 +1,416 @@
-#!/usr/bin/env python3
-
-from machinetypes import Char, Integer, List, Nil, Pair, String, Symbol, Bool
-
-
-fold_case = False
+import io
+from typing_extensions import runtime
+from machinetypes import Integer, Symbol, List, Nil, Pair, Bool, String, Char, Reference
 
 
-class ParseError(Exception):
+class ReadError(Exception):
     pass
 
 
-def is_separator(c):
-    return c.isspace() or c in "()[]'`"
+class Label:
+    def __init__(self, value):
+        self.value = value
+
+    def __hash__(self):
+        return hash(self.value)
+
+    def __eq__(self, other):
+        if not isinstance(other, Label):
+            return False
+        return self.value == other.value
+
+    def __repr__(self):
+        return f'<Datum Label #={self.value}>'
 
 
-def perform_directive(directive):
-    global fold_case
-    if directive == '#!fold-case':
-        fold_case = True
-    elif directive == '#!no-fold-case':
-        fold_case = False
-    else:
-        assert False
+class Reader:
+    def __init__(self, input):
+        assert hasattr(input, 'read')
 
+        self._input = input
+        self.input_idx = -1
+        self._unread_chars = []
+        self._fold_case = False
+        self._labeled_data = {}
 
-def _skip_whitespace(s: str, i: int) -> int:
-    while i < len(s):
-        if s[i] == ';':
-            i += 1
-            while i < len(s) and s[i] != '\n':
-                i += 1
-            i += 1
-            if i >= len(s):
-                return len(s)
-            continue
+    def read(self) -> (None | Integer | Symbol | List | Bool | String | Char):
+        """
+        Return None if EOF, otherwise a Scheme object is read and returned.
+        """
+        self._labeled_data = {}
 
-        if s[i:i+2] == '#|':
-            i += 2
-            level = 1
-            while i < len(s):
-                if s[i:i+2] == '|#':
-                    level -= 1
-                    i += 2
-                elif s[i:i+2] == '#|':
-                    level += 1
-                    i += 2
-                elif level == 0:
-                    break
-                else:
-                    i += 1
-            if level != 0:
-                raise ParseError('Unclosed block comment')
-            if i >= len(s):
-                return len(s)
-            continue
-
-        if s[i:i+2] == '#;':
-            # comment out one datum
-            _, i = _read(s, i + 2)
-            continue
-
-        directives = ['#!fold-case', '#!no-fold-case']
-        found_directive = False
-        for d in directives:
-            if s[i:i+len(d)] == d and (i + len(d) == len(s) or is_separator(s[i+len(d)])):
-                perform_directive(d)
-                i += len(d)
-                found_directive = True
-                break
-        if found_directive:
-            continue
-
-        if not s[i].isspace():
-            return i
-        i += 1
-
-    return i
-
-
-def _read_token(s, i):
-    if s[i] == '|':
-        string, i = _read_string(s, i, delim='|')
-        tok = string.value
-        return tok, i
-
-    tok = ''
-    while i < len(s) and not s[i].isspace() and not is_separator(s[i]):
-        tok += s[i]
-        i += 1
-    return tok, i
-
-
-def _read_list(s: str, i: int, end=')') -> tuple[List, int]:
-    assert s[i] == ('(' if end == ')' else '[')
-
-    i += 1
-    items = []
-    item_after_dot = None
-    read_dot = False
-    while i < len(s):
-        i = _skip_whitespace(s, i)
-        if i == len(s):
-            raise ParseError('List not closed')
-        if s[i] == end:
-            i += 1
-            ls = List.from_list(items)
-            if item_after_dot is not None:
-                ls.last().cdr = item_after_dot
-            elif read_dot:
-                raise ParseError('Expected an item after dot (.)')
-            return ls, i
-
-        value, i = _read(s, i)
+        value = self._read()
         if value == Symbol('.'):
-            if items == []:
-                raise ParseError('No item before dot')
-            elif not read_dot:
-                read_dot = True
-            else:
-                raise ParseError('More than one dot in list')
-        elif read_dot:
-            if item_after_dot is not None:
-                raise ParseError('More than one item after dot')
-            item_after_dot = value
-        else:
-            items.append(value)
+            raise ReadError('Unexpected dot (.)')
 
-    raise ParseError('List not closed')
+        self._resolve_refs(value)
 
+        return value
 
-def _read_string(s: str, i: int, delim='"'):
-    assert s[i] == delim
+    def _read(self, eof_error=None, allow_delim=None, label=None) -> (None | Integer | Symbol | List | Bool | String | Char):
+        self._skip_whitespace(eof_error)
 
-    i += 1
-    read_str = ''
-    escaped = False
-    while i < len(s):
-        if escaped:
-            read_str += s[i]
-            escaped = False
-        elif s[i] == '\\':
-            i += 1
-            if i >= len(s):
-                raise ParseError('String not closed')
-            escape = s[i]
-            map = {
-                'a': '\a',
-                'b': '\b',
-                't': '\t',
-                'n': '\n',
-                'r': '\r',
-                '"': '"',
-                '\\': '\\',
-                '|': '|',
-            }
-            if escape in map:
-                read_str += map[escape]
-            elif escape == ' ' or escape == '\n':
-                newline_idx = s[i:].index('\n')
-                i += newline_idx
-                spaces_after = len(s[i+1:]) - len(s[i+1:].lstrip())
-                i += spaces_after
-            elif escape == 'x':
+        cur_char = self._read_one_char(eof_error)
+        if not cur_char:
+            if eof_error:
+                raise ReadError(eof_error)
+            return None
+
+        start = self.input_idx
+
+        match cur_char:
+            case '(':
+                value = self._read_list(delim=')', at_start=True)
+
+            case '[':
+                value = self._read_list(delim=']', at_start=True)
+
+            case ')':
+                if allow_delim == ')':
+                    return None
+                else:
+                    raise ReadError('Unbalanced parentheses')
+
+            case ']':
+                if allow_delim == ']':
+                    return None
+                else:
+                    raise ReadError('Unbalanced parentheses')
+
+            case '"':
+                value = self._read_string()
+
+            case "'":
+                quoted = self._read(eof_error='Unexpected end-of-file reading quote')
+                value = Pair(Symbol('quote'), Pair(quoted, Nil()))
+
+            case '`':
+                quoted = self._read(eof_error='Unexpected end-of-file reading quasiquote')
+                value = Pair(Symbol('quasiquote'), Pair(quoted, Nil()))
+
+            case ',':
+                value = self._read_unquote(eof_error='Unexpected end-of-file reading unquote')
+
+            case '#':
+                value = self._read_sharp_value()
+                if value == Symbol('#t'):
+                    value = Bool(True)
+                elif value == Symbol('#f'):
+                    value = Bool(False)
+
+            case ';':
+                self._skip_semicolon_comment()
+                value = self._read(label=label, eof_error=eof_error, allow_delim=allow_delim)
+
+            case _:
+                token = self._read_token(start_char=cur_char)
                 try:
-                    semicolon = s[i+1:].index(';')
+                    value = Integer(token)
                 except ValueError:
-                    raise ParseError('String hex escape not closed')
-                hex_number = s[i+1:i+1+semicolon]
-                try:
-                    char_code = int(hex_number, 16)
-                except ValueError:
-                    raise ParseError(
-                        f'Invalid string hex escape number: "{hex_number}"')
-                try:
-                    char = chr(char_code)
-                except (ValueError, OverflowError):
-                    raise ParseError(
-                        f'Invalid character code in string hex escape: '
-                        f'{hex(char_code)[2:]}')
-                read_str += char
-                i += semicolon + 1
+                    if self._fold_case:
+                        token = token.casefold()
+                    value = Symbol(token)
+
+        value.src_start = start
+        value.src_end = self.input_idx
+
+        if label is not None:
+            self._labeled_data[label.value] = value
+
+        return value
+
+    def _read_one_char(self, eof_error=None):
+        if self._unread_chars:
+            c = self._unread_chars.pop()
+            self.input_idx += 1
+            return c
+
+        c = self._input.read(1)
+        self.input_idx += 1
+        return c
+
+    def _unread_one_char(self, char):
+        self._unread_chars.insert(0, char)
+        self.input_idx -= 1
+
+    def _skip_whitespace(self, eof_error=None) -> (None | str):
+        while True:
+            cur_char = self._read_one_char(eof_error)
+            if not cur_char:
+                break
+            elif cur_char == '#':
+                next_char = self._read_one_char(eof_error)
+                if next_char == '|':
+                    self._skip_block_comment()
+                elif next_char == ';':
+                    self._read(eof_error=eof_error)
+                elif next_char == '!':
+                    directives = ['fold-case', 'no-fold-case']
+                    first_char = self._read_one_char('End-of-file in "#!" directive')
+                    token = self._read_token(first_char)
+                    if token in directives:
+                        self._perform_directive(token)
+                    else:
+                        raise ReadError(f'Invalid directive: #!{token}')
+                else:
+                    self._unread_one_char(cur_char)
+                    self._unread_one_char(next_char)
+                    break
+            elif cur_char == ';':
+                self._skip_semicolon_comment()
+            elif cur_char.isspace():
+                pass
             else:
-                raise ParseError(f'Invalid escape character: "{escape}"')
-        elif s[i] == delim:
-            return String(read_str), i + 1
+                self._unread_one_char(cur_char)
+                break
+
+    def _skip_semicolon_comment(self, eof_error=None):
+        cur_char = self._read_one_char(eof_error)
+        while cur_char and cur_char != '\n':
+            cur_char = self._read_one_char(eof_error)
+
+        if cur_char:
+            if eof_error:
+                raise ReadError(eof_error)
+            return None
         else:
-            read_str += s[i]
-        i += 1
+            self._unread_one_char(cur_char)
 
-    raise ParseError('String not closed')
+    def _read_list(self, delim, at_start):
+        car = self._read(allow_delim=delim, eof_error='List not closed')
+        if car is None:
+            return Nil()
+        if car == Symbol('.'):
+            if at_start:
+                raise ReadError('Unexpected dot (.) at the start of list')
+            cdr = self._read(allow_delim=delim)
+            if cdr is None:
+                raise ReadError('Expected one item after dot (.)')
 
+            rest = self._read_list(delim, at_start=True)
+            if rest != Nil():
+                raise ReadError('More than one item after dot (.)')
 
-def _read_char(s: str, i: int) -> tuple[Char, int]:
-    i += 2
-    if i >= len(s):
-        raise ParseError('EOF while reading character literal')
+            return cdr
+        else:
+            cdr = self._read_list(delim, at_start=False)
+            return Pair(car, cdr)
 
-    desc = s[i]
-    i += 1
-    while i < len(s) and not s[i].isspace() and s[i] not in '()':
-        desc += s[i]
-        i += 1
+    def _read_string(self, delim='"'):
+        eof_error = 'Unexpected end-of-file while reading string'
+        read_str = ''
+        while True:
+            cur_char = self._read_one_char(eof_error)
+            if cur_char == '\\':
+                escape = self._read_one_char(eof_error)
+                map = {
+                    'a': '\a',
+                    'b': '\b',
+                    't': '\t',
+                    'n': '\n',
+                    'r': '\r',
+                    '"': '"',
+                    '\\': '\\',
+                    '|': '|',
+                }
+                if escape in map:
+                    read_str += map[escape]
+                elif escape in ' \n':
+                    # skip an optional number of spaces, a newline, and another
+                    # optional number of spaces.
+                    found_newline = (escape == '\n')
+                    while True:
+                        cur_char = self._read_one_char(eof_error)
+                        if cur_char == ' ':
+                            continue
+                        elif cur_char == '\n' and not found_newline:
+                            found_newline = True
+                        else:
+                            self._unread_one_char(cur_char)
+                            break
+                    if not found_newline:
+                        raise ReadError('No newline after "\\ "')
+                elif escape == 'x':
+                    hex_number = ''
+                    while not hex_number.endswith(';'):
+                        hex_number += self._read_one_char(eof_error)
+                    try:
+                        char_code = int(hex_number[:-1], 16)
+                    except ValueError:
+                        raise ReadError(
+                            f'Invalid string hex escape number: "{hex_number}"')
+                    try:
+                        char = chr(char_code)
+                    except (ValueError, OverflowError):
+                        raise ReadError(
+                            f'Invalid character code in string hex escape: '
+                            f'{hex(char_code)[2:]}')
+                    read_str += char
+                else:
+                    raise ReadError(f'Invalid escape character: "{escape}"')
+            elif cur_char == delim:
+                return String(read_str)
+            else:
+                read_str += cur_char
 
-    if desc in Char.name_to_code:
-        return Char(Char.name_to_code[desc]), i
-    else:
-        if len(desc) == 1:
-            char_code = ord(desc)
-        elif desc.startswith('x'):
+    def _read_unquote(self, eof_error=None):
+        c = self._read_one_char(eof_error)
+        if c == '@':
+            unquoted = self._read(eof_error='End-of-file after ",@"')
+            return Pair(Symbol('unquote-splicing'), Pair(unquoted, Nil()))
+        else:
+            self._unread_one_char(c)
+            unquoted = self._read(eof_error='End-of-file after ","')
+            return Pair(Symbol('unquote'), Pair(unquoted, Nil()))
+
+    def _read_token(self, start_char, eof_error=None):
+        if start_char == '|':
+            string = self._read_string(delim='|')
+            return string.value
+
+        token = start_char
+        cur_char = start_char
+        while True:
+            cur_char = self._read_one_char(eof_error)
+            if not cur_char or self._is_separator(cur_char):
+                break
+            if cur_char:
+                token += cur_char
+
+        if cur_char:
+            self._unread_one_char(cur_char)
+
+        return token
+
+    def _is_separator(self, char):
+        return char.isspace() or char in "()[]'`"
+
+    def _read_sharp_value(self, eof_error=None):
+        char = self._read_one_char(eof_error='Invalid sharp sign at end-of-file')
+        if char == 'x': #x (hex literal)
+            first_char = self._read_one_char('End-of-file in hex literal')
+            token = self._read_token(first_char)
             try:
-                char_code = int(desc[1:], 16)
+                number = Integer(token, 16)
             except ValueError:
-                raise ParseError(f'Invalid character literal: #\\{desc}')
+                raise ReadError(f'Invalid hex literal: "#x{token}"')
+            return number
+        elif char.isnumeric(): #<n>= or #<n># (label or reference)
+            value = self._read_label_or_reference(start_char=char)
+            if isinstance(value, Label):
+                return self._read(eof_error=eof_error, label=value)
+            elif isinstance(value, Reference):
+                return value
+            else:
+                assert False
+        elif char == '\\': #\ (character literal)
+            first_char = self._read_one_char(
+                eof_error='End-of-file while reading character literal')
+            desc = self._read_token(first_char)
+            if desc in Char.name_to_code:
+                return Char(Char.name_to_code[desc])
+            else:
+                if len(desc) == 1:
+                    char_code = ord(desc)
+                elif desc.startswith('x'):
+                    try:
+                        char_code = int(desc[1:], 16)
+                    except ValueError:
+                        raise ReadError(f'Invalid character literal: #\\{desc}')
+                else:
+                    raise ReadError(f'Invalid character literal: #\\{desc}')
+                return Char(char_code)
+        else: # special symbol
+            token = self._read_token(start_char=char)
+            return Symbol('#' + token)
+
+    def _skip_block_comment(self):
+        while True:
+            char = self._read_one_char(eof_error='End-of-file in block comment')
+            if char == '|':
+                char = self._read_one_char(eof_error='End-of-file in block comment')
+                if char == '#':
+                    return
+                else:
+                    self._unread_one_char(char)
+            elif char == '#':
+                char = self._read_one_char(eof_error='End-of-file in block comment')
+                if char == '|':
+                    self._skip_block_comment()
+                else:
+                    self._unread_one_char(char)
+
+    def _resolve_refs(self, value):
+        if isinstance(value, Reference):
+            try:
+                return self._labeled_data[value.label]
+            except KeyError:
+                raise ReadError(f'Unknown datum label: #{value.label}#')
+        elif isinstance(value, Pair):
+            value.car = self._resolve_refs(value.car)
+            value.cdr = self._resolve_refs(value.cdr)
+            return value
         else:
-            raise ParseError(f'Invalid character literal: #\\{desc}')
-        return Char(char_code), i
+            return value
+
+    def _read_label_or_reference(self, start_char: str, eof_error=None):
+        number = start_char
+        while True:
+            char = self._read_one_char(eof_error='Invalid label/reference')
+            if char == '#':
+                return Reference(int(number))
+            elif char == '=':
+                return Label(int(number))
+            elif char.isnumeric():
+                number += char
+            else:
+                raise ReadError('Invalid label/reference')
+
+    def _perform_directive(self, directive):
+        if directive == 'fold-case':
+            self._fold_case = True
+        elif directive == 'no-fold-case':
+            self._fold_case = False
+        else:
+            assert False
 
 
-def _read(s: str, i: int = 0) -> tuple[None | Integer | Symbol | List | Bool | String | Char, int]:
-    if i >= len(s):
-        return None, len(s)
+def read_expr(text):
+    input = io.StringIO(text)
+    reader = Reader(input)
+    expr = reader.read()
 
-    i = _skip_whitespace(s, i)
-    if i == len(s):
-        return None, len(s)
+    try:
+        trailer = reader.read()
+    except ReadError:
+        raise ReadError('Buffer contains more than a single expression')
+    if trailer is not None:
+        ReadError('Buffer contains more than a single expression')
 
-    start = i
+    return expr
 
-    if s[i] == '(':
-        ret, i = _read_list(s, i, end=')')
-    elif s[i] == '[':
-        ret, i = _read_list(s, i, end=']')
-    elif s[i] == ')':
-        raise ParseError('Unbalanced parentheses')
-    elif s[i] == '"':
-        ret, i = _read_string(s, i)
-    elif s[i] == "'":
-        quoted, i = _read(s, i + 1)
-        ret = List.from_list([Symbol('quote'), quoted])
-    elif s[i] == '`':
-        quoted, i = _read(s, i + 1)
-        ret = List.from_list([Symbol('backquote'), quoted])
-    elif s[i] == ',' and i < len(s) - 1 and s[i+1] == '@':
-        unquoted, i = _read(s, i + 2)
-        ret = List.from_list([Symbol('unquote-splicing'), unquoted])
-    elif s[i] == ',':
-        unquoted, i = _read(s, i + 1)
-        ret = List.from_list([Symbol('unquote'), unquoted])
-    elif i < len(s) - 1 and s[i:i+2] == '#f':
-        ret, i = Bool(False), i + 2
-    elif i < len(s) - 1 and s[i:i+2] == '#t':
-        ret, i = Bool(True), i + 2
-    elif i < len(s) - 1 and s[i:i+2] == '#x':
-        tok, i = _read_token(s, i)
-        tok = tok[2:]
-        ret = Integer(tok, 16)
-    elif i < len(s) - 1 and s[i:i+2] == '#\\':
-        ret, i = _read_char(s, i)
-    else:
-        tok, i = _read_token(s, i)
-        try:
-            ret = Integer(tok)
-        except ValueError:
-            if fold_case:
-                tok = tok.casefold()
-            ret = Symbol(tok)
+# tests:
+#
+# lists:
+# ( error
+# ) error
+# [ error
+# ] error
+# (1] error
+# [1) error
+# . error
+# ( . )
+# ( . 1) error
+# (1 . ) error
+# (1 . ()) => (1)
+# () => ()
+# ( 1 . 2 )
+# ( 1 . 2 () )
+# (1)
+# (1 2 3)
+# same with square brackets
 
-    ret.src_start = start
-    ret.src_end = i
-    return ret, i
-
-
-def read(s: str, i: int = 0) -> tuple[None | Integer | Symbol | List | Bool | String | Char, int]:
-    v, i = _read(s, i)
-    if v == Symbol('.'):
-        raise ParseError('Unexpected dot (.)')
-    return v, i
+# strings:
+# " error
+# ""
+# "abc\    <actual newline>   xyz" => "abcxyz"

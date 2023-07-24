@@ -1,6 +1,4 @@
 import os
-from fasl import Fasl, FaslDbgInfoSection
-from machinetypes import Symbol
 
 
 def assoc(item, alist):
@@ -12,6 +10,8 @@ def assoc(item, alist):
 
 
 def format_user_error(err):
+    from machinetypes import Symbol
+
     err_type = assoc(Symbol(':type'), err)
     msg = f'User error of type {err_type}'
     err_msg = assoc(Symbol(':msg'), err)
@@ -24,6 +24,7 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
                              dbg_info=False):
     from compile import Compiler
     from assemble import Assembler
+    from fasl import Fasl, FaslDbgInfoSection
 
     lib_fasls = []
     for lib in libs:
@@ -51,9 +52,10 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
         fasl.dump(f)
 
 
-def compile_expr_to_fasl(expr, lib_fasls=[]) -> Fasl:
+def compile_expr_to_fasl(expr, lib_fasls=[]):
     from compile import Compiler
     from assemble import Assembler
+    from fasl import Fasl
 
     compiler = Compiler(lib_fasls)
 
@@ -82,10 +84,31 @@ def ensure_fasl(filename, libs=[]):
     compile_src_file_to_fasl(filename, fasl_name, libs)
 
 
-def load_fasl_file(filename) -> Fasl:
+def load_fasl_file(filename):
+    from fasl import Fasl
     with open(filename, 'rb') as f:
         return Fasl.load(f, filename)
 
 
-def load_fasl_files(filenames) -> list[Fasl]:
+def load_fasl_files(filenames):
     return [load_fasl_file(f) for f in filenames]
+
+
+def detect_cycle(ls, parents=None):
+    from machinetypes import Pair, Nil
+
+    if not isinstance(ls, Pair):
+        return False
+
+    if isinstance(ls, Nil):
+        return False
+
+    if parents is None:
+        parents = []
+
+    if any((ls.car == i or ls.cdr == i) for i in parents):
+        return True
+
+    return \
+        detect_cycle(ls.car, parents + [ls]) or \
+        detect_cycle(ls.cdr, parents + [ls])

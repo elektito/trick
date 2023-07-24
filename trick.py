@@ -8,7 +8,7 @@ import compile
 import assemble
 import fasl
 from machinetypes import List
-from read import ParseError, read
+from read import Reader, ReadError, read_expr
 import secd
 import repl
 from utils import compile_expr_to_fasl, compile_src_file_to_fasl, format_user_error, load_fasl_files
@@ -105,9 +105,9 @@ def main():
         print(asm)
     elif args.macro_expr:
         try:
-            form, _ = read(args.macro_expr)
-        except ParseError as e:
-            print(f'Parse error: {e}')
+            form = read_expr(args.macro_expr)
+        except ReadError as e:
+            print(f'Read error: {e}')
             sys.exit(1)
 
         lib_fasls = load_fasl_files(args.lib)
@@ -121,9 +121,9 @@ def main():
         print(expanded)
     elif args.macro_expr_full:
         try:
-            form, _ = read(args.macro_expr_full)
-        except ParseError as e:
-            print(f'Parse error: {e}')
+            form = read_expr(args.macro_expr_full)
+        except ReadError as e:
+            print(f'Read error: {e}')
             sys.exit(1)
 
         lib_fasls = load_fasl_files(args.lib)
@@ -138,9 +138,9 @@ def main():
     elif args.eval_expr:
         lib_fasls = load_fasl_files(args.lib)
         try:
-            expr, _ = read(args.eval_expr, 0)
-        except ParseError as e:
-            print(f'Parse error: {e}')
+            expr = read_expr(args.eval_expr)
+        except ReadError as e:
+            print(f'Read error: {e}')
             sys.exit(1)
 
         try:

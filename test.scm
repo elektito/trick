@@ -14,7 +14,7 @@ still a comment #||#
 and still a comment
 |#; a comment right after another
 
-;; and now to more important things!
+;; and now to more important things! |# <---make emacs scheme mode happy
 
 (eq? 1 1)
 (eq? 'foo 'foo)
@@ -652,7 +652,7 @@ and still a comment
   (set-cdr! x 10)
   (equal? x '(1 . 10)))
 
-;; backquote tests
+;; quasiquote tests
 
 (eq? `() '())
 (eq? `a 'a)
@@ -696,9 +696,9 @@ and still a comment
         '(a `(b ,x ,y d) e))
 (equal? (let ((name1 'x) (name2 'y)) `(a `(b ,,name1 ,',name2 d) e))
         '(a `(b ,x ,'y d) e))
-(equal? (backquote (list (unquote (car '(3 6))) 4))
+(equal? (quasiquote (list (unquote (car '(3 6))) 4))
         '(list 3 4))
-(equal? '(backquote (list (unquote (car '(3 6))) 4))
+(equal? '(quasiquote (list (unquote (car '(3 6))) 4))
         '`(list ,(car '(3 6)) 4))
 (equal? `(a `(b ,(foo ,(car '(3 6))) c) d)
         '(a `(b ,(foo 3) c) d))

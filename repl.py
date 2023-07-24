@@ -5,7 +5,7 @@ import readline
 from assemble import Assembler
 from compile import Compiler, CompileError
 from fasl import Fasl
-from read import ParseError, read
+from read import ReadError, read_expr
 from secd import RunError, Secd, UserError
 from utils import compile_expr_to_fasl, ensure_fasl, format_user_error
 
@@ -35,9 +35,9 @@ def main(args):
             continue
 
         try:
-            expr, _ = read(text, 0)
-        except ParseError as e:
-            print(f'Parse error: {e}')
+            expr = read_expr(text)
+        except ReadError as e:
+            print(f'Read error: {e}')
             continue
 
         try:

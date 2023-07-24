@@ -205,9 +205,9 @@
 (define (1- n)
   (- n 1))
 
-;; backquote
+;; quasiquote
 
-(define (bq-simplify form)
+(define (qq-simplify form)
   ;; if there's an append in which all arguments are lists of size 1, convert it
   ;; to a "list" call:
   ;; (append '(x) (list y) '(z)) => (list 'x y 'z)
@@ -217,67 +217,67 @@
   ;; (list 'x 'y 'z) => '(x y z)
   form)
 
-(define (bq-is-unquote form)
+(define (qq-is-unquote form)
   (cond ((atom? form) #f)
         ((null? form) #f)
         ((eq? (car form) 'unquote) #t)
         (#t #f)))
 
-(define (bq-is-unquote-splicing form)
+(define (qq-is-unquote-splicing form)
   (cond ((atom? form) #f)
         ((eq? (car form) 'unquote-splicing) #t)
         (#t #f)))
 
-(define (bq-is-backquote form)
+(define (qq-is-quasiquote form)
   (cond ((atom? form) #f)
         ((null? form) #f)
-        ((eq? (car form) 'backquote) #t)
+        ((eq? (car form) 'quasiquote) #t)
         (#t #f)))
 
-(define (bq-process-list-item form level)
+(define (qq-process-list-item form level)
   (cond ((atom? form)
          (list 'quote (list form)))
-        ((bq-is-unquote form)
+        ((qq-is-unquote form)
          (if (eq? level 1)
              (list 'list (cadr form))
-             (list 'list (bq-process-list form (- level 1)))))
-        ((bq-is-unquote-splicing form)
+             (list 'list (qq-process-list form (- level 1)))))
+        ((qq-is-unquote-splicing form)
          (cadr form))
-        ((bq-is-backquote form)
+        ((qq-is-quasiquote form)
          (list 'list
-               (bq-process-list form (+ level 1))))
+               (qq-process-list form (+ level 1))))
         (#t
          (list 'list
-               (bq-process-list form level)))))
+               (qq-process-list form level)))))
 
-(define (bq-process-list form level)
+(define (qq-process-list form level)
   (cons 'append
         (mapcar (lambda (form)
-                  (bq-process-list-item form level))
+                  (qq-process-list-item form level))
                 form)))
 
-(define (bq-process form level)
+(define (qq-process form level)
   (cond ((atom? form)
          (if (= level 1)
              (list 'quote form)
              form))
-        ((bq-is-unquote form)
+        ((qq-is-unquote form)
          (if (= level 1)
              (cadr form)
-             (bq-process-list form (- level 1))))
-        ((bq-is-unquote-splicing form)
-         (error :backquote-error
-                :msg "unquote-splicing immediately inside backquote."))
-        ((bq-is-backquote form)
-         (bq-process-list form (+ level 1)))
+             (qq-process-list form (- level 1))))
+        ((qq-is-unquote-splicing form)
+         (error :quasiquote-error
+                :msg "unquote-splicing immediately inside quasiquote."))
+        ((qq-is-quasiquote form)
+         (qq-process-list form (+ level 1)))
         (#t
-         (bq-process-list form level))))
+         (qq-process-list form level))))
 
-(define-macro (backquote form)
-  (bq-simplify
-   (bq-process form 1)))
+(define-macro (quasiquote form)
+  (qq-simplify
+   (qq-process form 1)))
 
-;; more macros now that we have backquote!
+;; more macros now that we have quasiquote!
 
 (define-macro (when c . body)
   `(if ,c (begin ,@body) #f))
@@ -389,13 +389,13 @@
          (error :arg-error :msg "length: argument not a proper list"))
         (#t (+ 1 (length (cdr ls))))))
 
-(define (range' start n acc)
+(define (range1 start n acc)
   (if (<= n start)
       acc
-      (range' start (1- n) (cons (1- n) acc))))
+      (range1 start (1- n) (cons (1- n) acc))))
 
 (define (range start end)
-  (range' start end '()))
+  (range1 start end '()))
 
 (define (iota n)
   (range 0 n))
@@ -508,16 +508,16 @@
 
 ;; strings
 
-(define (string' s chars i)
+(define (string1 s chars i)
   (if (null? chars)
       s
       (begin
         (string-set! s i (car chars))
-        (string' s (cdr chars) (1+ i)))))
+        (string1 s (cdr chars) (1+ i)))))
 
 (define (string . chars)
   (let ((s (make-string (length chars))))
-    (string' s chars 0)))
+    (string1 s chars 0)))
 
 (define (string->list . args)
   (if (or (null? args) (> (length args) 3))
@@ -536,14 +536,14 @@
 (define (list->string ls)
   (apply string ls))
 
-(define (string=?' s1 s2)
+(define (string=?1 s1 s2)
   (and (eqv? (string-length s1) (string-length s2))
        (all? (map char=? (string->list s1) (string->list s2)))))
 
 (define (string=? . strings)
   (if (null? (cdr strings))
       #t
-      (all? (pairwise string=?' strings))))
+      (all? (pairwise string=?1 strings))))
 
 ;; values
 

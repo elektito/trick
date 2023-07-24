@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
+import io
 import sys
 import argparse
 from fasl import DefineInfo, Fasl
-from read import read, ParseError
+from read import Reader, ReadError
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String
 from assemble import Assembler
 from secd import RunError, Secd, UserError
-from utils import format_user_error
+from utils import detect_cycle, format_user_error
 
 
 def S(s: str) -> Symbol:
@@ -380,7 +381,7 @@ class Compiler:
 
         for p in params:
             if not isinstance(p, Symbol):
-                raise CompileError(f'Invalid parameter name: {p}')
+                raise CompileError(f'Invalid parameter name: {p} (not a symbol)')
 
         if rest_param and not isinstance(rest_param, Symbol):
             raise CompileError(f'Invalid parameter name: {rest_param}')
@@ -641,12 +642,15 @@ class Compiler:
 
         return code
 
-    def compile_quoted_form(self, form, env):
+    def compile_quoted_form(self, form, env, visited):
+        if form in visited:
+            raise CompileError('Cycle detected in quoted form; we should handle this!')
+
         if isinstance(form, Nil):
             return [S('nil')]
         elif isinstance(form, Pair):
-            car = self.compile_quoted_form(form.car, env)
-            cdr = self.compile_quoted_form(form.cdr, env)
+            car = self.compile_quoted_form(form.car, env, visited + [form])
+            cdr = self.compile_quoted_form(form.cdr, env, visited + [form])
             return cdr + car + [S('cons')]
         elif isinstance(form, Symbol):
             return [S('ldsym'), form]
@@ -658,7 +662,7 @@ class Compiler:
         if len(expr) != 2:
             raise CompileError(f'Invalid number of arguments for quote.')
 
-        return self.compile_quoted_form(expr[1], env)
+        return self.compile_quoted_form(expr[1], env, [])
 
     def compile_error(self, expr, env):
         if len(expr) < 2 or len(expr) % 2 != 0:
@@ -709,6 +713,9 @@ class Compiler:
         if expr == Nil():
             raise CompileError('Empty list is not a valid form')
 
+        if detect_cycle(expr) and expr.car != S('quote'):
+            raise CompileError(f'Cycle detected in form: {expr}')
+
         if not expr.is_proper():
             raise CompileError(f'Cannot compile improper list: {expr}')
 
@@ -746,8 +753,11 @@ class Compiler:
             return self.compile_func_call(expr, env)
 
     def compile_form(self, expr, env):
-        if isinstance(expr, Pair) and not expr.is_proper():
-            raise CompileError(f'Cannot compile improper list: {expr}')
+        if isinstance(expr, Pair):
+            if not expr.is_proper():
+                raise CompileError(f'Cannot compile improper list: {expr}')
+            if expr.car != S('quote') and detect_cycle(expr):
+                raise CompileError(f'Cycle detected in form.')
 
         expr = self.macro_expand(expr, env)
 
@@ -776,14 +786,15 @@ class Compiler:
         return secd_code
 
     def compile_toplevel(self, text):
-        src_offset = 0
         code = []
         toplevel_env = []
-        while src_offset < len(text):
+        input = io.StringIO(text)
+        reader = Reader(input)
+        while True:
             try:
-                form, src_offset = read(text, src_offset)
-            except ParseError as e:
-                raise CompileError(f'Parse error: {e}')
+                form = reader.read()
+            except ReadError as e:
+                raise CompileError(f'Read error: {e}')
             if form is None:  # eof
                 break
 
@@ -880,8 +891,8 @@ def main(args):
 
     try:
         secd_code = compiler.compile_toplevel(text)
-    except ParseError as e:
-        print(f'Parse error: {e}', file=sys.stderr)
+    except ReadError as e:
+        print(f'Read error: {e}', file=sys.stderr)
         sys.exit(1)
     except CompileError as e:
         print(f'Compile error: {e}', file=sys.stderr)

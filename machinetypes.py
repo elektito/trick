@@ -1,7 +1,30 @@
 from uuid import uuid4
 
+from utils import detect_cycle
+
 
 DEFAULT_ENCODING = 'utf-8'
+
+
+class Reference:
+    """
+    Used internally to represent references in shared structures like #0# in
+    #0=(1 2 #0#)
+    """
+
+    def __init__(self, label):
+        self.label = label
+
+    def __hash__(self):
+        return hash(self.label)
+
+    def __eq__(self, other):
+        if not isinstance(other, Reference):
+            return False
+        return self.label == other.label
+
+    def __repr__(self):
+        return f'<Ref #{self.label}#>'
 
 
 class Integer(int):
@@ -161,6 +184,7 @@ class Char:
     }
 
     def __init__(self, char_code):
+        assert isinstance(char_code, int)
         self.char_code = char_code
 
         self.src_start = None
@@ -313,9 +337,9 @@ class Pair(List):
             return value
 
     def __init__(self, car, cdr):
-        if not isinstance(car, (Integer, Bool, String, Char, List, Symbol, Closure)):
+        if not isinstance(car, (Reference, Integer, Bool, String, Char, List, Symbol, Closure)):
             raise TypeError(f'Invalid value type for car: {car}')
-        if not isinstance(cdr, (Integer, Bool, String, Char, List, Symbol, Closure)):
+        if not isinstance(cdr, (Reference, Integer, Bool, String, Char, List, Symbol, Closure)):
             raise TypeError(f'Invalid value type for cdr: {cdr}')
 
         self.car = car

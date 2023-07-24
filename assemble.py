@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
+import io
 import sys
 import argparse
 from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
-from read import read, ParseError
+from read import Reader, ReadError
 from machinetypes import List, Pair, String, Symbol
 
 
@@ -263,12 +264,14 @@ def main(args):
         with open(args.input) as f:
             text = f.read()
 
+    input = io.StringIO(text)
+    reader = Reader(input)
     assembler = Assembler()
 
     try:
-        expr, _ = read(text)
-    except ParseError as e:
-        print(f'Parse error: {e}', file=sys.stderr)
+        expr = reader.read()
+    except ReadError as e:
+        print(f'Read error: {e}', file=sys.stderr)
         sys.exit(1)
 
     if expr is None:

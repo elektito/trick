@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
+import sys
 from compile import CompileError
 from fasl import Fasl
-from read import read
+from read import ReadError, Reader
 from secd import RunError, Secd, UserError
 from utils import compile_expr_to_fasl, ensure_fasl, format_user_error
 
@@ -29,14 +30,18 @@ def main():
 
     libs = [stdlib_fasl]
 
-    with open('test.scm') as f:
-        text = f.read()
+    f = open('test.scm')
+    reader = Reader(f)
 
     i = 0
     test_exprs = []
     while True:
-        expr, i = read(text, i)
-        if i >= len(text):
+        try:
+            expr = reader.read()
+        except ReadError as e:
+            print(f'Read error: {e}')
+            sys.exit(1)
+        if expr is None:
             break
         test_exprs.append(expr)
 
