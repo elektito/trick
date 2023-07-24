@@ -3,8 +3,16 @@
 #;100
 #;#f
 #;(a
-   b
+   b ;; foo
    c)
+
+#|
+testing nested comments
+#|
+still a comment #||#
+|#
+and still a comment
+|#
 
 (eq? 1 1)
 (eq? 'foo 'foo)

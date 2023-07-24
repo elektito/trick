@@ -35,8 +35,20 @@ def _skip_whitespace(s: str, i: int) -> int:
 
         if s[i:i+2] == '#|':
             i += 2
-            while i < len(s) and s[i:i+2] != '|#':
-                i += 1
+            level = 1
+            while i < len(s):
+                if s[i:i+2] == '|#':
+                    level -= 1
+                    i += 2
+                elif s[i:i+2] == '#|':
+                    level += 1
+                    i += 2
+                elif level == 0:
+                    break
+                else:
+                    i += 1
+            if level != 0:
+                raise ParseError('Unclosed block comment')
             i += 2
             if i >= len(s):
                 return len(s)
