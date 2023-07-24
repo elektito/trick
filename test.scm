@@ -11,6 +11,9 @@
 (eq? '() '())
 (not (eq? '() 'nil))
 
+(eq? '() '[])
+(equal? '(a b) '[a b])
+
 (eqv? #t #t)
 (eqv? #f #f)
 (eqv? 1 1)

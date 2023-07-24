@@ -11,7 +11,7 @@ class ParseError(Exception):
 
 
 def is_separator(c):
-    return c.isspace() or c in "()'`"
+    return c.isspace() or c in "()[]'`"
 
 
 def perform_directive(directive):
@@ -62,14 +62,14 @@ def _read_token(s, i):
         return tok, i
 
     tok = ''
-    while i < len(s) and not s[i].isspace() and s[i] not in '()':
+    while i < len(s) and not s[i].isspace() and not is_separator(s[i]):
         tok += s[i]
         i += 1
     return tok, i
 
 
-def _read_list(s: str, i: int) -> tuple[List, int]:
-    assert s[i] == '('
+def _read_list(s: str, i: int, end=')') -> tuple[List, int]:
+    assert s[i] == ('(' if end == ')' else '[')
 
     i += 1
     items = []
@@ -79,7 +79,7 @@ def _read_list(s: str, i: int) -> tuple[List, int]:
         i = _skip_whitespace(s, i)
         if i == len(s):
             raise ParseError('List not closed')
-        if s[i] == ')':
+        if s[i] == end:
             i += 1
             ls = List.from_list(items)
             if item_after_dot is not None:
@@ -205,8 +205,11 @@ def _read(s: str, i: int = 0) -> tuple[None | Integer | Symbol | List | Bool | S
     start = i
 
     if s[i] == '(':
-        ret, i = _read_list(s, i)
+        ret, i = _read_list(s, i, end=')')
+    elif s[i] == '[':
+        ret, i = _read_list(s, i, end=']')
     elif s[i] == ')':
+        print(i, repr(s[i-3:i+3]))
         raise ParseError('Unbalanced parentheses')
     elif s[i] == '"':
         ret, i = _read_string(s, i)
