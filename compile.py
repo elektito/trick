@@ -106,11 +106,11 @@ primcalls = {
     },
     'set-car!': {
         'nargs': 2,
-        'code': [S('setcar')],
+        'code': [S('setcar'), S('false')],
     },
     'set-cdr!': {
         'nargs': 2,
-        'code': [S('setcdr')],
+        'code': [S('setcdr'), S('false')],
     },
     'type': {
         'nargs': 1,
@@ -162,7 +162,7 @@ primcalls = {
     },
     'string-set!': {
         'nargs': 3,
-        'code': [S('strset')],
+        'code': [S('strset'), S('false')],
     },
     'string-length': {
         'nargs': 1,
@@ -658,13 +658,13 @@ class Compiler:
                 code += self.compile_list_literal(form.cdr, env, shared, labels)
             else:
                 code += self.compile_quoted_form(form.cdr, env)
-            code += [S('get'), labels[form], S('setcdr'), S('drop')]
+            code += [S('get'), labels[form], S('setcdr')]
 
             if isinstance(form.car, Pair):
                 code += self.compile_list_literal(form.car, env, shared, labels)
             else:
                 code += self.compile_quoted_form(form.car, env)
-            code += [S('get'), labels[form], S('setcar'), S('drop')]
+            code += [S('get'), labels[form], S('setcar')]
 
             code += [S('get'), labels[form]]
         else:

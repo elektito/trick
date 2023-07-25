@@ -920,7 +920,6 @@ class Secd:
 
         s.value = s.value[:idx] + chr(char.char_code) + s.value[idx + 1:]
 
-        self.s.pushx(s)
         if self.debug: print(f'strset: idx={idx} char={char} => {s}')
 
     def run_strlen(self):
@@ -933,7 +932,6 @@ class Secd:
         value = self.s.pop()
 
         pair.car = value
-        self.s.pushx(pair)
         if self.debug: print(f'setcar pair={pair} value={value}')
 
     def run_setcdr(self):
@@ -941,7 +939,6 @@ class Secd:
         value = self.s.pop()
 
         pair.cdr = value
-        self.s.pushx(pair)
         if self.debug: print(f'setcdr pair={pair} value={value}')
 
     def run_m2l(self):
