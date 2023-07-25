@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-
+import os
+import atexit
 import argparse
 import readline
 from assemble import Assembler
@@ -10,9 +10,23 @@ from secd import RunError, Secd, UserError
 from utils import compile_expr_to_fasl, ensure_fasl, format_user_error
 
 
+HISTORY_FILE = os.path.expanduser('~/.trick-repl-history')
+
+
 def configure_argparse(parser: argparse.ArgumentParser):
     parser.description = 'Run a Trick REPL'
     parser.set_defaults(func=main)
+
+
+def read_history():
+    try:
+        readline.read_history_file(HISTORY_FILE)
+    except FileNotFoundError:
+        pass
+
+
+def write_history():
+    readline.write_history_file(HISTORY_FILE)
 
 
 def main(args):
@@ -23,6 +37,10 @@ def main(args):
         stdlib_fasl = Fasl.load(f, stdlib_fasl_filename)
 
     libs = [stdlib_fasl]
+
+    readline.set_auto_history(True)
+    read_history()
+    atexit.register(write_history)
 
     while True:
         try:
