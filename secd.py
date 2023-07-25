@@ -96,14 +96,17 @@ class Stack:
         assert isinstance(values, list)
         self.s.append(Values(values))
 
-    def pop_multiple(self, n=None):
+    def pop_multiple(self, n=None, instr_name=None):
         v = self.s.pop()
         if not isinstance(v, Values):
             v = Values([v])
 
         if n is not None and len(v) != n:
+            prefix = ''
+            if instr_name:
+                prefix = f'{instr_name}: '
             raise RunError(
-                f'Reading {n} value(s), when {len(v)} is available.')
+                f'{prefix}Reading {n} value(s), when {len(v)} is available.')
 
         return v
 
@@ -447,8 +450,8 @@ class Secd:
         if self.debug: print(f'sel cond={cond}')
 
     def run_join(self):
-        retval = self.s.top()
-        self.resume_continuation(self.d.pop(), retvals=[retval])
+        retval = self.s.pop_multiple(instr_name='join').as_list()
+        self.resume_continuation(self.d.pop(), retvals=retval)
         if self.debug: print(f'join')
 
     def run_ldf(self):
