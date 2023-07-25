@@ -250,11 +250,53 @@
          (list 'list
                (qq-process-list form level)))))
 
+(define (qq-process-list-tail form level)
+  (cond ((atom? form)
+         (list 'quote form))
+        ((qq-is-unquote form)
+         (if (eq? level 1)
+             (cadr form)
+             (qq-process-list form (- level 1))))
+        ((qq-is-unquote-splicing form)
+         (error :quasiquote-error
+                :msg "unquote-splicing in dotted tail"))
+        ((qq-is-quasiquote form)
+         (qq-process-list form (+ level 1)))
+        (#t
+         (qq-process-list form level))))
+
+(define (qq-split-improper-tail ls)
+  ;; () => (() ())
+  ;; (a) => ((a) ())
+  ;; (a b) => ((a b) ())
+  ;; (a . b) => ((a) b)
+  ;; (a . ,b) => ((a) ,b)
+  ;; (a b . ,c) => ((a b) ,c)
+  ;; (a b . c) => ((a b) c)
+  (cond ((null? ls) (list '() '()))
+        ((atom? (cdr ls))
+         (list (list (car ls)) (cdr ls)))
+        ((qq-is-unquote (cdr ls))
+         (list (list (car ls)) (cdr ls))) ;; same as atom? case
+        ((qq-is-unquote-splicing (cdr ls))
+         (list (list (car ls)) (cdr ls))) ;; same as atom? case
+        (#t
+         (let ((split (qq-split-improper-tail (cdr ls))))
+           (let ((rest (car split))
+                 (tail (cadr split)))
+             (list (cons (car ls) rest) tail))))))
+
 (define (qq-process-list form level)
-  (cons 'append
-        (mapcar (lambda (form)
-                  (qq-process-list-item form level))
-                form)))
+  (let ((rest/tail (qq-split-improper-tail form)))
+    (let ((rest (car rest/tail))
+          (tail (cadr rest/tail)))
+      (let ((append-form (cons 'append
+                               (mapcar (lambda (form)
+                                         (qq-process-list-item form level))
+                                       rest))))
+        (if (null? tail)
+            append-form
+            (append append-form (cons (qq-process-list-tail tail level) '())))))))
 
 (define (qq-process form level)
   (cond ((atom? form)
