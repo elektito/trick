@@ -78,6 +78,11 @@ and still a comment
 (let ((x '(#0=(1 2) 3 #0#)))
   (eq? (car x) (caddr x)))
 
+(let ((x '(1 #0=(a) #1=#0# #1# 2)))
+  (and (equal? x '(1 (a) (a) (a) 2))
+       (eq? (cadr x) (caddr x))
+       (eq? (caddr x) (cadddr x))))
+
 (let ((x 100))
   (set! x 200)
   (eq? 200 x))

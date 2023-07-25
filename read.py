@@ -342,10 +342,18 @@ class Reader:
 
     def _resolve_refs(self, value):
         if isinstance(value, Reference):
-            try:
-                return self._labeled_data[value.label]
-            except KeyError:
-                raise ReadError(f'Unknown datum label: #{value.label}#')
+            refs = [value]
+            while isinstance(value, Reference):
+                try:
+                    value = self._labeled_data[value.label]
+                except KeyError:
+                    raise ReadError(f'Unknown datum label: #{value.label}#')
+                if value in refs:
+                    # something like #0=#0#, or #0=#1=#0#
+                    raise ReadError(f'Circular datum reference')
+                elif isinstance(value, Reference):
+                    refs.append(value)
+            return value
         elif isinstance(value, Pair):
             value.car = self._resolve_refs(value.car)
             value.cdr = self._resolve_refs(value.cdr)
