@@ -95,7 +95,7 @@ def main():
             sys.exit(1)
     elif args.compile_expr:
         lib_fasls = load_fasl_files(args.lib)
-        compiler = compile.Compiler(lib_fasls)
+        compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         try:
             asm = compiler.compile_toplevel(args.compile_expr)
         except compile.CompileError as e:
@@ -111,7 +111,7 @@ def main():
             sys.exit(1)
 
         lib_fasls = load_fasl_files(args.lib)
-        compiler = compile.Compiler(lib_fasls)
+        compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         try:
             expanded = compiler.macro_expand(form, [])
         except compile.CompileError as e:
@@ -127,7 +127,7 @@ def main():
             sys.exit(1)
 
         lib_fasls = load_fasl_files(args.lib)
-        compiler = compile.Compiler(lib_fasls)
+        compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         try:
             expanded = compiler.macro_expand_full(form, [])
         except compile.CompileError as e:

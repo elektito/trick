@@ -184,7 +184,7 @@ class CompileError(Exception):
 
 
 class Compiler:
-    def __init__(self, libs):
+    def __init__(self, libs, debug_info=False):
         self.assembler = Assembler()
         self.macros = []
         self.defined_symbols: dict[Symbol, DefineInfo] = {}
@@ -192,6 +192,7 @@ class Compiler:
         self.read_symbols = set()
         self.defines_fasl = Fasl()
         self.libs = libs
+        self.debug_info = debug_info
 
         # add library macros to our macro list
         for lib in libs:
@@ -764,7 +765,7 @@ class Compiler:
         expr = self.macro_expand(expr, env)
 
         secd_code = []
-        if expr.src_start is not None and expr.src_end is not None:
+        if self.debug_info and expr.src_start is not None and expr.src_end is not None:
             secd_code += [S(':expr-start'), Integer(expr.src_start)]
 
         if isinstance(expr, List):
@@ -782,7 +783,7 @@ class Compiler:
         else:
             raise CompileError(f'Invalid value: {expr}')
 
-        if expr.src_start is not None and expr.src_end is not None:
+        if self.debug_info and expr.src_start is not None and expr.src_end is not None:
             secd_code += [S(':expr-end'), Integer(expr.src_end)]
 
         return secd_code
@@ -823,10 +824,12 @@ class Compiler:
                     defined_sym = form[1]     # (define foo value)
                 else:
                     defined_sym = form[1][0]  # (define (foo . formals) . body)
-                form_code = \
-                    [S(':define-start'), String(defined_sym.name), Integer(form.src_start)] + \
-                    form_code + \
-                    [S(':define-end'), Integer(form.src_end)]
+
+                if self.debug_info:
+                    form_code = \
+                        [S(':define-start'), String(defined_sym.name), Integer(form.src_start)] + \
+                        form_code + \
+                        [S(':define-end'), Integer(form.src_end)]
                 self.defines_fasl.add_define(defined_sym, is_macro=False)
                 self.assembler.assemble(form_code, self.defines_fasl)
             else:
@@ -869,10 +872,6 @@ def configure_argparse(parser: argparse.ArgumentParser):
     parser.add_argument(
         '--lib', '-l', action='append', default=[],
         help='Add a library FASL to be loaded when compiling.')
-
-    parser.add_argument(
-        '--dbg-info', '-g', action='store_true',
-        help='Enable debug info.')
 
     parser.set_defaults(func=main)
 
