@@ -645,16 +645,50 @@ class Compiler:
 
         return code
 
-    def compile_quoted_form(self, form, env, visited):
-        if form in visited:
-            raise CompileError('Cycle detected in quoted form; we should handle this!')
+    def compile_list_literal(self, form, env, shared, labels):
+        code = []
+        if form in labels:
+            code += [S('get'), labels[form]]
+        elif form in shared:
+            label = Symbol.gensym()
+            labels[form] = label
+            code = [S('false'), S('false'), S('cons'), S('set'), label]
 
+            if isinstance(form.cdr, Pair):
+                code += self.compile_list_literal(form.cdr, env, shared, labels)
+            else:
+                code += self.compile_quoted_form(form.cdr, env)
+            code += [S('get'), labels[form], S('setcdr'), S('drop')]
+
+            if isinstance(form.car, Pair):
+                code += self.compile_list_literal(form.car, env, shared, labels)
+            else:
+                code += self.compile_quoted_form(form.car, env)
+            code += [S('get'), labels[form], S('setcar'), S('drop')]
+
+            code += [S('get'), labels[form]]
+        else:
+            if isinstance(form.cdr, Pair):
+                code += self.compile_list_literal(form.cdr, env, shared, labels)
+            else:
+                code += self.compile_quoted_form(form.cdr, env)
+            if isinstance(form.car, Pair):
+                code += self.compile_list_literal(form.car, env, shared, labels)
+            else:
+                code += self.compile_quoted_form(form.car, env)
+            code += [S('cons')]
+        return code
+
+    def compile_quoted_form(self, form, env):
         if isinstance(form, Nil):
             return [S('nil')]
         elif isinstance(form, Pair):
-            car = self.compile_quoted_form(form.car, env, visited + [form])
-            cdr = self.compile_quoted_form(form.cdr, env, visited + [form])
-            return cdr + car + [S('cons')]
+            shared = form.find_shared()
+            labels = {}
+            code = self.compile_list_literal(form, env, shared, labels)
+            for sym in labels.values():
+                code += [S('unset'), sym]
+            return code
         elif isinstance(form, Symbol):
             return [S('ldsym'), form]
         else:
@@ -665,7 +699,7 @@ class Compiler:
         if len(expr) != 2:
             raise CompileError(f'Invalid number of arguments for quote.')
 
-        return self.compile_quoted_form(expr[1], env, [])
+        return self.compile_quoted_form(expr[1], env)
 
     def compile_error(self, expr, env):
         if len(expr) < 2 or len(expr) % 2 != 0:
@@ -716,9 +750,6 @@ class Compiler:
         if expr == Nil():
             raise CompileError('Empty list is not a valid form')
 
-        if detect_cycle(expr) and expr.car != S('quote'):
-            raise CompileError(f'Cycle detected in form: {expr}')
-
         if not expr.is_proper():
             raise CompileError(f'Cannot compile improper list: {expr}')
 
@@ -759,8 +790,6 @@ class Compiler:
         if isinstance(expr, Pair):
             if not expr.is_proper():
                 raise CompileError(f'Cannot compile improper list: {expr}')
-            if expr.car != S('quote') and detect_cycle(expr):
-                raise CompileError(f'Cycle detected in form.')
 
         expr = self.macro_expand(expr, env)
 

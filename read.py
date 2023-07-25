@@ -356,7 +356,7 @@ class Reader:
     def _read_label_or_reference(self, start_char: str, eof_error=None):
         number = start_char
         while True:
-            char = self._read_one_char(eof_error='Invalid label/reference')
+            char = self._read_one_char(eof_error=f'Invalid label/reference: #{number}')
             if char == '#':
                 return Reference(int(number))
             elif char == '=':
@@ -364,7 +364,7 @@ class Reader:
             elif char.isnumeric():
                 number += char
             else:
-                raise ReadError('Invalid label/reference')
+                raise ReadError(f'Invalid label/reference: #{number}{char}')
 
     def _perform_directive(self, directive):
         if directive == 'fold-case':
@@ -388,29 +388,3 @@ def read_expr(text):
         ReadError('Buffer contains more than a single expression')
 
     return expr
-
-# tests:
-#
-# lists:
-# ( error
-# ) error
-# [ error
-# ] error
-# (1] error
-# [1) error
-# . error
-# ( . )
-# ( . 1) error
-# (1 . ) error
-# (1 . ()) => (1)
-# () => ()
-# ( 1 . 2 )
-# ( 1 . 2 () )
-# (1)
-# (1 2 3)
-# same with square brackets
-
-# strings:
-# " error
-# ""
-# "abc\    <actual newline>   xyz" => "abcxyz"

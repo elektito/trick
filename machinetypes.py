@@ -152,6 +152,9 @@ class Bool:
     def __repr__(self):
         return f'<Bool {str(self.value).lower()}>'
 
+    def __hash__(self):
+        return hash(self.value)
+
     def __eq__(self, other):
         if not isinstance(other, Bool):
             return False
@@ -194,6 +197,9 @@ class Char:
         if not isinstance(other, Char):
             return False
         return self.char_code == other.char_code
+
+    def __hash__(self):
+        return hash(self.char_code)
 
     def __str__(self):
         name = Char.code_to_name.get(self.char_code)

@@ -226,6 +226,14 @@ class Assembler:
                 symnum = fasl.add_symbol(sym)
                 code += bytes([0x4b])
                 code += symnum.to_bytes(length=4, byteorder='little', signed=False)
+            elif instr == 'unset':
+                sym = expr[i]
+                i += 1
+                if not isinstance(sym, Symbol):
+                    raise AssembleError(f'Invalid argument type for unset: {sym}')
+                symnum = fasl.add_symbol(sym)
+                code += bytes([0x4c])
+                code += symnum.to_bytes(length=4, byteorder='little', signed=False)
             else:
                 raise AssembleError(f'Unknown instruction: {instr}')
 

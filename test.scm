@@ -65,6 +65,16 @@ and still a comment
 (eq? #!fold-case 'abc 'AbC #!no-fold-case)
 (not (eq? 'abc 'AbC))
 
+(let ((x '#0=(#1=(#0#) b . #1#)))
+  (and (eq? (caar x) x)
+       (eq? (car x) (cddr x))))
+(let ((x '(1 #50=(a b) #50#)))
+  (eq? (cadr x) (caddr x)))
+(equal? '(a (b (c (d e))) f (d e) g)
+        '(a (b (c #0=(d e))) f #0# g))
+(let ((x '(#0=(1 2) 3 #0#)))
+  (eq? (car x) (caddr x)))
+
 (let ((x 100))
   (set! x 200)
   (eq? 200 x))

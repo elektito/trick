@@ -202,6 +202,7 @@ class Secd:
             0x49: self.run_symtab,
             0x4a: self.run_set,
             0x4b: self.run_get,
+            0x4c: self.run_unset,
         }
 
     def find_expr(self, fasl, c):
@@ -369,8 +370,9 @@ class Secd:
     def run_cons(self):
         car = self.s.pop()
         cdr = self.s.pop()
-        self.s.pushx(Pair(car, cdr))
-        if self.debug: print(f'cons {car} onto {cdr}')
+        result = Pair(car, cdr)
+        self.s.pushx(result)
+        if self.debug: print(f'cons {car} onto {cdr} => {result}')
 
     def run_ldc(self):
         value = self.cur_fasl.code[self.c:self.c+4]
@@ -796,13 +798,25 @@ class Secd:
             raise RunError(f'Invalid symbol number for "get": {symnum}')
 
         try:
-            # leave the set value on the stack as the return value of set
             value = self.symvals[sym]
         except KeyError:
             raise RunError(f'Attempt to read unset symbol: {sym} ({symnum})')
 
         self.s.push(value)
         if self.debug: print(f'get {self.cur_fasl.symtab[symnum]} => {value}')
+
+    def run_unset(self):
+        symnum = self.cur_fasl.code[self.c:self.c+4]
+        self.c += 4
+        symnum = int.from_bytes(symnum, byteorder='little', signed=True)
+
+        try:
+            sym = self.cur_fasl.symtab[symnum]
+        except IndexError:
+            raise RunError(f'Invalid symbol number for "unset": {symnum}')
+
+        del self.symvals[sym]
+        if self.debug: print(f'unset {self.cur_fasl.symtab[symnum]}')
 
     def run_error(self):
         if self.debug: print(f'error')
