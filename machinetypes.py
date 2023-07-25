@@ -349,30 +349,9 @@ class Pair(List):
         self.src_end = None
 
     def __str__(self) -> str:
-        # (quote . (value . nil))
-        if isinstance(self.cdr, Pair):
-            if self.car == Symbol('quote'):
-                return f"'{self.cdar()}"
-            if self.car == Symbol('unquote'):
-                return f',{self.cdar()}'
-            if self.car == Symbol('unquote-splicing'):
-                return f',@{self.cdar()}'
-            if self.car == Symbol('backquote'):
-                return f'`{self.cdar()}'
-
-        s = f'({self.car}'
-
-        next = self.cdr
-        while isinstance(next, Pair):
-            s += f' {next.car}'
-            next = next.cdr
-
-        if isinstance(next, Nil):
-            s += ')'
-        else:
-            s += f' . {next})'
-
-        return s
+        from print import SharedPrinter # avoid circular import
+        printer = SharedPrinter(self)
+        return printer.print()
 
     def __repr__(self):
         return str(self)
@@ -494,6 +473,40 @@ class Pair(List):
             return self.cdr.is_proper()
         else:
             return False
+
+    def find_shared(self, *, _seen_objects=None, _shared=None):
+        if _seen_objects is None:
+            _seen_objects = {}
+        if _shared is None:
+            _shared = {}
+
+        if self in _seen_objects:
+            _shared[self] = _seen_objects[self]
+            return _shared
+
+        _seen_objects[self] = Reference(Symbol.gensym())
+
+        if self.car not in _seen_objects:
+            if isinstance(self.car, Pair):
+                self.car.find_shared(_seen_objects=_seen_objects,
+                                      _shared=_shared)
+            else:
+                _seen_objects[self.car] = Reference(Symbol.gensym())
+        else:
+            if isinstance(self.car, Pair):
+                _shared[self.car] = _seen_objects[self.car]
+
+        if self.cdr not in _seen_objects:
+            if isinstance(self.cdr, Pair):
+                self.cdr.find_shared(_seen_objects=_seen_objects,
+                                      _shared=_shared)
+            else:
+                _seen_objects[self.cdr] = Reference(Symbol.gensym())
+        else:
+            if isinstance(self.cdr, Pair):
+                _shared[self.cdr] = _seen_objects[self.cdr]
+
+        return _shared
 
     @staticmethod
     def from_list(l: list):
