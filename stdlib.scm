@@ -713,6 +713,43 @@
   ;; rather awkward, involving some stack juggling with "swap".
   (#$vector-set! obj k vec))
 
+(define (vector . objs)
+  (list->vector objs))
+
+(define (_vector->string vector start end)
+  (let ((n (- end start)))
+    (let loop ((s (make-string n))
+               (vidx start)
+               (sidx 0))
+      (if (= sidx n)
+          s
+          (begin
+            (string-set! s sidx (vector-ref vector vidx))
+            (loop s (1+ vidx) (1+ sidx)))))))
+
+(define vector->string
+  (case-lambda
+   ((vector) (_vector->string vector 0 (vector-length vector)))
+   ((vector start) (_vector->string vector start (vector-length vector)))
+   ((vector start end) (_vector->string vector start end))))
+
+(define (_string->vector str start end)
+  (let ((n (- end start)))
+    (let loop ((s (make-vector n))
+               (vidx 0)
+               (sidx start))
+      (if (= vidx n)
+          s
+          (begin
+            (vector-set! s vidx (string-ref str sidx))
+            (loop s (1+ vidx) (1+ sidx)))))))
+
+(define string->vector
+  (case-lambda
+   ((str) (_string->vector str 0 (string-length str)))
+   ((str start) (_string->vector str start (string-length str)))
+   ((str start end) (_string->vector str start end))))
+
 ;; values
 
 (define (values . things)

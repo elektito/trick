@@ -773,6 +773,19 @@ and still a comment
                              #(10 20)
                              #(30 40)))
 
+(equal? #() (vector))
+(equal? #(a b c) (vector 'a 'b 'c))
+
+(equal? #() (string->vector ""))
+(equal? #(#\1 #\2 #\3) (string->vector "123"))
+(equal? #(#\c #\d #\e) (string->vector "abcde" 2))
+(equal? #(#\c #\d) (string->vector "abcde" 2 4))
+
+(equal? "" (vector->string #()))
+(equal? "123" (vector->string #(#\1 #\2 #\3)))
+(equal? "cde" (vector->string #(#\a #\b #\c #\d #\e) 2))
+(equal? "cd" (vector->string #(#\a #\b #\c #\d #\e) 2 4))
+
 ;; quasiquote
 
 (let ((square (lambda (x) (* x x))))
