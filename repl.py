@@ -3,7 +3,7 @@ import atexit
 import argparse
 import readline
 from assemble import Assembler
-from compile import Compiler, CompileError
+from compile import CompileError
 from fasl import Fasl
 from read import ReadError, read_expr
 from secd import RunError, Secd, UserError
@@ -29,6 +29,17 @@ def write_history():
     readline.write_history_file(HISTORY_FILE)
 
 
+def completer(text: str, state: int, *, libs: list[Fasl]):
+    syms = set()
+    for lib in libs:
+        syms |= set(s for s in lib.defines.keys() if s.name.startswith(text))
+    syms = list(sorted(syms, key=lambda s: s.name))
+    try:
+        return syms[state].name
+    except IndexError:
+        return None
+
+
 def main(args):
     stdlib_src_filename = 'stdlib.scm'
     stdlib_fasl_filename = 'stdlib.fasl'
@@ -41,6 +52,10 @@ def main(args):
     readline.set_auto_history(True)
     read_history()
     atexit.register(write_history)
+
+    readline.parse_and_bind("tab: complete")
+    readline.set_completer_delims('()[] \'"|')
+    readline.set_completer(lambda text, state: completer(text, state, libs=libs))
 
     while True:
         try:
