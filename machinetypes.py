@@ -600,3 +600,4 @@ all_types = (
     Closure,
     Vector
 )
+shareable_types = (Pair, Vector)

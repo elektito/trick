@@ -116,9 +116,7 @@ def detect_cycle(ls, parents=None):
 
 
 def find_shared(obj, *, _seen_objects=None, _shared=None):
-    from machinetypes import Pair, Vector, Reference, Symbol
-
-    shareable_types = (Pair, Vector)
+    from machinetypes import Pair, Vector, Reference, Symbol, shareable_types
 
     if _seen_objects is None:
         _seen_objects = {}

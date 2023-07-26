@@ -1,8 +1,5 @@
-from machinetypes import Nil, Pair, Symbol, Vector
+from machinetypes import shareable_types, Nil, Pair, Symbol, Vector
 from utils import find_shared
-
-
-shareable_types = (Pair, Vector)
 
 
 class SharedPrinter:
