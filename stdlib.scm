@@ -750,6 +750,17 @@
    ((str start) (_string->vector str start (string-length str)))
    ((str start end) (_string->vector str start end))))
 
+(define (_vector-fill! vector fill start end)
+  (do ((i start (1+ i)))
+      ((= i end) vector)
+    (vector-set! vector i fill)))
+
+(define vector-fill!
+  (case-lambda
+   ((vector fill) (_vector-fill! vector fill 0 (vector-length vector)))
+   ((vector fill start) (_vector-fill! vector fill start (vector-length vector)))
+   ((vector fill start end) (_vector-fill! vector fill start end))))
+
 ;; values
 
 (define (values . things)

@@ -786,6 +786,16 @@ and still a comment
 (equal? "cde" (vector->string #(#\a #\b #\c #\d #\e) 2))
 (equal? "cd" (vector->string #(#\a #\b #\c #\d #\e) 2 4))
 
+(let ((v #(1 2 3 4 5)))
+  (vector-fill! v 'a)
+  (equal? #(a a a a a) v))
+(let ((v #(1 2 3 4 5)))
+  (vector-fill! v 'a 2)
+  (equal? #(1 2 a a a) v))
+(let ((v #(1 2 3 4 5)))
+  (vector-fill! v 'a 2 4)
+  (equal? #(1 2 a a 5) v))
+
 ;; quasiquote
 
 (let ((square (lambda (x) (* x x))))
