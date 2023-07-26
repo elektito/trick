@@ -89,12 +89,11 @@ class SharedPrinter:
         return s
 
     def _print_vector(self, vec):
-        s = ''
+        s = '#('
         at_start = True
         for e in vec:
             if at_start:
                 at_start = False
-                s += '#('
             else:
                 s += ' '
             if e in self._shared:
