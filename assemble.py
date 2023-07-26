@@ -3,7 +3,7 @@
 import io
 import sys
 import argparse
-from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
+from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl, FaslDbgInfoSection
 from read import Reader, ReadError
 from machinetypes import List, Pair, String, Symbol
 
@@ -256,6 +256,12 @@ class Assembler:
         fasl.code += assembled
 
         return assembled
+
+    def add_dbg_info_to_fasl(self, fasl, source_file=None):
+        section = FaslDbgInfoSection(source_file=source_file)
+        for r in self.dbg_info:
+            section.add_record(r)
+        fasl.add_extra_section(section)
 
 
 def configure_argparse(parser: argparse.ArgumentParser):

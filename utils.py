@@ -44,10 +44,7 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
     assembler.assemble(asm_code, fasl)
 
     if dbg_info:
-        section = FaslDbgInfoSection(source_file=input_filename)
-        for r in assembler.dbg_info:
-            section.add_record(r)
-        fasl.add_extra_section(section)
+        assembler.add_dbg_info_to_fasl(fasl, source_file=input_filename)
 
     with open(output_filename, 'wb') as f:
         fasl.dump(f)
