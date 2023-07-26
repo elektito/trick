@@ -761,6 +761,46 @@
    ((vector fill start) (_vector-fill! vector fill start (vector-length vector)))
    ((vector fill start end) (_vector-fill! vector fill start end))))
 
+(define (_vector-copy vector start end)
+  (let ((n (- end start)))
+    (do ((r (make-vector n))
+         (vidx start (1+ vidx))
+         (ridx 0 (1+ ridx)))
+        ((= ridx n) r)
+      (vector-set! r ridx (vector-ref vector vidx)))))
+
+(define vector-copy
+  (case-lambda
+   ((vector) (_vector-copy vector 0 (vector-length vector)))
+   ((vector start) (_vector-copy vector start (vector-length vector)))
+   ((vector start end) (_vector-copy vector start end))))
+
+(define (_vector-copy! to at from start end)
+  (let ((n (- end start)))
+    (do ((from-idx start (1+ from-idx))
+         (to-idx at (1+ to-idx)))
+        ((= from-idx end) to)
+      (vector-set! to to-idx (vector-ref from from-idx)))))
+
+(define vector-copy!
+  (case-lambda
+   ((to at from) (_vector-copy! to at from 0 (vector-length from)))
+   ((to at from start) (_vector-copy! to at from start (vector-length from)))
+   ((to at from start end) (_vector-copy! to at from start end))))
+
+(define (_vector-append v1 v2)
+  (let ((result (make-vector (+ (vector-length v1) (vector-length v2)))))
+    (vector-copy! result 0 v1)
+    (vector-copy! result (vector-length v1) v2)))
+
+(define vector-append
+  (case-lambda
+   (() #())
+   ((v) (vector-copy v))
+   ((v1 v2) (_vector-append v1 v2))
+   ((v1 v2 . rest) (_vector-append (_vector-append v1 v2)
+                                   (apply vector-append rest)))))
+
 ;; values
 
 (define (values . things)

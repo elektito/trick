@@ -796,6 +796,30 @@ and still a comment
   (vector-fill! v 'a 2 4)
   (equal? #(1 2 a a 5) v))
 
+(let* ((v #(1 2))
+       (r (vector-copy v)))
+  (and (not (eq? v r))
+       (equal? v r)))
+(equal? #(3 4 5) (vector-copy #(1 2 3 4 5) 2))
+(equal? #(3 4) (vector-copy #(1 2 3 4 5) 2 4))
+
+(let ((v #(1 2 3 4 5 6 7)))
+  (vector-copy! v 2 #(a b))
+  (equal? v #(1 2 a b 5 6 7)))
+(let ((v #(1 2 3 4 5 6 7)))
+  (vector-copy! v 2 #(a b c d e) 3)
+  (equal? v #(1 2 d e 5 6 7)))
+(let ((v #(1 2 3 4 5 6 7)))
+  (vector-copy! v 3 #(a b c d e) 2 4)
+  (equal? v #(1 2 3 c d 6 7)))
+
+(equal? #() (vector-append))
+(let* ((v #(1 2))
+       (a (vector-append v)))
+  (and (not (eq? v a)) ;; the return value should be a newly allocated vector
+       (equal? #(1 2) a)))
+(equal? #(1 2 3 4 5 6) (vector-append #(1 2) #() #(3 4 5 6)))
+
 ;; quasiquote
 
 (let ((square (lambda (x) (* x x))))
