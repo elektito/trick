@@ -936,7 +936,10 @@ class Secd:
         if 0 <= idx < len(vector):
             vector[idx] = value
         else:
-            raise RunError(f'Invalid vector index: {idx} (expected: 0-{len(vector)-1})')
+            if len(vector) == 0:
+                raise RunError(f'Invalid vector index: {idx} (vector is empty)')
+            else:
+                raise RunError(f'Invalid vector index: {idx} (expected: 0-{len(vector)-1})')
 
         if self.debug: print(f'vecset vec={vector} i={idx} val={value}')
 
@@ -947,7 +950,10 @@ class Secd:
         if 0 <= idx < len(vector):
             value = vector[idx]
         else:
-            raise RunError(f'Invalid vector index: {idx} (expected: 0-{len(vector)-1})')
+            if len(vector) == 0:
+                raise RunError(f'Invalid vector index: {idx} (vector is empty)')
+            else:
+                raise RunError(f'Invalid vector index: {idx} (expected: 0-{len(vector)-1})')
 
         self.s.pushx(value)
 
