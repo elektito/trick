@@ -806,6 +806,43 @@ and still a comment
 (equal? `(a `(b ,(foo ,(car '(3 6))) c) d)
         '(a `(b ,(foo 3) c) d))
 
+;; case-lambda
+
+(let ((f (case-lambda
+          (() (list 'no-args))
+          ((x) (list 'one-arg x))
+          ((x y) (list 'two-args x y))
+          ((x . r) (list 'one-arg-and-rest x r)))))
+  (equal? '(no-args) (f)))
+
+(let ((f (case-lambda
+          (() (list 'no-args))
+          ((x) (list 'one-arg x))
+          ((x y) (list 'two-args x y))
+          ((x . r) (list 'one-arg-and-rest x r)))))
+  (equal? '(one-arg 100) (f 100)))
+
+(let ((f (case-lambda
+          (() (list 'no-args))
+          ((x) (list 'one-arg x))
+          ((x y) (list 'two-args x y))
+          ((x . r) (list 'one-arg-and-rest x r)))))
+  (equal? '(two-args 100 200) (f 100 200)))
+
+(let ((f (case-lambda
+          (() (list 'no-args))
+          ((x) (list 'one-arg x))
+          ((x y) (list 'two-args x y))
+          ((x . r) (list 'one-arg-and-rest x r)))))
+  (equal? '(one-arg-and-rest 100 (200 300)) (f 100 200 300)))
+
+(let ((f (case-lambda
+          (() (list 'no-args))
+          ((x) (list 'one-arg x))
+          ((x y) (list 'two-args x y))
+          (r (list 'rest r)))))
+  (equal? '(rest (100 200 300)) (f 100 200 300)))
+
 ;;
 
 (let* ((ls '())

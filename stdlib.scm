@@ -375,6 +375,39 @@
                ,@body
                (,let-gc ,@nexts)))))))
 
+;; case-lambda
+
+(define (create-case-lambda-matcher formals)
+  (let* ((rest/tail (split-improper-tail formals))
+         (rest (car rest/tail))
+         (tail (cdr rest/tail)))
+    (cond ((symbol? formals)
+           #t)
+          ((null? tail)
+           `(= ,(length formals) (length args)))
+          (#t
+           `(and (is-improper args)
+                 (>= (proper-length args)
+                     ,(length rest)))))))
+
+(define (create-case-lambda-clause c)
+  (let ((formals (car c))
+        (body (cdr c)))
+    (if (symbol? formals)
+        `(#t (lambda ,formals ,@body))
+        `(,(create-case-lambda-matcher formals)
+          (lambda ,formals
+            ,@body)))))
+
+(define-macro (case-lambda . clauses)
+  `(lambda args
+     (apply
+      (cond ,@(map create-case-lambda-clause clauses)
+            (#t (lambda x (error :bad-args))))
+      args)))
+
+;;
+
 (define (any? values)
   (if (null? values)
       #f
@@ -467,6 +500,38 @@
       #f
       (or (eq? obj (car ls))
           (memq obj (cdr ls)))))
+
+(define (split-improper-tail ls)
+  ;; () => (() ())
+  ;; (a) => ((a) ())
+  ;; (a b) => ((a b) ())
+  ;; (a . b) => ((a) b)
+  ;; (a b . c) => ((a b) c)
+  (cond ((null? ls) '(() . ())) ;(list '() '()))
+        ((atom? (cdr ls))
+         (cons (list (car ls)) (cdr ls)))
+        (#t
+         (let ((split (split-improper-tail (cdr ls))))
+           (let ((rest (car split))
+                 (tail (cdr split)))
+             (cons (cons (car ls) rest) tail))))))
+
+(define (proper-length ls)
+  (cond ((null? ls) 0)
+        ((not (pair? ls))
+         (error :arg-error :msg "proper-length: argument not a list"))
+        ((null? (cdr ls))
+         1)
+        ((not (pair? (cdr ls)))
+         1)
+        (#t (1+ (proper-length (cdr ls))))))
+
+(define (is-improper ls)
+  (if (null? ls)
+      #t
+      (if (null? (cdr ls))
+          #t
+          (is-improper (cdr ls)))))
 
 ;; general comparison
 
