@@ -1,7 +1,5 @@
 from uuid import uuid4
 
-from utils import detect_cycle
-
 
 DEFAULT_ENCODING = 'utf-8'
 
@@ -343,9 +341,9 @@ class Pair(List):
             return value
 
     def __init__(self, car, cdr):
-        if not isinstance(car, (Reference, Integer, Bool, String, Char, List, Symbol, Closure)):
+        if not isinstance(car, all_types):
             raise TypeError(f'Invalid value type for car: {car}')
-        if not isinstance(cdr, (Reference, Integer, Bool, String, Char, List, Symbol, Closure)):
+        if not isinstance(cdr, all_types):
             raise TypeError(f'Invalid value type for cdr: {cdr}')
 
         self.car = car
@@ -480,40 +478,6 @@ class Pair(List):
         else:
             return False
 
-    def find_shared(self, *, _seen_objects=None, _shared=None):
-        if _seen_objects is None:
-            _seen_objects = {}
-        if _shared is None:
-            _shared = {}
-
-        if self in _seen_objects:
-            _shared[self] = _seen_objects[self]
-            return _shared
-
-        _seen_objects[self] = Reference(Symbol.gensym())
-
-        if self.car not in _seen_objects:
-            if isinstance(self.car, Pair):
-                self.car.find_shared(_seen_objects=_seen_objects,
-                                      _shared=_shared)
-            else:
-                _seen_objects[self.car] = Reference(Symbol.gensym())
-        else:
-            if isinstance(self.car, Pair):
-                _shared[self.car] = _seen_objects[self.car]
-
-        if self.cdr not in _seen_objects:
-            if isinstance(self.cdr, Pair):
-                self.cdr.find_shared(_seen_objects=_seen_objects,
-                                      _shared=_shared)
-            else:
-                _seen_objects[self.cdr] = Reference(Symbol.gensym())
-        else:
-            if isinstance(self.cdr, Pair):
-                _shared[self.cdr] = _seen_objects[self.cdr]
-
-        return _shared
-
     @staticmethod
     def from_list(l: list):
         assert isinstance(l, list)
@@ -572,3 +536,67 @@ class Values:
 
     def __repr__(self):
         return f'<Values {self._values}>'
+
+
+class Vector:
+    class Iterator:
+        def __init__(self, vector):
+            self._vector = vector
+            self._i = 0
+
+        def __next__(self):
+            if self._i >= len(self._vector):
+                raise StopIteration
+
+            value = self._vector[self._i]
+            self._i += 1
+            return value
+
+    def __init__(self, elements):
+        self._elements = [i for i in elements]
+
+    def __iter__(self):
+        return Vector.Iterator(self)
+
+    def __len__(self):
+        return len(self._elements)
+
+    def __getitem__(self, idx: int):
+        return self._elements[idx]
+
+    def __setitem__(self, idx: int, value):
+        self._elements[idx] = value
+
+    def __str__(self):
+        from print import SharedPrinter # avoid circular import
+        printer = SharedPrinter(self)
+        return printer.print()
+
+    def __repr__(self):
+        return str(self)
+
+    def to_trick_list(self):
+        return List.from_list(self._elements)
+
+    def to_python_list(self):
+        return [i for i in self._elements]
+
+    @staticmethod
+    def from_list_recursive(ls: list):
+        return Vector([
+            Vector.from_list_recursive(e) if isinstance(e, list) else e
+            for e in ls
+        ])
+
+
+all_types = (
+    Reference,
+    Integer,
+    Bool,
+    String,
+    Char,
+    List,
+    Symbol,
+    Closure,
+    Vector
+)

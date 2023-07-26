@@ -173,6 +173,9 @@ class FaslDbgInfoSection(FaslSection):
         self.source_file = source_file
         self.records = []
 
+    def __repr__(self):
+        return f'<FaslDbgInfoSection nrecords={len(self.records)}>'
+
     def add_record(self, record):
         self.records.append(record)
 
@@ -239,6 +242,12 @@ class Fasl:
         self.defines = {}
         self.code = b''
         self.extra_sections = []
+
+    def __repr__(self):
+        if self.filename:
+            return f'<Fasl {self.filename}>'
+        else:
+            return '<Fasl>'
 
     def add_extra_section(self, section: FaslSection):
         self.extra_sections.append(section)

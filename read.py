@@ -1,6 +1,6 @@
 import io
 from typing_extensions import runtime
-from machinetypes import Integer, Symbol, List, Nil, Pair, Bool, String, Char, Reference
+from machinetypes import Integer, Symbol, List, Nil, Pair, Bool, String, Char, Reference, Vector
 
 
 class ReadError(Exception):
@@ -178,11 +178,20 @@ class Reader:
         else:
             self._unread_one_char(cur_char)
 
-    def _read_list(self, delim, at_start):
+    def _read_vector(self):
+        ls = self._read_list(
+            delim=')',
+            at_start=True,
+            no_dots=False)
+        return Vector(ls)
+
+    def _read_list(self, delim, at_start, no_dots=False):
         car = self._read(allow_delim=delim, eof_error='List not closed')
         if car is None:
             return Nil()
         if car == Symbol('.'):
+            if no_dots:
+                raise ReadError('Misplaced dot')
             if at_start:
                 raise ReadError('Unexpected dot (.) at the start of list')
             cdr = self._read(allow_delim=delim)
@@ -322,6 +331,8 @@ class Reader:
                 else:
                     raise ReadError(f'Invalid character literal: #\\{desc}')
                 return Char(char_code)
+        elif char == '(':  # vector
+            return self._read_vector()
         else: # special symbol
             token = self._read_token(start_char=char)
             return Symbol('#' + token)
@@ -359,6 +370,10 @@ class Reader:
         elif isinstance(value, Pair):
             value.car = self._resolve_refs(value.car)
             value.cdr = self._resolve_refs(value.cdr)
+            return value
+        elif isinstance(value, Vector):
+            for i in range(len(value)):
+                value[i] = self._resolve_refs(value[i])
             return value
         else:
             return value

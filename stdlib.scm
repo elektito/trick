@@ -30,6 +30,8 @@
       (if (pair? v)
           (list? (cdr v))
           #f)))
+(define (vector? v)
+  (eq? (type v) 'vector))
 
 ;; booleans
 
@@ -299,7 +301,9 @@
             (append append-form (cons (qq-process-list-tail tail level) '())))))))
 
 (define (qq-process form level)
-  (cond ((atom? form)
+  (cond ((vector? form)
+         (list 'list->vector (qq-process (vector->list form) level)))
+        ((atom? form)
          (if (= level 1)
              (list 'quote form)
              form))
@@ -458,6 +462,12 @@
 (define (list-ref ls k)
   (car (list-tail ls k)))
 
+(define (memq obj ls)
+  (if (null? ls)
+      #f
+      (or (eq? obj (car ls))
+          (memq obj (cdr ls)))))
+
 ;; general comparison
 
 (define (eqv? x y)
@@ -465,14 +475,30 @@
   ;; should
   (eq? x y))
 
-(define (equal? x y)
-  (cond ((not (eq? (type x) (type y)))
+(define (_equal? x y recursed)
+  (cond ((memq x recursed) ; if already checked this exact object
+         #t)               ; don't compare it again
+        ((memq y recursed) ; same goes for y
+         #t)
+        ((eq? x y)
+         #t)
+        ((not (eq? (type x) (type y)))
          #f)
         ((null? x) #t)
-        ((pair? x) (and (equal? (car x) (car y))
-                        (equal? (cdr x) (cdr y))))
+        ((vector? x)
+         (set! recursed (cons x (cons y recursed)))
+         (all? (vector->list (vector-map (lambda (a b)
+                                           (_equal? a b recursed))
+                                         x y))))
+        ((pair? x)
+         (set! recursed (cons x (cons y recursed)))
+         (and (_equal? (car x) (car y) recursed)
+              (_equal? (cdr x) (cdr y) recursed)))
         ((string? x) (string=? x y))
         (#t (eqv? x y))))
+
+(define (equal? x y)
+  (_equal? x y '()))
 
 ;; characters
 
@@ -586,6 +612,41 @@
   (if (null? (cdr strings))
       #t
       (all? (pairwise string=?1 strings))))
+
+;; vectors
+
+(define (make-vector . args)
+  (if (null? (cdr args))
+      (#$make-vector (car args) #f)
+      (#$make-vector (car args) (cadr args))))
+
+(define (vector-map proc . args)
+  (let ((result (make-vector (vector-length (car args)))))
+    (do ((i 0 (1+ i)))
+        ((= i (vector-length result)) result)
+      (vector-set! result i (apply proc (mapcar (lambda (x) (vector-ref x i)) args))))))
+
+(define (vector->list vec)
+  (let ((result '()))
+    (let loop ((i 0)
+               (result '()))
+      (if (< i (vector-length vec))
+          (loop (1+ i) (cons (vector-ref vec i) result))
+          (reverse result)))))
+
+(define (list->vector ls)
+  (do ((i 0 (1+ i))
+       (ls ls (cdr ls))
+       (vec (make-vector (length ls))))
+      ((null? ls) vec)
+    (vector-set! vec i (car ls))))
+
+(define (vector-set! vec k obj)
+  ;; this is needed because the SECD instruction issued for #$vector-set has a
+  ;; different order of arguments that vector-set! should. We _could_ change the
+  ;; instruction, but then the code generation for vector literals would become
+  ;; rather awkward, involving some stack juggling with "swap".
+  (#$vector-set! obj k vec))
 
 ;; values
 

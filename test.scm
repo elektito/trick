@@ -28,6 +28,8 @@ and still a comment
 (eq? #\space #\space)
 (eq? '() '())
 (not (eq? '() 'nil))
+(equal? #() '#())
+(equal? #(a b) '#(a b))
 
 (eq? '() '[])
 (equal? '(a b) '[a b])
@@ -109,6 +111,8 @@ and still a comment
 (eq? 100 (if :foo 100 200))
 (eq? 100 (if "foo" 100 200))
 (eq? 100 (if (lambda (x) x) 100 200))
+(eq? 100 (if #() 100 200))
+(eq? 100 (if #(1) 100 200))
 (eq? 100 (if #t 100))
 (eq? '() (if #f 100))
 
@@ -286,6 +290,8 @@ and still a comment
 (eq? 'closure (type (lambda (x) x)))
 (eq? 'bool (type #f))
 (eq? 'bool (type #t))
+(eq? 'vector (type #()))
+(eq? 'vector (type #(1)))
 
 (null? '())
 (not (null? '(1)))
@@ -295,6 +301,8 @@ and still a comment
 (not (null? "foo"))
 (not (null? 'foo))
 (not (null? (lambda (x) x)))
+(not (null? #()))
+(not (null? #(1 2)))
 
 (pair? '(1))
 (pair? '(1 2))
@@ -305,6 +313,7 @@ and still a comment
 (not (pair? "foo"))
 (not (pair? 1))
 (not (pair? (lambda (x) x)))
+(not (pair? #(1)))
 
 (list? '())
 (list? '(1))
@@ -312,6 +321,7 @@ and still a comment
 (not (list? '(1 . 2)))
 (not (list? '(1 2 . 3)))
 (not (list? (lambda (x) x)))
+(not (list? #(1)))
 
 (symbol? 'foo)
 (symbol? :foo)
@@ -321,6 +331,7 @@ and still a comment
 (not (symbol? '(1 . 2)))
 (not (symbol? '(1 2)))
 (not (symbol? (lambda (x) x)))
+(not (symbol? #(1)))
 
 (integer? -1)
 (integer? 0)
@@ -333,6 +344,7 @@ and still a comment
 (not (integer? '(1 2)))
 (not (integer? '(1 . 2)))
 (not (integer? (lambda (x) x)))
+(not (integer? #(1)))
 
 (string? "")
 (string? "foo")
@@ -343,6 +355,7 @@ and still a comment
 (not (string? '(1 2)))
 (not (string? '(1 . 2)))
 (not (string? (lambda (x) x)))
+(not (string? #(1)))
 
 (closure? (lambda (x) x))
 (closure? (lambda () 10))
@@ -353,6 +366,28 @@ and still a comment
 (not (closure? '(1)))
 (not (closure? '(1 2)))
 (not (closure? '(1 . 2)))
+(not (closure? #(1)))
+
+(char? #\a)
+(char? #\tab)
+(char? #\x09)
+(not (char? '()))
+(not (char? '(1)))
+(not (char? '(1 . 2)))
+(not (char? "f"))
+(not (char? 'f))
+(not (char? #(1)))
+(not (char? (lambda (x) x)))
+
+(vector? #())
+(vector? #(1))
+(not (vector? '()))
+(not (vector? '(1)))
+(not (vector? 'foo))
+(not (vector? 1))
+(not (vector? "foo"))
+(not (vector? (lambda (x) x)))
+(not (vector? #\a))
 
 ;; utility
 
@@ -699,6 +734,52 @@ and still a comment
         '`(a ,3 ,(+ 2 3)))
 (equal? ``,,3 '`,3)
 (equal? ```,,,3 '``,,3)
+
+;; vectors
+
+(atom? #(1 2 3))
+(vector? #(1 2 3))
+
+(equal? '#(1 2 (a b) 3) #(1 2 (a b) 3))
+(not (equal? #(1 2 '(a b) 3) #(1 2 (a b) 3)))
+
+(equal? #(a a a a a) (make-vector 5 'a))
+(= 5 (vector-length (make-vector 5)))
+
+(= 0 (vector-length #()))
+(= 3 (vector-length #(1 2 3)))
+(= 3 (vector-length #0=#(1 2 #0#)))
+(let ((v #0=#(1 2 #0#)))
+  (eq? v (vector-ref v 2)))
+(let ((v #(1 2 #0=(10) #0#)))
+  (eq? (vector-ref v 2) (vector-ref v 3)))
+(let ((v #0=#(1 (2 #0#) 3)))
+  (eq? v (cadr (vector-ref v 1))))
+(let ((v '#0=(1 #(2 #0#) 3)))
+  (eq? v (vector-ref (cadr v) 1)))
+
+(= 2 (vector-ref #(1 2 3) 1))
+
+(let ((v #(1 2 3 4)))
+  (vector-set! v 1 20)
+  (equal? #(1 20 3 4) v))
+
+(eq? '() (vector->list #()))
+(equal? '(a b c) (vector->list #(a b c)))
+(equal? '(1 2 #0=#(1 2 #0#)) (vector->list #1=#(1 2 #1#)))
+
+(equal? #(41 62) (vector-map (lambda (x y z) (+ x y z))
+                             #(1 2)
+                             #(10 20)
+                             #(30 40)))
+
+;; quasiquote
+
+(let ((square (lambda (x) (* x x))))
+  (equal? #(10 5 4 16 9 8)
+          `#(10 5 ,(square 2) ,@(map square '(4 3)) 8)))
+(equal? `#(a `(b ,(foo ,(car '(3 6))) c) d)
+        '#(a `(b ,(foo 3) c) d))
 
 ;; the following are adopted from husk scheme test suite. see
 ;; https://github.com/justinethier/husk-scheme/blob/master/tests/t-backquote.scm

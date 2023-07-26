@@ -1,11 +1,15 @@
-from machinetypes import Nil, Pair
+from machinetypes import Nil, Pair, Symbol, Vector
+from utils import find_shared
+
+
+shareable_types = (Pair, Vector)
 
 
 class SharedPrinter:
     def __init__(self, obj):
-        if isinstance(obj, Pair):
+        if isinstance(obj, shareable_types):
             self._obj = obj
-            self._shared = self._obj.find_shared()
+            self._shared = find_shared(obj)
         else:
             self._obj = obj
             self._shared = {}
@@ -26,15 +30,30 @@ class SharedPrinter:
             n = self._assign_label(obj)
             s = f'#{n}='
 
-        if not isinstance(obj, Pair):
-            s += str(obj)
-        else:
+        if isinstance(obj, Pair):
             s += self._print_pair(obj)
+        elif isinstance(obj, Vector):
+           s += self._print_vector(obj)
+        else:
+            s += str(obj)
 
         return s
 
     def _print_pair(self, pair, *, at_start=True):
         s = ''
+
+        special = {
+            Symbol('quote'): "'",
+            Symbol('quasiquote'): '`',
+            Symbol('unquote'): ',',
+            Symbol('unquote-splicing'): ',@',
+        }
+        if pair.car in special and \
+           isinstance(pair.cdr, Pair) and \
+           isinstance(pair.cdr.cdr, Nil):
+            prefix = special[pair.car]
+            value = self._print(pair.cdr.car)
+            return f"{prefix}{value}"
 
         if at_start:
             s += '('
@@ -72,8 +91,32 @@ class SharedPrinter:
 
         return s
 
+    def _print_vector(self, vec):
+        s = ''
+        at_start = True
+        for e in vec:
+            if at_start:
+                at_start = False
+                s += '#('
+            else:
+                s += ' '
+            if e in self._shared:
+                n = self._labels.get(e)
+                if n is None:
+                    n = self._assign_label(e)
+                    s += f'#{n}='
+                    s += self._print(e)
+                else:
+                    s += f'#{n}#'
+            else:
+                s += self._print(e)
+
+        s += ')'
+
+        return s
+
     def _assign_label(self, obj):
-        assert isinstance(obj, Pair)
+        assert isinstance(obj, (Pair, Vector))
         n = self._label_count
         self._label_count += 1
         self._labels[obj] = n

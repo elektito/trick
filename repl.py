@@ -71,8 +71,13 @@ def main(args):
             err = machine.s.top()
             msg = format_user_error(err)
             print(msg)
+            machine.print_stack_trace()
         except RunError as e:
             print(e)
+            machine.print_stack_trace()
+        except KeyboardInterrupt:
+            print('Interrupted')
+            machine.print_stack_trace()
         else:
             result = machine.s.pop_multiple()
             for r in result.as_list():

@@ -1,4 +1,5 @@
 import os
+from os.path import isabs
 
 
 def assoc(item, alist):
@@ -31,7 +32,7 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
         with open(lib, 'rb') as f:
             lib_fasls.append(Fasl.load(f, lib))
 
-    compiler = Compiler(lib_fasls)
+    compiler = Compiler(lib_fasls, debug_info=dbg_info)
     with open(input_filename) as f:
         text = f.read()
 
@@ -112,3 +113,36 @@ def detect_cycle(ls, parents=None):
     return \
         detect_cycle(ls.car, parents + [ls]) or \
         detect_cycle(ls.cdr, parents + [ls])
+
+
+def find_shared(obj, *, _seen_objects=None, _shared=None):
+    from machinetypes import Pair, Vector, Reference, Symbol
+
+    shareable_types = (Pair, Vector)
+
+    if _seen_objects is None:
+        _seen_objects = {}
+    if _shared is None:
+        _shared = {}
+
+    if not isinstance(obj, shareable_types):
+        return _shared
+
+    if obj in _seen_objects:
+        _shared[obj] = _seen_objects[obj]
+        return _shared
+
+    _seen_objects[obj] = Reference(Symbol.gensym())
+
+    if isinstance(obj, Pair):
+        find_shared(
+            obj.car, _seen_objects=_seen_objects, _shared=_shared)
+        find_shared(
+            obj.cdr, _seen_objects=_seen_objects, _shared=_shared)
+    elif isinstance(obj, Vector):
+        for e in obj:
+            find_shared(e, _seen_objects=_seen_objects, _shared=_shared)
+    else:
+        assert False
+
+    return _shared

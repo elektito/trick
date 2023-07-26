@@ -131,6 +131,11 @@ class Assembler:
                 'l2m': 0x34,
                 'sym2str': 0x35,
                 'str2sym': 0x36,
+                'swap': 0x37,
+                'mkvec': 0x38,
+                'vecset': 0x39,
+                'vecref': 0x3a,
+                'veclen': 0x3b,
             }
             opcode = single_byte_instrs.get(instr)
             if opcode is not None:

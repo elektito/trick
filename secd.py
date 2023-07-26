@@ -8,7 +8,7 @@ from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from snippet import show_snippet
 from utils import format_user_error
 from machinetypes import (
-    Bool, Char, Integer, List, Nil, Pair, String, Symbol, Closure, Continuation, Values,
+    all_types, Bool, Char, Integer, List, Nil, Pair, String, Symbol, Closure, Continuation, Values, Vector,
 )
 
 
@@ -38,8 +38,7 @@ class Stack:
             raise ValueError(
                 'Attempting to write a Values object with "push"; use '
                 'push_multiple.')
-        if not isinstance(value, (Integer, Symbol, List, Char, String, Bool,
-                                  Closure)):
+        if not isinstance(value, all_types):
             raise ValueError(f'Invalid type being pushed: {repr(value)}')
 
         self.s.append(value)
@@ -97,6 +96,12 @@ class Stack:
         self.s.append(Values(values))
 
     def pop_multiple(self, n=None, instr_name=None):
+        if len(self.s) == 0:
+            prefix = ''
+            if instr_name:
+                prefix = f'{instr_name}: '
+            raise RunError(f'{prefix}Attempting to read from an empty stack')
+
         v = self.s.pop()
         if not isinstance(v, Values):
             v = Values([v])
@@ -109,6 +114,9 @@ class Stack:
                 f'{prefix}Reading {n} value(s), when {len(v)} is available.')
 
         return v
+
+    def swap(self):
+        self.s[-2], self.s[-1] = self.s[-1], self.s[-2]
 
     def extended(self, ls):
         assert isinstance(ls, list)
@@ -191,6 +199,11 @@ class Secd:
             0x34: self.run_l2m,
             0x35: self.run_sym2str,
             0x36: self.run_str2sym,
+            0x37: self.run_swap,
+            0x38: self.run_mkvec,
+            0x39: self.run_vecset,
+            0x3a: self.run_vecref,
+            0x3b: self.run_veclen,
             0x40: self.run_ldc,
             0x41: self.run_ld,
             0x42: self.run_sel,
@@ -254,6 +267,12 @@ class Secd:
             else:
                 print(f'{prefix}<no debug info in fasl>')
             return
+        if len(dbginfo.records) == 0:
+            if fasl.filename:
+                print(f'{prefix}<debug info in "{fasl.filename}" is empty>')
+            else:
+                print(f'{prefix}<debug info is empty>')
+            return
 
         source_file = dbginfo.source_file
         if source_file:
@@ -278,8 +297,10 @@ class Secd:
         else:
             print(f'{prefix}{fasl.filename} ({source_file})')
 
-        if text:
+        if text and expr:
             show_snippet(text, expr.src_start, expr.src_end)
+        elif text:
+            print(' <no matching expression found>')
 
     def print_stack_trace(self):
         self.print_stack_frame(0, self.cur_fasl, self.c - 1)
@@ -679,7 +700,7 @@ class Secd:
         self._do_apply('tap', tail_call=True)
 
     def run_drop(self):
-        value = self.s.pop_multiple()
+        value = self.s.pop_multiple(instr_name='drop')
         if self.debug: print(f'drop {value}')
 
     def run_xp(self):
@@ -760,6 +781,8 @@ class Secd:
             result = self.intern('bool')
         elif isinstance(v, Char):
             result = self.intern('char')
+        elif isinstance(v, Vector):
+            result = self.intern('vector')
         else:
             raise RunError(f'Unknown type: {v}')
         self.s.pushx(result)
@@ -897,6 +920,45 @@ class Secd:
         self.s.pushx(s)
         if self.debug: print(f'mkstr {nchars} * {fill_char}')
 
+    def run_mkvec(self):
+        n = self.s.pop(Integer, 'mkstr')
+        fill = self.s.pop(instr_name='mkstr')
+
+        s = Vector([fill] * n)
+        self.s.pushx(s)
+        if self.debug: print(f'mkvec {n} * {fill}')
+
+    def run_vecset(self):
+        value = self.s.pop(instr_name='vecset')
+        idx = self.s.pop(Integer, 'vecset')
+        vector = self.s.pop(Vector, 'vecset')
+
+        if 0 <= idx < len(vector):
+            vector[idx] = value
+        else:
+            raise RunError(f'Invalid vector index: {idx} (expected: 0-{len(vector)-1})')
+
+        if self.debug: print(f'vecset vec={vector} i={idx} val={value}')
+
+    def run_vecref(self):
+        vector = self.s.pop(Vector, 'vecref')
+        idx = self.s.pop(Integer, 'vecref')
+
+        if 0 <= idx < len(vector):
+            value = vector[idx]
+        else:
+            raise RunError(f'Invalid vector index: {idx} (expected: 0-{len(vector)-1})')
+
+        self.s.pushx(value)
+
+        if self.debug: print(f'vecref v={vector} i={idx} => {value}')
+
+    def run_veclen(self):
+        vector = self.s.pop(Vector, 'veclen')
+        result = Integer(len(vector))
+        self.s.pushx(result)
+        if self.debug: print(f'veclen v={vector} => {result}')
+
     def run_strref(self):
         s = self.s.pop(String, 'strref')
         idx = self.s.pop(Integer, 'strref')
@@ -963,6 +1025,10 @@ class Secd:
         self.s.pushx(self.intern(name.value))
         if self.debug: print(f'str2sym {name}')
 
+    def run_swap(self):
+        self.s.swap()
+        if self.debug: print('swap')
+
 
 def configure_argparse(parser: argparse.ArgumentParser):
     parser.description = 'Run a binary SECD program'
@@ -1019,7 +1085,7 @@ def main(args):
 def print_value(v):
     if isinstance(v, String):
         print(v.value)
-    elif isinstance(v, (Integer, Symbol, Bool, List, Closure, Char)):
+    elif isinstance(v, all_types):
         print(v)
     else:
         raise RunError(f'Unknown type to print: {v}')
