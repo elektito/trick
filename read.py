@@ -32,12 +32,14 @@ class Reader:
         self._unread_chars = []
         self._fold_case = False
         self._labeled_data = {}
+        self._seen_labels = set()
 
     def read(self) -> (None | Integer | Symbol | List | Bool | String | Char):
         """
         Return None if EOF, otherwise a Scheme object is read and returned.
         """
         self._labeled_data = {}
+        self._seen_labels = set()
 
         value = self._read()
         if value == Symbol('.'):
@@ -368,7 +370,11 @@ class Reader:
             if char == '#':
                 return Reference(int(number))
             elif char == '=':
-                return Label(int(number))
+                label = Label(int(number))
+                if label in self._seen_labels:
+                    raise ReadError(f'Duplicate datum label: #{number}=')
+                self._seen_labels.add(label)
+                return label
             elif char.isnumeric():
                 number += char
             else:
