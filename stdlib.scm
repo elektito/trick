@@ -386,8 +386,7 @@
           ((null? tail)
            `(= ,(length formals) (length args)))
           (#t
-           `(and (is-improper args)
-                 (>= (proper-length args)
+           `(and (>= (proper-length args)
                      ,(length rest)))))))
 
 (define (create-case-lambda-clause c)
@@ -525,13 +524,6 @@
         ((not (pair? (cdr ls)))
          1)
         (#t (1+ (proper-length (cdr ls))))))
-
-(define (is-improper ls)
-  (if (null? ls)
-      #t
-      (if (null? (cdr ls))
-          #t
-          (is-improper (cdr ls)))))
 
 ;; general comparison
 
