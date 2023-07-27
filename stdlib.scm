@@ -899,3 +899,34 @@
     (set! winders (cdr winders))
     (out)
     (apply values ans*)))
+
+;; parameters
+
+(define make-parameter
+  (case-lambda
+   ((init) (make-parameter init (lambda (x) x)))
+   ((init converter) (let ((value (converter init)))
+                       (case-lambda
+                        (() value)
+                        ((new-value) (set! value (converter new-value)))
+                        ((new-value dont-convert) (if dont-convert
+                                                      (set! value new-value)
+                                                      (set! value (converter new-value)))))))))
+
+(define-macro (parameterize bindings . body)
+  (let* ((gensyms (map (lambda (x) (gensym)) bindings))
+         (old-bindings (map (lambda (g b)
+                              `(,g (,(car b))))
+                            gensyms bindings))
+         (set-new-bindings (map (lambda (g b)
+                                  `((,(car b) ,(cadr b))))
+                                gensyms bindings))
+         (set-new-bindings (apply append set-new-bindings))
+         (set-old-bindings (map (lambda (g b)
+                                  `(,(car b) ,g #t))
+                                gensyms bindings)))
+    `(let (,@old-bindings)
+       (dynamic-wind
+           (lambda () ,@set-new-bindings)
+           (lambda () ,@body)
+           (lambda () ,@set-old-bindings)))))
