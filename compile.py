@@ -309,9 +309,9 @@ class Compiler:
         expanded = machine.s.top()
         return expanded
 
-    def parse_define_form(self, expr, name):
+    def parse_define_form(self, expr, form_name):
         if len(expr) < 2:
-            raise CompileError(f'Invalid number of arguments for {name}.')
+            raise CompileError(f'Invalid number of arguments for {form_name}.')
 
         if isinstance(expr[1], Symbol):
             name = expr[1]
@@ -324,12 +324,12 @@ class Compiler:
                 # which is: (define name . ( quote . (() . ()) ))
                 value = Pair(Symbol('quote'), Pair(Nil(), Nil()))
             else:
-                raise CompileError(f'Invalid number of arguments for {name}.')
+                raise CompileError(f'Invalid number of arguments for {form_name}.')
         elif isinstance(expr[1], Pair):
             if len(expr) < 3:  # (define (foo))
-                raise CompileError(f'Invalid number of arguments for {name}.')
+                raise CompileError(f'Invalid number of arguments for {form_name}.')
             if expr[1] == Nil():  # (define () x)
-                raise CompileError(f'Malformed {name}.')
+                raise CompileError(f'Malformed {form_name}.')
 
             # expr: (define . ((name . params) . body))
             # expr[1] is in this form: (name . params)
@@ -340,7 +340,7 @@ class Compiler:
             # form: (lambda . ( params . body ))
             value = Pair(S('lambda'), Pair(params, body))
         else:
-            raise CompileError(f'Malformed {name}.')
+            raise CompileError(f'Malformed {form_name}.')
 
         value.src_start = expr.src_start
         value.src_end = expr.src_end
