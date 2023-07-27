@@ -22,7 +22,7 @@
 (define (integer? v) (eq? (type v) 'int))
 (define (string? v) (eq? (type v) 'string))
 (define (char? v) (eq? (type v) 'char))
-(define (closure? v) (eq? (type v) 'closure))
+(define (procedure? v) (eq? (type v) 'procedure))
 (define (bool? v) (eq? (type v) 'bool))
 (define (list? v)
   (if (null? v)

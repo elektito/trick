@@ -244,7 +244,7 @@ class String:
         return String(b.decode(DEFAULT_ENCODING))
 
 
-class Closure:
+class Procedure:
     def __init__(self, c, e, fasl, *, nparams: int, rest_param: bool):
         self.fasl = fasl
         self.c = c
@@ -259,7 +259,7 @@ class Closure:
         return '#<procedure>'
 
 
-class Continuation(Closure):
+class Continuation(Procedure):
     def __init__(self, s, e, c, d, fasl, *, kind=None):
         self.fasl = fasl
         self.s = s.copy()
@@ -597,7 +597,7 @@ all_types = (
     Char,
     List,
     Symbol,
-    Closure,
+    Procedure,
     Vector
 )
 shareable_types = (Pair, Vector)

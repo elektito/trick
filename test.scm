@@ -287,7 +287,7 @@ and still a comment
 (eq? 'int (type 42))
 (eq? 'string (type "foo"))
 (eq? 'char (type #\space))
-(eq? 'closure (type (lambda (x) x)))
+(eq? 'procedure (type (lambda (x) x)))
 (eq? 'bool (type #f))
 (eq? 'bool (type #t))
 (eq? 'vector (type #()))
@@ -357,16 +357,16 @@ and still a comment
 (not (string? (lambda (x) x)))
 (not (string? #(1)))
 
-(closure? (lambda (x) x))
-(closure? (lambda () 10))
-(not (closure? 'foo))
-(not (closure? 1))
-(not (closure? "foo"))
-(not (closure? '()))
-(not (closure? '(1)))
-(not (closure? '(1 2)))
-(not (closure? '(1 . 2)))
-(not (closure? #(1)))
+(procedure? (lambda (x) x))
+(procedure? (lambda () 10))
+(not (procedure? 'foo))
+(not (procedure? 1))
+(not (procedure? "foo"))
+(not (procedure? '()))
+(not (procedure? '(1)))
+(not (procedure? '(1 2)))
+(not (procedure? '(1 . 2)))
+(not (procedure? #(1)))
 
 (char? #\a)
 (char? #\tab)
@@ -990,7 +990,7 @@ and still a comment
 ;; https://github.com/ashinn/chibi-scheme/blob/master/tests/r5rs-tests.scm
 ;; https://github.com/ashinn/chibi-scheme/blob/master/tests/r7rs-tests.scm
 
-(eq? (call/cc type) 'closure)
+(eq? (call/cc type) 'procedure)
 (eq? 30 (+ 10 (call/cc (lambda (k) (k 20)))))
 (eq? 3 (call/cc (lambda (k) (+ 2 5 (k 3)))))
 (eq? -3 (call/cc
@@ -1005,100 +1005,100 @@ and still a comment
 
 ;; make sure primitive functions are available as normal functions
 
-(closure? cons)
+(procedure? cons)
 (equal? '(1 2) (apply cons '(1 (2))))
 
-(closure? car)
+(procedure? car)
 (equal? 1 (apply car '((1 2))))
 
-(closure? cdr)
+(procedure? cdr)
 (equal? '(2) (apply cdr '((1 2))))
 
-(closure? #$iadd)
+(procedure? #$iadd)
 (equal? 3 (apply #$iadd '(1 2)))
 
-(closure? #$isub)
+(procedure? #$isub)
 (equal? -1 (apply #$isub '(1 2)))
 
-(closure? #$imul)
+(procedure? #$imul)
 (equal? 2 (apply #$imul '(1 2)))
 
-(closure? #$idiv)
+(procedure? #$idiv)
 (equal? 2 (apply #$idiv '(4 2)))
 
-(closure? #$shr)
+(procedure? #$shr)
 (equal? 1 (apply #$shr '(4 2)))
 
-(closure? #$shl)
+(procedure? #$shl)
 (equal? 16 (apply #$shl '(4 2)))
 
-(closure? #$asr)
+(procedure? #$asr)
 (equal? 1 (apply #$asr '(4 2)))
 
-(closure? #$bnot)
+(procedure? #$bnot)
 (equal? -1 (apply #$bnot '(0)))
 
-(closure? #$band)
+(procedure? #$band)
 (equal? 0 (apply #$band '(0 1)))
 
-(closure? #$bor)
+(procedure? #$bor)
 (equal? 1 (apply #$bor '(0 1)))
 
-(closure? #$bxor)
+(procedure? #$bxor)
 (equal? 1 (apply #$bxor '(0 1)))
 
-(closure? #$ilt)
+(procedure? #$ilt)
 (apply #$ilt '(1 2))
 
-(closure? #$ile)
+(procedure? #$ile)
 (apply #$ile '(1 1))
 
-(closure? type)
+(procedure? type)
 (equal? 'symbol (apply type '(x)))
 
-(closure? eq?)
+(procedure? eq?)
 (apply eq? '(foo foo))
 
-(closure? gensym)
+(procedure? gensym)
 (symbol? (apply gensym))
 
-(closure? char->integer)
+(procedure? char->integer)
 (equal? 65 (apply char->integer '(#\A)))
 
-(closure? integer->char)
+(procedure? integer->char)
 (equal? #\A (apply integer->char '(65)))
 
-(closure? char-upcase)
+(procedure? char-upcase)
 (equal? #\A (apply char-upcase '(#\a)))
 
-(closure? char-downcase)
+(procedure? char-downcase)
 (equal? #\a (apply char-downcase '(#\A)))
 
-(closure? char-foldcase)
+(procedure? char-foldcase)
 (equal? #\a (apply char-foldcase '(#\A)))
 
-(closure? digit-value)
+(procedure? digit-value)
 (equal? 1 (apply digit-value '(#\1)))
 
-(closure? make-string)
+(procedure? make-string)
 (equal? "AAA" (apply make-string '(3 #\A)))
 (equal? 3 (string-length (apply make-string '(3))))
 
-(closure? string-ref)
+(procedure? string-ref)
 (equal? #\C (string-ref "ABCD" 2))
 
-(closure? string-set!)
+(procedure? string-set!)
 (let ((x (make-string 4 #\A)))
   (apply string-set! `(,x 2 #\X))
   (equal? "AAXA" x))
 
-(closure? string-length)
+(procedure? string-length)
 (equal? 4 (apply string-length '("AAAA")))
 
-(closure? call/cc)
+(procedure? call/cc)
 (apply call/cc (list (lambda (k) (k #t))))
 
-(closure? call-with-current-continuation)
+(procedure? call-with-current-continuation)
 (apply call-with-current-continuation (list (lambda (k) (k #t))))
 
 ;; dynamic-wind

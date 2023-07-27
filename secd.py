@@ -8,7 +8,7 @@ from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from snippet import show_snippet
 from utils import format_user_error
 from machinetypes import (
-    all_types, Bool, Char, Integer, List, Nil, Pair, String, Symbol, Closure, Continuation, Values, Vector,
+    all_types, Bool, Char, Integer, List, Nil, Pair, String, Symbol, Procedure, Continuation, Values, Vector,
 )
 
 
@@ -488,41 +488,41 @@ class Secd:
             nparams = -nparams - 1
         else:
             rest_param = False
-        closure = Closure(
+        proc = Procedure(
             self.c, self.e, self.cur_fasl,
             nparams=nparams, rest_param=rest_param)
-        self.s.pushx(closure)
+        self.s.pushx(proc)
         self.c += body_size
         if self.debug: print(f'ldf body_size={body_size}')
 
-    def fit_args(self, closure, args):
+    def fit_args(self, proc, args):
         """
         Check procedure arguments against args. If they mismatch,
         return an error, otherwise return them as a python list. In
         case the procedure has a rest parameter, any extra arguments
         are stored as a (Scheme) list in the last argument.
         """
-        if closure.rest_param:
-            if len(args) < closure.nparams:
+        if proc.rest_param:
+            if len(args) < proc.nparams:
                 desc = 'procedure'
-                proc_name = self.find_procedure_name(closure)
+                proc_name = self.find_procedure_name(proc)
                 if proc_name:
                     desc += f' "{proc_name}"'
                 raise RunError(
                     f'Invalid number of arguments for {desc} (expected '
-                    f'at least {closure.nparams}, got {len(args)})')
+                    f'at least {proc.nparams}, got {len(args)})')
             args = args.to_list()
-            rest = List.from_list(args[closure.nparams:])
-            args = args[:closure.nparams] + [rest]
+            rest = List.from_list(args[proc.nparams:])
+            args = args[:proc.nparams] + [rest]
         else:
-            if len(args) != closure.nparams:
+            if len(args) != proc.nparams:
                 desc = 'procedure'
-                proc_name = self.find_procedure_name(closure)
+                proc_name = self.find_procedure_name(proc)
                 if proc_name:
                     desc += f' "{proc_name}"'
                 raise RunError(
                     f'Invalid number of arguments for {desc} (expected '
-                    f'{closure.nparams}, got {len(args)})')
+                    f'{proc.nparams}, got {len(args)})')
 
             args = args.to_list()
 
@@ -531,7 +531,7 @@ class Secd:
     def _do_apply(self, name, tail_call=False, dummy_frame=False):
         assert not tail_call or not dummy_frame
 
-        closure = self.s.pop(Closure, name)
+        proc = self.s.pop(Procedure, name)
         args = self.s.pop(List, name)
         if not args.is_proper():
             raise RunError(f'Argument list not proper: {args}')
@@ -540,7 +540,7 @@ class Secd:
             # code specific to "rap" instruction: replace an already existing
             # dummy frame.
 
-            if closure.e[0] != self.dummy_frame:
+            if proc.e[0] != self.dummy_frame:
                 raise RunError('No dummy frame.')
 
             # note that we don't store e[0] on d, since it contains the dummy
@@ -549,32 +549,32 @@ class Secd:
             self.d.append(self.create_continuation(offset=0, e=self.e[1:]))
 
             # replace dummy frame with actual frame
-            closure.e[0] = args
+            proc.e[0] = args
         elif not tail_call:
             self.d.append(self.create_continuation())
         else:
             # tail call: don't add a new continuation
             pass
 
-        self.cur_fasl = closure.fasl
+        self.cur_fasl = proc.fasl
 
-        if self.debug: print(f'{name} {self.c} => {closure.c}')
+        if self.debug: print(f'{name} {self.c} => {proc.c}')
 
-        args = self.fit_args(closure, args)
-        if isinstance(closure, Continuation):
+        args = self.fit_args(proc, args)
+        if isinstance(proc, Continuation):
             rest_args = args[0]
             v = Values(rest_args.to_list())
-            self.s = closure.s.extended([v])
-            self.e = [i for i in closure.e]
-            self.c = closure.c
-            self.d = [i for i in closure.d]
+            self.s = proc.s.extended([v])
+            self.e = [i for i in proc.e]
+            self.c = proc.c
+            self.d = [i for i in proc.d]
         else:
             if dummy_frame:
-                # we've already placed the arguments inside closure.e, so we
+                # we've already placed the arguments inside proc.e, so we
                 # won't need to add the arguments to e here
-                self.s, self.e, self.c = Stack(), closure.e, closure.c
+                self.s, self.e, self.c = Stack(), proc.e, proc.c
             else:
-                self.s, self.e, self.c = Stack(), [args] + closure.e, closure.c
+                self.s, self.e, self.c = Stack(), [args] + proc.e, proc.c
 
     def run_ap(self):
         self._do_apply('ap', tail_call=False)
@@ -775,8 +775,8 @@ class Secd:
             result = self.intern('int')
         elif isinstance(v, String):
             result = self.intern('string')
-        elif isinstance(v, Closure):
-            result = self.intern('closure')
+        elif isinstance(v, Procedure):
+            result = self.intern('procedure')
         elif isinstance(v, Bool):
             result = self.intern('bool')
         elif isinstance(v, Char):
@@ -851,13 +851,13 @@ class Secd:
         if self.debug: print(f'gensym {sym}')
 
     def run_ccc(self): # call/cc
-        closure = self.s.pop(Closure, 'ccc')
+        proc = self.s.pop(Procedure, 'ccc')
         cont = self.create_continuation()
         args = List.from_list([cont])
         self.d.append(cont)
 
         self.s.pushx(args)
-        self.s.pushx(closure)
+        self.s.pushx(proc)
         self._do_apply('ccc')
 
     def run_i2ch(self):

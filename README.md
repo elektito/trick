@@ -50,7 +50,7 @@ Special forms:
  - `set!`: Set a symbol or local variable to the given value.
  - `if`: Conditional statement. Can have one or two arms. If only one arm is
    specified, the other one (the false branch) returns `()`.
- - `lambda`: Creates a closure.
+ - `lambda`: Creates a procedure.
  - `let`: Create a set of local variables.
  - `letrec`: Like `let` but the variables are available inside the bindings too
    (so functions declared in bindings can be mutually recursive).
@@ -85,7 +85,7 @@ Primitive functions:
  - `car`: Return the "car" of a pair
  - `cdr`: Return the "cdr" of a pair
  - `type`: Return a symbol specifying the type of its argument. Possible return
-   values are: `nil`, `symbol`, `pair`, `int`, `string`, `closure`, `bool`.
+   values are: `nil`, `symbol`, `pair`, `int`, `string`, `procedure`, `bool`.
  - `eq?`: Return true if the two values are the exact same object.
  - `gensym`: Return a unique symbol
  - `call/cc`
