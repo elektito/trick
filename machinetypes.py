@@ -361,12 +361,29 @@ class Pair(List):
         return str(self)
 
     def __len__(self) -> int:
-        if self.cdr == Nil():
-            return 1
-        elif isinstance(self.cdr, Pair):
-            return 1 + len(self.cdr)
-        else:
-            raise ValueError('Cannot get the length of improper list')
+        length = 0
+        visited = set()
+        cur = self
+        while not isinstance(cur, Nil):
+            length += 1
+
+            if cur in visited:
+                if isinstance(cur.cdr, Nil):
+                    return length
+                else:
+                    print(cur, cur.is_proper())
+                    print(cur.cdr, cur.cdr.is_proper())
+                    raise ValueError(
+                    'Cannot calculate the length of an improper list')
+
+            visited.add(cur)
+
+            if not isinstance(cur.cdr, (Nil, Pair)):
+                raise ValueError(
+                    'Cannot calculate the length of an improper list')
+            cur = cur.cdr
+
+        return length
 
     def __iter__(self):
         if not self.is_proper():
@@ -471,12 +488,18 @@ class Pair(List):
             return self.cdr.last()
 
     def is_proper(self) -> bool:
-        if self.cdr == Nil():
-            return True
-        elif isinstance(self.cdr, Pair):
-            return self.cdr.is_proper()
-        else:
-            return False
+        visited = set()
+        cur = self
+        while True:
+            if isinstance(cur.cdr, Nil):
+                return True
+            if not isinstance(cur.cdr, Pair):
+                return False
+            if cur.cdr in visited:
+                return False
+            visited.add(cur)
+            cur = cur.cdr
+
 
     @staticmethod
     def from_list(l: list):

@@ -92,26 +92,6 @@ def load_fasl_files(filenames):
     return [load_fasl_file(f) for f in filenames]
 
 
-def detect_cycle(ls, parents=None):
-    from machinetypes import Pair, Nil
-
-    if not isinstance(ls, Pair):
-        return False
-
-    if isinstance(ls, Nil):
-        return False
-
-    if parents is None:
-        parents = []
-
-    if any((ls.car == i or ls.cdr == i) for i in parents):
-        return True
-
-    return \
-        detect_cycle(ls.car, parents + [ls]) or \
-        detect_cycle(ls.cdr, parents + [ls])
-
-
 def find_shared(obj, *, _seen_objects=None, _shared=None):
     from machinetypes import Pair, Vector, Reference, Symbol, shareable_types
 

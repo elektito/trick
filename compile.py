@@ -237,6 +237,9 @@ class Compiler:
             if isinstance(form, Pair) and not form.is_proper():
                 raise CompileError(f'Macro {macro_name_sym} returned an improper list: {form}')
 
+            if isinstance(form, Pair) and not form.is_proper():
+                raise CompileError(f'Macro {macro_name_sym} returned an improper list: {form}')
+
             form.src_start = src_start
             form.src_end = src_end
 
@@ -857,9 +860,10 @@ class Compiler:
             return self.compile_func_call(expr, env)
 
     def compile_form(self, expr, env):
-        if isinstance(expr, Pair):
-            if not expr.is_proper():
-                raise CompileError(f'Cannot compile improper list: {expr}')
+        if self.detect_cycle(expr):
+            raise CompileError(f'Cannot compile cyclic list: {expr}')
+        if isinstance(expr, Pair) and not expr.is_proper():
+            raise CompileError(f'Cannot compile improper list: {expr}')
 
         expr = self.macro_expand(expr, env)
 
@@ -889,6 +893,25 @@ class Compiler:
 
         return secd_code
 
+    def detect_cycle(self, form):
+        if not isinstance(form, Pair):
+            return False
+
+        # we're looking at the "cars" of the form here, because if the cycle is
+        # in cdr we'll catch it as an improper list.
+
+        visited = set()
+        cur = form
+        while True:
+            if isinstance(cur, Nil):
+                return False
+            visited.add(cur)
+            if cur.car in visited:
+                return True
+            if cur.cdr in visited:
+                return True
+            cur = cur.cdr
+
     def compile_toplevel(self, text):
         code = []
         toplevel_env = []
@@ -902,8 +925,12 @@ class Compiler:
             if form is None:  # eof
                 break
 
+
+            if self.detect_cycle(form):
+                raise CompileError(f'Cannot compile cyclic form: {form}')
+            if isinstance(form, Pair) and not form.is_proper():
+                raise CompileError(f'Cannot compile improper list: {form}')
             form = self.macro_expand(form, toplevel_env)
-            asm_start = len(code)
 
             if isinstance(form, Pair) and len(form) > 0 and form[0] == S('define-macro'):
                 form_code = self.process_define_macro(form, toplevel_env)
