@@ -267,13 +267,20 @@ class Compiler:
         func_call_code = [S('get'), name_sym, S('ap')]
         self.assembler.assemble(func_call_code, fasl)
 
-        libs = [self.defines_fasl] + self.libs
-
+        libs = self.libs + [self.defines_fasl]
         machine = Secd(fasl, libs)
 
-        # since we want to push arguments on the stack, load the libraries first
-        # to make sure they won't interfere with what we push.
-        machine.load_libs()
+        try:
+            # since we want to push arguments on the stack, load the libraries
+            # first to make sure they won't interfere with what we push.
+            machine.load_libs()
+        except UserError:
+            err = machine.s.top()
+            msg = format_user_error(err)
+            msg = f'When loading libs for macro expansion of {name_sym}: {msg}'
+            raise CompileError(msg)
+        except RunError as e:
+            raise CompileError(f'Run error when loading libs for macro expansion of "{name_sym}": {e}')
 
         # push the arguments directly on the machine stack. this is a better
         # approach than generating code for the quoted forms of the arguments.
