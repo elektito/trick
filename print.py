@@ -45,12 +45,20 @@ class SharedPrinter:
             Symbol('unquote'): ',',
             Symbol('unquote-splicing'): ',@',
         }
-        if pair.car in special and \
+        if at_start and \
+           pair.car in special and \
            isinstance(pair.cdr, Pair) and \
            isinstance(pair.cdr.cdr, Nil):
-            prefix = special[pair.car]
-            value = self._print(pair.cdr.car)
-            return f"{prefix}{value}"
+            s = special[pair.car]
+            if pair.cdr.car in self._shared:
+                n = self._labels.get(pair.cdr.car)
+                if n is None:
+                    s += self._print(pair.cdr.car)
+                else:
+                    s += f'#{n}#'
+            else:
+                s += self._print(pair.cdr.car)
+            return s
 
         if at_start:
             s += '('
