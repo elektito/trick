@@ -3,10 +3,13 @@ from utils import find_shared
 
 
 class SharedPrinter:
-    def __init__(self, obj):
+    def __init__(self, obj, cycles_only=False):
         if isinstance(obj, shareable_types):
             self._obj = obj
-            self._shared = find_shared(obj)
+            if cycles_only:
+                self._shared = find_cycles(obj)
+            else:
+                self._shared = find_shared(obj)
         else:
             self._obj = obj
             self._shared = {}
@@ -126,3 +129,31 @@ class SharedPrinter:
         self._label_count += 1
         self._labels[obj] = n
         return n
+
+
+def find_cycles(obj, parents=None, cycles=None):
+    if not isinstance(obj, (Pair, Vector)):
+        return cycles
+    if parents is None:
+        parents = set()
+    if cycles is None:
+        cycles = set()
+
+    # `parents |= {obj}` would mutate parents, so we use this to get a fresh
+    # copy
+    parents = set(parents | {obj})
+
+    if isinstance(obj, Pair):
+        children = [obj.car, obj.cdr]
+    elif isinstance(obj, Vector):
+        children = [ch for ch in obj]
+    else:
+        children = []
+
+    for child in children:
+        if child in parents:
+            cycles.add(child)
+        else:
+            find_cycles(child, parents, cycles)
+
+    return cycles
