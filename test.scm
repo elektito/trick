@@ -79,6 +79,8 @@ and still a comment
         '(a (b (c #0=(d e))) f #0# g))
 (let ((x '(#0=(1 2) 3 #0#)))
   (eq? (car x) (caddr x)))
+(let ((x '(1 . #0=(2 . #0#))))
+  (eq? (cdr x) (cddr x)))
 
 (let ((x '(1 #0=(a) #1=#0# #1# 2)))
   (and (equal? x '(1 (a) (a) (a) 2))

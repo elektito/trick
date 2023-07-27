@@ -74,7 +74,10 @@ class SharedPrinter:
             if pair.cdr in self._shared:
                 n = self._labels.get(pair.cdr)
                 if n is None:
-                    s += self._print_pair(pair.cdr, at_start=False)
+                    n = self._assign_label(pair.cdr)
+                    s += f' . #{n}='
+                    s += self._print_pair(pair.cdr, at_start=True)
+                    s += ')'
                 else:
                     s += f' . #{n}#)'
             else:
