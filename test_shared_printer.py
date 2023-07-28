@@ -1,7 +1,7 @@
 import unittest
 
 from machinetypes import Integer, List, Nil, Pair, Symbol, Vector
-from print import SharedPrinter
+from print import PrintMode, Printer
 
 
 i1 = Integer(1)
@@ -19,7 +19,7 @@ specials = {
 
 class TestSharedPrinter(unittest.TestCase):
     def _test(self, value, expected):
-        printer = SharedPrinter(value)
+        printer = Printer(value, mode=PrintMode.Shared)
         s = printer.print()
         self.assertEqual(expected, s)
 

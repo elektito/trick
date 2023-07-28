@@ -353,8 +353,8 @@ class Pair(List):
         self.src_end = None
 
     def __str__(self) -> str:
-        from print import SharedPrinter # avoid circular import
-        printer = SharedPrinter(self)
+        from print import Printer # avoid circular import
+        printer = Printer(self)
         return printer.print()
 
     def __repr__(self):
@@ -591,8 +591,8 @@ class Vector:
         self._elements[idx] = value
 
     def __str__(self):
-        from print import SharedPrinter # avoid circular import
-        printer = SharedPrinter(self)
+        from print import Printer # avoid circular import
+        printer = Printer(self)
         return printer.print()
 
     def __repr__(self):

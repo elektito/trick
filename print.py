@@ -1,15 +1,32 @@
 from machinetypes import shareable_types, Nil, Pair, Symbol, Vector
 from utils import find_shared
+from enum import Enum
 
 
-class SharedPrinter:
-    def __init__(self, obj, cycles_only=False):
+class PrintMode(Enum):
+    # ignore any cycles or shared structures; if there are cycles in the input,
+    # we might crash.
+    Simple = 1
+
+    # use datum labels only when there are cycles in the input
+    Cyclic = 2
+
+    # use datum labels for all shared structures
+    Shared = 3
+
+
+class Printer:
+    def __init__(self, obj, mode=PrintMode.Cyclic):
         if isinstance(obj, shareable_types):
             self._obj = obj
-            if cycles_only:
+            if mode == PrintMode.Simple:
+                self._shared = {}
+            elif mode == PrintMode.Cyclic:
                 self._shared = find_cycles(obj)
-            else:
+            elif mode == PrintMode.Shared:
                 self._shared = find_shared(obj)
+            else:
+                raise ValueError(f'Invalid print mode: {mode}')
         else:
             self._obj = obj
             self._shared = {}

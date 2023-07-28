@@ -1,7 +1,7 @@
 import unittest
 
 from machinetypes import Integer, List, Nil, Pair, Vector, Symbol
-from print import SharedPrinter
+from print import PrintMode, Printer
 
 
 i1 = Integer(1)
@@ -20,7 +20,7 @@ specials = {
 
 class TestCyclicPrinter(unittest.TestCase):
     def _test(self, value, expected):
-        printer = SharedPrinter(value, cycles_only=True)
+        printer = Printer(value, mode=PrintMode.Cyclic)
         s = printer.print()
         self.assertEqual(expected, s)
 
