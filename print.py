@@ -1,4 +1,4 @@
-from machinetypes import shareable_types, Nil, Pair, Symbol, Vector
+from machinetypes import Char, String, shareable_types, Nil, Pair, Symbol, Vector
 from utils import find_shared
 from enum import Enum
 
@@ -15,10 +15,20 @@ class PrintMode(Enum):
     Shared = 3
 
 
+class Style(Enum):
+    # machine-readable output like the "write" procedure should
+    Write = 1
+
+    # human-readable output like the "display" procedure should
+    Display = 2
+
+
 class Printer:
-    def __init__(self, obj, mode=PrintMode.Cyclic):
+    def __init__(self, obj, style=Style.Write, mode=PrintMode.Cyclic):
+        self._obj = obj
+        self._style = style
+
         if isinstance(obj, shareable_types):
-            self._obj = obj
             if mode == PrintMode.Simple:
                 self._shared = {}
             elif mode == PrintMode.Cyclic:
@@ -28,7 +38,6 @@ class Printer:
             else:
                 raise ValueError(f'Invalid print mode: {mode}')
         else:
-            self._obj = obj
             self._shared = {}
 
         self._reset()
@@ -52,7 +61,7 @@ class Printer:
         elif isinstance(obj, Vector):
            s += self._print_vector(obj)
         else:
-            s += str(obj)
+            s += self._print_atom(obj)
 
         return s
 
@@ -139,6 +148,22 @@ class Printer:
         s += ')'
 
         return s
+
+    def _print_atom(self, obj):
+        if self._style == Style.Write:
+            return str(obj)
+        else:
+            return self._display_atom(obj)
+
+    def _display_atom(self, obj):
+        if isinstance(obj, String):
+            return obj.value
+        elif isinstance(obj, Symbol):
+            return obj.name
+        elif isinstance(obj, Char):
+            return chr(obj.char_code)
+        else:
+            return str(obj)
 
     def _assign_label(self, obj):
         assert isinstance(obj, (Pair, Vector))
