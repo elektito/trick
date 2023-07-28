@@ -1001,6 +1001,10 @@ def configure_argparse(parser: argparse.ArgumentParser):
         '--lib', '-l', action='append', default=[],
         help='Add a library FASL to be loaded when compiling.')
 
+    parser.add_argument(
+        '--dbg-info', '-g', action='store_true', default=False,
+        help='Add debug info symbols to the compiler output.')
+
     parser.set_defaults(func=main)
 
 
@@ -1010,7 +1014,7 @@ def main(args):
         with open(lib, 'rb') as f:
             lib_fasls.append(Fasl.load(f, lib))
 
-    compiler = Compiler(lib_fasls)
+    compiler = Compiler(lib_fasls, debug_info=args.dbg_info)
 
     if args.input == '-':
         text = sys.stdin.read()
