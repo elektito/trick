@@ -60,7 +60,7 @@ def main(args):
     while True:
         try:
             text = input('> ')
-        except EOFError:
+        except (EOFError, KeyboardInterrupt):
             print()
             break
 
