@@ -536,6 +536,8 @@ class Secd:
         if not args.is_proper():
             raise RunError(f'Argument list not proper: {args}')
 
+        args = self.fit_args(proc, args)
+
         if dummy_frame:
             # code specific to "rap" instruction: replace an already existing
             # dummy frame.
@@ -560,7 +562,6 @@ class Secd:
 
         if self.debug: print(f'{name} {self.c} => {proc.c}')
 
-        args = self.fit_args(proc, args)
         if isinstance(proc, Continuation):
             rest_args = args[0]
             v = Values(rest_args.to_list())
