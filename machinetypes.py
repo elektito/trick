@@ -233,8 +233,26 @@ class String:
     def __len__(self):
         return len(self.value)
 
-    def __repr__(self):
-        return f'"{self.value}"'
+    def __str__(self):
+        s = ''
+        map = {
+            '\a': '\\a',
+            '\b': '\\b',
+            '\t': '\\t',
+            '\n': '\\n',
+            '\r': '\\r',
+            '"': '\\"',
+            '\\': '\\\\',
+        }
+        for c in self.value:
+            escaped = map.get(c)
+            if escaped is not None:
+                s += escaped
+            elif not c.isprintable():
+                s += f'\\x{hex(ord(c))};'
+            else:
+                s += c
+        return f'"{s}"'
 
     def encode(self, encoding=DEFAULT_ENCODING):
         return self.value.encode(encoding)
