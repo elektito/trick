@@ -109,7 +109,34 @@ class Symbol:
         return hash(self.name)
 
     def __str__(self):
-        return self.short_name
+        s = ''
+        need_delimeters = False
+        separators = '[]()\'"` '
+        escapes = {
+            '\a': '\\a',
+            '\b': '\\b',
+            '\t': '\\t',
+            '\n': '\\n',
+            '\r': '\\r',
+            '\\': '\\\\',
+            '|': '\\|',
+        }
+        for c in self.short_name:
+            if c in separators:
+                need_delimeters = True
+
+            if c in escapes:
+                need_delimeters = True
+                s += escapes[c]
+            elif not c.isprintable():
+                s += f'\\x{hex(ord(c))};'
+            else:
+                s += c
+
+        if need_delimeters:
+            s = f'|{s}|'
+
+        return s
 
     def __repr__(self):
         if self.short_name != self.name:
