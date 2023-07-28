@@ -3,7 +3,6 @@
 import io
 import sys
 import argparse
-from typing_extensions import runtime
 from fasl import DefineInfo, Fasl
 from read import Reader, ReadError
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String, Vector
