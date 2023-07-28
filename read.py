@@ -129,6 +129,8 @@ class Reader:
             return c
 
         c = self._input.read(1)
+        if c == '' and eof_error:
+            raise ReadError(eof_error)
         if c != '':
             self.input_idx += 1
         return c
