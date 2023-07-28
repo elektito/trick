@@ -28,7 +28,7 @@ class Reader:
         assert hasattr(input, 'read')
 
         self._input = input
-        self.input_idx = -1
+        self.input_idx = 0
         self._unread_chars = []
         self._fold_case = False
         self._labeled_data = {}
@@ -52,13 +52,13 @@ class Reader:
     def _read(self, eof_error=None, allow_delim=None, label=None) -> (None | Integer | Symbol | List | Bool | String | Char):
         self._skip_whitespace(eof_error)
 
+        start = self.input_idx
+
         cur_char = self._read_one_char(eof_error)
         if not cur_char:
             if eof_error:
                 raise ReadError(eof_error)
             return None
-
-        start = self.input_idx
 
         match cur_char:
             case '(':
@@ -69,13 +69,13 @@ class Reader:
 
             case ')':
                 if allow_delim == ')':
-                    return None
+                    value = None
                 else:
                     raise ReadError('Unbalanced parentheses')
 
             case ']':
                 if allow_delim == ']':
-                    return None
+                    value = None
                 else:
                     raise ReadError('Unbalanced parentheses')
 
@@ -113,8 +113,9 @@ class Reader:
                         token = token.casefold()
                     value = Symbol(token)
 
-        value.src_start = start
-        value.src_end = self.input_idx
+        if value is not None:
+            value.src_start = start
+            value.src_end = self.input_idx
 
         if label is not None:
             self._labeled_data[label.value] = value
@@ -128,7 +129,8 @@ class Reader:
             return c
 
         c = self._input.read(1)
-        self.input_idx += 1
+        if c != '':
+            self.input_idx += 1
         return c
 
     def _unread_one_char(self, char):
