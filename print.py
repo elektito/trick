@@ -96,12 +96,8 @@ class Printer:
             s += self._print(pair.car)
 
             if pair.cdr in self._shared:
-                n = self._labels.get(pair.cdr)
-                if n is None:
-                    s += f' . '
-                    s += self._print(pair.cdr)
-                else:
-                    s += f' . #{n}#'
+                s += f' . '
+                s += self._print(pair.cdr)
                 pair = Nil()
                 break
 
@@ -119,7 +115,6 @@ class Printer:
         for e in vec:
             if s != '#(':
                 s += ' '
-
             s += self._print(e)
 
         s += ')'
