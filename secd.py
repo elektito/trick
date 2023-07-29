@@ -210,9 +210,7 @@ class Secd:
             0x43: self.run_ldf,
             0x44: self.run_st,
             0x46: self.run_ldstr,
-            0x47: self.run_strtab,
             0x48: self.run_ldsym,
-            0x49: self.run_symtab,
             0x4a: self.run_set,
             0x4b: self.run_get,
             0x4c: self.run_unset,
@@ -719,38 +717,6 @@ class Secd:
     def run_false(self):
         self.s.pushx(Bool(False))
         if self.debug: print(f'false')
-
-    def run_strtab(self):
-        nstrs = self.cur_fasl.code[self.c:self.c+4]
-        self.c += 4
-        nstrs = int.from_bytes(nstrs, byteorder='little', signed=False)
-        self.cur_fasl.strtab = []
-        for _ in range(nstrs):
-            length = self.cur_fasl.code[self.c:self.c+4]
-            self.c += 4
-            length = int.from_bytes(length, byteorder='little', signed=False)
-            s = self.cur_fasl.code[self.c:self.c+length]
-            s = String.from_bytes(s)
-            self.cur_fasl.strtab.append(s)
-            self.c += length
-
-        if self.debug: print(f'strtab {nstrs}')
-
-    def run_symtab(self):
-        if self.cur_fasl.symtab != []:
-            raise RunError('Multiple symtab instructions')
-        nsyms = self.cur_fasl.code[self.c:self.c+4]
-        self.c += 4
-        nsyms = int.from_bytes(nsyms, byteorder='little', signed=False)
-        strnums = []
-        for _ in range(nsyms):
-            strnum = self.cur_fasl.code[self.c:self.c+4]
-            self.c += 4
-            strnum = int.from_bytes(strnum, byteorder='little', signed=False)
-            strnums.append(strnum)
-
-        self.cur_fasl.symtab = [Symbol(self.cur_fasl.strtab[i].value) for i in strnums]
-        if self.debug: print(f'symtab {nsyms}')
 
     def run_car(self):
         pair = self.s.pop(Pair, 'car')
