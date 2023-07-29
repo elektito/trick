@@ -98,13 +98,13 @@ def find_shared(obj, *, _seen_objects=None, _shared=None):
     if _seen_objects is None:
         _seen_objects = {}
     if _shared is None:
-        _shared = {}
+        _shared = set()
 
     if not isinstance(obj, shareable_types):
         return _shared
 
     if obj in _seen_objects:
-        _shared[obj] = _seen_objects[obj]
+        _shared.add(obj)
         return _shared
 
     _seen_objects[obj] = Reference(Symbol.gensym())
