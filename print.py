@@ -15,7 +15,7 @@ class PrintMode(Enum):
     Shared = 3
 
 
-class Style(Enum):
+class PrintStyle(Enum):
     # machine-readable output like the "write" procedure should
     Write = 1
 
@@ -24,7 +24,7 @@ class Style(Enum):
 
 
 class Printer:
-    def __init__(self, obj, style=Style.Write, mode=PrintMode.Cyclic):
+    def __init__(self, obj, style=PrintStyle.Write, mode=PrintMode.Cyclic):
         self._obj = obj
         self._style = style
 
@@ -150,7 +150,7 @@ class Printer:
         return s
 
     def _print_atom(self, obj):
-        if self._style == Style.Write:
+        if self._style == PrintStyle.Write:
             return str(obj)
         else:
             return self._display_atom(obj)
