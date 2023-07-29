@@ -8,7 +8,7 @@ from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from snippet import show_snippet
 from utils import format_user_error
 from machinetypes import (
-    all_types, Bool, Char, Integer, List, Nil, Pair, String, Symbol, Procedure, Continuation, Values, Vector,
+    Bool, Char, Integer, List, Nil, Pair, String, Symbol, Procedure, Continuation, TrickType, Values, Vector,
 )
 
 
@@ -38,7 +38,7 @@ class Stack:
             raise ValueError(
                 'Attempting to write a Values object with "push"; use '
                 'push_multiple.')
-        if not isinstance(value, all_types):
+        if not isinstance(value, TrickType):
             raise ValueError(f'Invalid type being pushed: {repr(value)}')
 
         self.s.append(value)
@@ -1092,7 +1092,7 @@ def main(args):
 def print_value(v):
     if isinstance(v, String):
         print(v.value)
-    elif isinstance(v, all_types):
+    elif isinstance(v, TrickType):
         print(v)
     else:
         raise RunError(f'Unknown type to print: {v}')

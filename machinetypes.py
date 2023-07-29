@@ -4,6 +4,10 @@ from uuid import uuid4
 DEFAULT_ENCODING = 'utf-8'
 
 
+class TrickType:
+    pass
+
+
 class Reference:
     """
     Used internally to represent references in shared structures like #0# in
@@ -25,7 +29,7 @@ class Reference:
         return f'<Ref #{self.label}#>'
 
 
-class Integer(int):
+class Integer(int, TrickType):
     def __new__(cls, n, *args, **kwargs):
         obj = super().__new__(cls, n, *args, **kwargs)
         obj.src_start = None
@@ -75,7 +79,7 @@ class Integer(int):
         return self
 
 
-class Symbol:
+class Symbol(TrickType):
     gensym_number = 0
 
     def __init__(self, name, *, short_name=None):
@@ -155,7 +159,7 @@ class Symbol:
         return Symbol(full_name, short_name=short_name)
 
 
-class Bool:
+class Bool(TrickType):
     def __init__(self, value: bool):
         if not isinstance(value, bool):
             raise TypeError('Invalid boolean value')
@@ -186,7 +190,7 @@ class Bool:
         return self.value == other.value
 
 
-class Char:
+class Char(TrickType):
     name_to_code = {
         'alarm': 0x07,
         'backspace': 0x08,
@@ -241,7 +245,7 @@ class Char:
         return f'<Char {self}>'
 
 
-class String:
+class String(TrickType):
     def __init__(self, value: str):
         assert isinstance(value, str)
         self.value = value
@@ -289,7 +293,7 @@ class String:
         return String(b.decode(DEFAULT_ENCODING))
 
 
-class Procedure:
+class Procedure(TrickType):
     def __init__(self, c, e, fasl, *, nparams: int, rest_param: bool):
         self.fasl = fasl
         self.c = c
@@ -324,7 +328,7 @@ class Continuation(Procedure):
         return f'#<continuation>'
 
 
-class List:
+class List(TrickType):
     @staticmethod
     def from_list(ls):
         if ls == []:
@@ -386,9 +390,9 @@ class Pair(List):
             return value
 
     def __init__(self, car, cdr):
-        if not isinstance(car, all_types):
+        if not isinstance(car, (TrickType, Reference)):
             raise TypeError(f'Invalid value type for car: {car}')
-        if not isinstance(cdr, all_types):
+        if not isinstance(cdr, (TrickType, Reference)):
             raise TypeError(f'Invalid value type for cdr: {cdr}')
 
         self.car = car
@@ -582,7 +586,7 @@ class Pair(List):
             return start
 
 
-class Values:
+class Values(TrickType):
     def __init__(self, values):
         assert isinstance(values, list)
         self._values = values
@@ -606,7 +610,7 @@ class Values:
         return f'<Values {self._values}>'
 
 
-class Vector:
+class Vector(TrickType):
     class Iterator:
         def __init__(self, vector):
             self._vector = vector
@@ -657,15 +661,4 @@ class Vector:
         ])
 
 
-all_types = (
-    Reference,
-    Integer,
-    Bool,
-    String,
-    Char,
-    List,
-    Symbol,
-    Procedure,
-    Vector
-)
 shareable_types = (Pair, Vector)

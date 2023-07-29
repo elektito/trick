@@ -1,6 +1,6 @@
 import io
 from typing_extensions import runtime
-from machinetypes import Integer, Symbol, List, Nil, Pair, Bool, String, Char, Reference, Vector
+from machinetypes import Integer, Symbol, List, Nil, Pair, Bool, String, Char, Reference, TrickType, Vector
 
 
 class ReadError(Exception):
@@ -34,7 +34,7 @@ class Reader:
         self._labeled_data = {}
         self._seen_labels = set()
 
-    def read(self) -> (None | Integer | Symbol | List | Bool | String | Char):
+    def read(self) -> (None | TrickType):
         """
         Return None if EOF, otherwise a Scheme object is read and returned.
         """
@@ -49,7 +49,7 @@ class Reader:
 
         return value
 
-    def _read(self, eof_error=None, allow_delim=None, label=None) -> (None | Integer | Symbol | List | Bool | String | Char):
+    def _read(self, eof_error=None, allow_delim=None, label=None) -> (None | TrickType):
         self._skip_whitespace(eof_error)
 
         start = self.input_idx
