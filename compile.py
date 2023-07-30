@@ -289,13 +289,12 @@ class Compiler:
         func_call_code = [S('get'), name_sym, S('ap')]
         self.assembler.assemble(func_call_code, fasl)
 
-        libs = self.libs + [self.defines_fasl]
-        machine = Secd(fasl, libs)
+        machine = Secd()
 
         try:
             # since we want to push arguments on the stack, load the libraries
             # first to make sure they won't interfere with what we push.
-            machine.load_libs()
+            machine.load_fasls(self.libs + [self.defines_fasl])
         except UserError:
             err = machine.s.top()
             msg = format_user_error(err)
@@ -313,7 +312,7 @@ class Compiler:
         machine.s.push(args)
 
         try:
-            machine.run()
+            machine.execute_fasl(fasl)
         except UserError:
             err = machine.s.top()
             msg = format_user_error(err)

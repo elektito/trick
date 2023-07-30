@@ -132,7 +132,7 @@ class Stack:
 
 
 class Secd:
-    def __init__(self, program, libs):
+    def __init__(self):
         self.s = Stack()
         self.e = []
         self.c = 0
@@ -142,11 +142,6 @@ class Secd:
         self.debug = False
         self.symvals = {}
 
-        assert isinstance(program, Fasl)
-        assert all(isinstance(i, Fasl) for i in libs)
-        self.program = program
-        self.libs = libs
-        self.libs_loaded = False
         self.cur_fasl = None
 
         self.op_funcs = {
@@ -368,16 +363,17 @@ class Secd:
         else:
             self.s.push_multiple(retvals)
 
-    def load_libs(self):
-        if self.libs_loaded:
-            return
-        for fasl in self.libs:
+    def load_fasls(self, fasls):
+        # there's no difference between loading and executing a fasl. the only
+        # reason we have this function is that "loading" sounds nicer when
+        # talking about libraries, and execute makes more sense for the main
+        # program.
+        for fasl in fasls:
             self.execute_fasl(fasl)
-        self.libs_loaded = True
 
-    def run(self):
-        self.load_libs()
-        self.execute_fasl(self.program)
+    def load_fasl(self, fasl):
+        # see comments in load_fasls
+        self.execute_fasl(fasl)
 
     def execute_fasl(self, fasl):
         self.cur_fasl = fasl
@@ -1066,10 +1062,11 @@ def main(args):
         with open(lib, 'rb') as f:
             lib_fasls.append(Fasl.load(f, lib))
 
-    m = Secd(fasl, lib_fasls)
+    m = Secd()
+    m.load_fasls(lib_fasls)
     m.debug = args.debug
     try:
-        m.run()
+        m.execute_fasl(fasl)
     except UserError:
         err = m.s.pop()
         msg = format_user_error(err)

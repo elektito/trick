@@ -45,6 +45,9 @@ def main():
             break
         test_exprs.append(expr)
 
+    machine = Secd()
+    machine.load_fasls(libs)
+
     errors = []
     fails = []
     success = 0
@@ -64,9 +67,8 @@ def main():
                 break
             continue
 
-        machine = Secd(expr_fasl, libs)
         try:
-            machine.run()
+            machine.execute_fasl(expr_fasl)
         except UserError:
             err = machine.s.top()
             msg = format_user_error(err)

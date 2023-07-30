@@ -57,6 +57,9 @@ def main(args):
     readline.set_completer_delims('()[] \'"|')
     readline.set_completer(lambda text, state: completer(text, state, libs=libs))
 
+    machine = Secd()
+    machine.load_fasls(libs)
+
     while True:
         try:
             text = input('> ')
@@ -79,9 +82,8 @@ def main(args):
             print(f'Compile error: {e}')
             continue
 
-        machine = Secd(expr_fasl, libs)
         try:
-            machine.run()
+            machine.execute_fasl(expr_fasl)
         except UserError:
             err = machine.s.top()
             msg = format_user_error(err)
