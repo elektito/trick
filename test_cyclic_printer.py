@@ -149,3 +149,11 @@ class TestCyclicPrinter(unittest.TestCase):
             p = Pair(i1, Nil())
             p.cdr = Pair(long, Pair(p, Nil()))
             self._test(p, f'#0=(1 {long} #0#)')
+
+    def test_large_list(self):
+        n = 5000
+        ls = Nil()
+        for _ in range(n):
+            ls = Pair(i1, ls)
+        expected = '(' + ' '.join('1' for _ in range(n)) + ')'
+        self._test(ls, expected)

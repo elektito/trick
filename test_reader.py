@@ -29,25 +29,27 @@ class TestReader(unittest.TestCase):
         if isinstance(l2, Nil):
             return False
 
-        if isinstance(l1.car, List):
-            if not isinstance(l2.car, List):
-                return False
-            if not self._list_eq(l1.car, l2.car):
-                return False
-        else:
-            if l1.car != l2.car:
-                return False
+        cur1 = l1
+        cur2 = l2
+        while isinstance(cur1, Pair) and isinstance(cur2, Pair):
+            if isinstance(cur1, Nil):
+                return isinstance(cur2, Nil)
+            if isinstance(cur2, Nil):
+                return isinstance(cur1, Nil)
 
-        if isinstance(l1.cdr, List):
-            if not isinstance(l2.cdr, List):
-                return False
-            if not self._list_eq(l1.cdr, l2.cdr):
-                return False
-        else:
-            if l1.cdr != l2.cdr:
-                return False
+            if isinstance(cur1.car, List):
+                if not isinstance(cur2.car, List):
+                    return False
+                if not self._list_eq(cur1.car, cur2.car):
+                    return False
+            else:
+                if cur1.car != cur2.car:
+                    return False
 
-        return True
+            cur1 = cur1.cdr
+            cur2 = cur2.cdr
+
+        return cur1 == cur2
 
     def _read(self, text):
         file = io.StringIO(text)
@@ -158,3 +160,11 @@ class TestReader(unittest.TestCase):
     def test_not_opened2(self):
         with self.assertRaises(ReadError):
             self._read(']')
+
+    def test_large_list(self):
+        n = 5000
+        text = '(' + ' '.join('1' for _ in range(n)) + ')'
+        expected = Nil()
+        for _ in range(n):
+            expected = Pair(i1, expected)
+        self._test(text, expected)
