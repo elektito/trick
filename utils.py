@@ -92,32 +92,31 @@ def load_fasl_files(filenames):
     return [load_fasl_file(f) for f in filenames]
 
 
-def find_shared(obj, *, _seen_objects=None, _shared=None):
+def find_shared(obj):
     from machinetypes import Pair, Vector, Reference, Symbol, shareable_types
 
-    if _seen_objects is None:
-        _seen_objects = {}
-    if _shared is None:
-        _shared = set()
+    seen = {}
+    shared = set()
+    stack = [obj]
 
-    if not isinstance(obj, shareable_types):
-        return _shared
+    # we used to do this recursively, but then we'd run into python's maximum
+    # recursion depth for large-ish lists.
+    while stack:
+        obj = stack.pop()
+        if not isinstance(obj, shareable_types):
+            continue
+        if obj in seen:
+            shared.add(obj)
+            continue
+        seen[obj] = Reference(Symbol.gensym())
 
-    if obj in _seen_objects:
-        _shared.add(obj)
-        return _shared
+        if isinstance(obj, Pair):
+            stack.append(obj.car)
+            stack.append(obj.cdr)
+        elif isinstance(obj, Vector):
+            for e in obj:
+                stack.append(e)
+        else:
+            assert False
 
-    _seen_objects[obj] = Reference(Symbol.gensym())
-
-    if isinstance(obj, Pair):
-        find_shared(
-            obj.car, _seen_objects=_seen_objects, _shared=_shared)
-        find_shared(
-            obj.cdr, _seen_objects=_seen_objects, _shared=_shared)
-    elif isinstance(obj, Vector):
-        for e in obj:
-            find_shared(e, _seen_objects=_seen_objects, _shared=_shared)
-    else:
-        assert False
-
-    return _shared
+    return shared
