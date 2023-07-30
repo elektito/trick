@@ -377,8 +377,15 @@ class Reader:
                     refs.append(value)
             return value
         elif isinstance(value, Pair):
-            value.car = self._resolve_refs(value.car)
-            value.cdr = self._resolve_refs(value.cdr)
+            cur = value
+            while True:
+                cur.car = self._resolve_refs(cur.car)
+                if not isinstance(cur.cdr, Pair):
+                    cur.cdr = self._resolve_refs(cur.cdr)
+                    break
+                else:
+                    cur = cur.cdr
+
             return value
         elif isinstance(value, Vector):
             for i in range(len(value)):
