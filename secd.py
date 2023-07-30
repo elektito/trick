@@ -141,9 +141,15 @@ class Secd:
         self.dummy_frame = object()
         self.debug = False
         self.symvals = {}
-
         self.cur_fasl = None
 
+        self.setup_instructions()
+        self.setup_runtime()
+
+        if fasls:
+            self.load_fasls(fasls)
+
+    def setup_instructions(self):
         self.op_funcs = {
             0x01: self.run_nil,
             0x02: self.run_true,
@@ -215,6 +221,7 @@ class Secd:
             0x4c: self.run_unset,
         }
 
+    def setup_runtime(self):
         self.runtime_procs = {}
         for module_name, module_info in runtime.modules.items():
             module_object = module_info['class']()
@@ -240,9 +247,6 @@ class Secd:
                 key = (module_info['opcode']), proc_info['opcode']
                 self.runtime_procs[key] = get_do_proc(
                     proc_info, method, f'#$/{module_name}/{proc_name}')
-
-        if fasls:
-            self.load_fasls(fasls)
 
     def call_runtime_proc(self, module_opcode, proc_opcode):
         self.runtime_procs[module_opcode, proc_opcode]()
