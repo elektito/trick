@@ -995,6 +995,11 @@
     (let ((str (#$/str/format 'cyclic 'display obj)))
       (#$/io/write str port)))))
 
+(define flush-output-port
+  (case-lambda
+   (() (flush-output-port (current-output-port)))
+   ((port) (#$/io/flush port))))
+
 (define (print . objs)
   (do ((objs objs (cdr objs))
        (dummy 0 (write-char #\space)))

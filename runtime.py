@@ -75,6 +75,11 @@ class Io(RuntimeModule):
         port.write(text)
         return Bool(True)
 
+    @proc(opcode=0x05)
+    def flush(self, port: Port) -> TrickType:
+        port.file.flush()
+        return Bool(True)
+
 
 @module(opcode=0x02)
 class Str(RuntimeModule):
