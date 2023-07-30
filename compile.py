@@ -31,14 +31,6 @@ primcalls = {
         'nargs': 1,
         'code': [S('l2m')],
     },
-    'print': {
-        'nargs': 1,
-        'code': [S('print')],
-    },
-    'printc': {
-        'nargs': 1,
-        'code': [S('printc')],
-    },
     '#$iadd': {
         'nargs': 2,
         'code': [S('iadd')],

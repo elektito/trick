@@ -670,6 +670,19 @@
       #t
       (all? (pairwise string=?1 strings))))
 
+(define (substring str start end)
+  (let ((result (make-string (- end start))))
+    (do ((i start (1+ i))
+         (j 0 (1+ j)))
+        ((= i end) result)
+      (string-set! result j (string-ref str i)))))
+
+(define string-copy
+  (case-lambda
+   ((str) (substring str 0 (string-length str)))
+   ((str start) (substring str start (string-length str)))
+   ((str start end) (substring str start end))))
+
 ;; vectors
 
 (define (make-vector . args)
@@ -937,6 +950,18 @@
 (define current-output-port (make-parameter (#$/io/stdout)))
 (define current-error-port (make-parameter (#$/io/stderr)))
 
+(define write-char
+  (case-lambda
+   ((char) (write-char char (current-output-port)))
+   ((char port) (#$/io/write (#$/str/format 'simple 'display char) port))))
+
+(define write-string
+  (case-lambda
+   ((str) (write-string str (current-output-port) 0 (string-length str)))
+   ((str port) (write-string str port 0 (string-length str)))
+   ((str port start) (write-string str port start (string-length str)))
+   ((str port start end) (#$/io/write (substring str start end) port))))
+
 (define write
   (case-lambda
    ((obj) (write obj (current-output-port)))
@@ -957,3 +982,14 @@
    ((obj port)
     (let ((str (#$/str/format 'simple 'write obj)))
       (#$/io/write str port)))))
+
+(define newline
+  (case-lambda
+   (() (newline (current-output-port)))
+   ((port) (write-char #\newline))))
+
+(define (print . objs)
+  (do ((objs objs (cdr objs))
+       (dummy 0 (write-char #\space)))
+      ((null? objs) (newline))
+    (write (car objs))))

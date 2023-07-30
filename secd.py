@@ -162,8 +162,6 @@ class Secd:
             0x0a: self.run_tap,
             0x0b: self.run_dum,
             0x0c: self.run_rap,
-            0x0d: self.run_print,
-            0x0e: self.run_printc,
             0x0f: self.run_halt,
             0x10: self.run_iadd,
             0x11: self.run_isub,
@@ -617,16 +615,6 @@ class Secd:
         retvals = self.s.pop_multiple().as_list()
         self.resume_continuation(self.d.pop(), retvals)
         if self.debug: print(f'ret retval={retvals}')
-
-    def run_print(self):
-        v = self.s.topx()  # leave the value on stack as return value
-        if self.debug: print(f'print {v}')
-        print_value(v)
-
-    def run_printc(self):
-        n = self.s.topx()  # leave the value on stack as return value
-        if self.debug: print(f'printc {n}')
-        print(chr(n), end='')
 
     def run_halt(self):
         self.halt_code = self.s.pop(int, 'halt')
@@ -1097,12 +1085,3 @@ def main(args):
         print('Code exhausted.', file=sys.stderr)
     else:
         print('Machine halted with code:', m.halt_code, file=sys.stderr)
-
-
-def print_value(v):
-    if isinstance(v, String):
-        print(v.value)
-    elif isinstance(v, TrickType):
-        print(v)
-    else:
-        raise RunError(f'Unknown type to print: {v}')

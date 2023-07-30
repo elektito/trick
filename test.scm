@@ -691,6 +691,17 @@ and still a comment
   (string-set! s 2 #\Z)
   (string=? s "X Z"))
 
+(equal? "cde" (substring "abcdefg" 2 5))
+(equal? "" (substring "abcdefg" 4 4))
+
+(equal? "cde" (string-copy "abcdefg" 2 5))
+(equal? "" (string-copy "abcdefg" 4 4))
+(equal? "cdefg" (string-copy "abcdefg" 2))
+(let* ((s "abcd")
+       (r (string-copy s)))
+  (and (equal? s r)
+       (not (eq? s r))))
+
 (equal? (string->list "") '())
 (equal? (string->list "ABC") '(#\A #\B #\C))
 (equal? (string->list "ABCDEFG" 2 5) '(#\C #\D #\E))
