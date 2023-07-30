@@ -486,15 +486,15 @@ class Compiler:
     def compile_char(self, ch: Char, env):
         return [S('ldc'), Integer(ch.char_code), S('i2ch')]
 
-    def compile_vector_literal(self, form: Vector, env, shared, labels):
+    def compile_vector_literal(self, form: Vector, env, labels, processed):
+        processed.add(form)
         code = []
 
-        if form in shared:
-            code += self.compile_shared_object(form, labels)
+        if form in labels:
             for i in range(len(form)):
                 code += [S('get'), labels[form]]
                 code += [S('ldc'), Integer(i)]
-                code += self.compile_quoted_form(form[i], env, shared, labels)
+                code += self.compile_quoted_form(form[i], env, labels, processed)
                 code += [S('vecset')]
             code += [S('get'), labels[form]]
         else:
@@ -506,18 +506,13 @@ class Compiler:
             for i in range(len(form)):
                 code += [S('dup')]
                 code += [S('ldc'), Integer(i)]
-                code += self.compile_quoted_form(form[i], env, shared, labels)
+                code += self.compile_quoted_form(form[i], env, labels, processed)
                 code += [S('vecset')]
 
         return code
 
     def compile_vector(self, v: Vector, env):
-        shared = find_shared(v)
-        labels = {}
-        code = self.compile_vector_literal(v, env, shared, labels)
-        for sym in labels.values():
-            code += [S('unset'), sym]
-        return code
+        return self.compile_literal(v, env)
 
     def check_let_bindings(self, bindings, let_name):
         if not isinstance(bindings, List):
@@ -726,52 +721,70 @@ class Compiler:
 
         return code
 
-    def compile_list_literal(self, form, env, shared, labels):
+    def compile_list_literal(self, form, env, labels, processed):
+        processed.add(form)
         code = []
-        if form in shared:
-            code += self.compile_shared_object(form, labels)
 
-            code += self.compile_quoted_form(form.cdr, env, shared, labels)
-            code += [S('get'), labels[form], S('setcdr')]
+        # follow the cdr's until we reach either nil or a shared cell
+        pairs = []
+        cur = form
+        while True:
+            pairs.append(cur)
+            cur = cur.cdr
+            if not isinstance(cur, Pair) or cur in labels:
+                break
 
-            code += self.compile_quoted_form(form.car, env, shared, labels)
-            code += [S('get'), labels[form], S('setcar')]
+        # compile the final cdr
+        code += self.compile_quoted_form(pairs[-1].cdr, env, labels, processed)
 
-            code += [S('get'), labels[form]]
-        else:
-            code += self.compile_quoted_form(form.cdr, env, shared, labels)
-            code += self.compile_quoted_form(form.car, env, shared, labels)
-            code += [S('cons')]
+        # now iterate backwards
+        for p in reversed(pairs):
+            if p in labels:
+                code += [S('get'), labels[p], S('setcdr')]
+                code += self.compile_quoted_form(p.car, env, labels, processed)
+                code += [S('get'), labels[p], S('setcar')]
+                code += [S('get'), labels[p]]
+            else:
+                code += self.compile_quoted_form(p.car, env, labels, processed)
+                code += [S('cons')]
+
         return code
 
-    def compile_quoted_form(self, form, env, shared, labels):
-        if form in labels:
+    def compile_quoted_form(self, form, env, labels, processed):
+        if form in processed:
             return [S('get'), labels[form]]
         elif isinstance(form, Nil):
             return [S('nil')]
         elif isinstance(form, Pair):
-            return self.compile_list_literal(form, env, shared, labels)
+            return self.compile_list_literal(form, env, labels, processed)
         elif isinstance(form, Vector):
-            return self.compile_vector_literal(form, env, shared, labels)
+            return self.compile_vector_literal(form, env, labels, processed)
         elif isinstance(form, Symbol):
             return [S('ldsym'), form]
         else:
             # other atoms evaluate to themselves, quoted or not
             return self.compile_form(form, env)
 
-    def compile_quote(self, expr, env):
-        if len(expr) != 2:
-            raise CompileError(f'Invalid number of arguments for quote.')
-
-        shared = {}
+    def compile_literal(self, expr, env):
+        code = []
         labels = {}
-        shared = find_shared(expr[1])
-        code = self.compile_quoted_form(expr[1], env, shared, labels)
+        shared = find_shared(expr)
+        for i in shared:
+            code += self.compile_shared_object(i, labels)
+        processed = set()
+
+        code += self.compile_quoted_form(expr, env, labels, processed)
 
         for sym in labels.values():
             code += [S('unset'), sym]
 
         return code
+
+    def compile_quote(self, expr, env):
+        if len(expr) != 2:
+            raise CompileError(f'Invalid number of arguments for quote.')
+
+        return self.compile_literal(expr[1], env)
 
     def compile_error(self, expr, env):
         if len(expr) < 2 or len(expr) % 2 != 0:
