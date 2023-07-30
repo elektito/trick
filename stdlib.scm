@@ -988,6 +988,13 @@
    (() (newline (current-output-port)))
    ((port) (write-char #\newline))))
 
+(define display
+  (case-lambda
+   ((obj) (display obj (current-output-port)))
+   ((obj port)
+    (let ((str (#$/str/format 'cyclic 'display obj)))
+      (#$/io/write str port)))))
+
 (define (print . objs)
   (do ((objs objs (cdr objs))
        (dummy 0 (write-char #\space)))
