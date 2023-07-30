@@ -132,7 +132,7 @@ class Stack:
 
 
 class Secd:
-    def __init__(self):
+    def __init__(self, fasls=None):
         self.s = Stack()
         self.e = []
         self.c = 0
@@ -240,6 +240,9 @@ class Secd:
                 key = (module_info['opcode']), proc_info['opcode']
                 self.runtime_procs[key] = get_do_proc(
                     proc_info, method, f'#$/{module_name}/{proc_name}')
+
+        if fasls:
+            self.load_fasls(fasls)
 
     def call_runtime_proc(self, module_opcode, proc_opcode):
         self.runtime_procs[module_opcode, proc_opcode]()

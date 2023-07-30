@@ -45,8 +45,7 @@ def main():
             break
         test_exprs.append(expr)
 
-    machine = Secd()
-    machine.load_fasls(libs)
+    machine = Secd(libs)
 
     errors = []
     fails = []

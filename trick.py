@@ -153,8 +153,7 @@ def main():
             print(f'Compile error: {e}')
             sys.exit(1)
 
-        machine = secd.Secd()
-        machine.load_fasls(lib_fasls)
+        machine = secd.Secd(lib_fasls)
         try:
             machine.execute_fasl(expr_fasl)
         except secd.UserError:
