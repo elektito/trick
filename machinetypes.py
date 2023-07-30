@@ -330,11 +330,11 @@ class Continuation(Procedure):
 
 class List(TrickType):
     @staticmethod
-    def from_list(ls):
+    def from_list(ls, *, after_dot=None):
         if ls == []:
             return Nil()
         else:
-            return Pair.from_list(ls)
+            return Pair.from_list(ls, after_dot=after_dot)
 
     @staticmethod
     def from_list_recursive(ls):
@@ -551,17 +551,20 @@ class Pair(List):
 
 
     @staticmethod
-    def from_list(l: list):
+    def from_list(l: list, *, after_dot=None):
         assert isinstance(l, list)
         if l == []:
             return Nil()
         else:
             start = Pair(l[0], Nil())
-            prev = start
+            last = start
             for elem in l[1:]:
                 new_pair = Pair(elem, Nil())
-                prev.cdr = new_pair
-                prev = new_pair
+                last.cdr = new_pair
+                last = new_pair
+
+            if after_dot is not None:
+                last.cdr = after_dot
 
             return start
 

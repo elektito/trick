@@ -62,10 +62,10 @@ class Reader:
 
         match cur_char:
             case '(':
-                value = self._read_list(delim=')', at_start=True)
+                value = self._read_list(delim=')')
 
             case '[':
-                value = self._read_list(delim=']', at_start=True)
+                value = self._read_list(delim=']')
 
             case ')':
                 if allow_delim == ')':
@@ -185,31 +185,36 @@ class Reader:
     def _read_vector(self):
         ls = self._read_list(
             delim=')',
-            at_start=True,
-            no_dots=False)
+            no_dot_allowed=False)
         return Vector(ls)
 
-    def _read_list(self, delim, at_start, no_dots=False):
-        car = self._read(allow_delim=delim, eof_error='List not closed')
-        if car is None:
-            return Nil()
-        if car == Symbol('.'):
-            if no_dots:
-                raise ReadError('Misplaced dot')
-            if at_start:
-                raise ReadError('Unexpected dot (.) at the start of list')
-            cdr = self._read(allow_delim=delim)
-            if cdr is None:
-                raise ReadError('Expected one item after dot (.)')
+    def _read_list(self, delim, no_dot_allowed=False):
+        read_dot = False
+        values = []
+        value_after_dot = None
+        while True:
+            value = self._read(allow_delim=delim, eof_error='List not closed')
+            if value is None:
+                if read_dot and value_after_dot is None:
+                    raise ReadError('No item after dot')
+                elif read_dot:
+                    result = List.from_list(values, after_dot=value_after_dot)
+                    return result
+                else:
+                    return List.from_list(values)
 
-            rest = self._read_list(delim, at_start=True)
-            if rest != Nil():
-                raise ReadError('More than one item after dot (.)')
-
-            return cdr
-        else:
-            cdr = self._read_list(delim, at_start=False)
-            return Pair(car, cdr)
+            if value == Symbol('.'):
+                if no_dot_allowed:
+                    raise ReadError('Misplaced dot')
+                if values == []:
+                    raise ReadError('Unexpected dot (.) at the start of list')
+                if read_dot:
+                    raise ReadError('More than one dot in list')
+                read_dot = True
+            elif read_dot:
+                value_after_dot = value
+            else:
+                values.append(value)
 
     def _read_string(self, delim='"'):
         eof_error = 'Unexpected end-of-file while reading string'
