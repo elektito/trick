@@ -256,11 +256,6 @@ class String(TrickType):
     def __hash__(self):
         return hash(self.value)
 
-    def __eq__(self, other):
-        if not isinstance(other, String):
-            return False
-        return self.value == other.value
-
     def __len__(self):
         return len(self.value)
 

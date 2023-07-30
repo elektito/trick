@@ -18,16 +18,15 @@ and still a comment
 
 (eq? 1 1)
 (eq? 'foo 'foo)
-(eq? "foo" "foo")
 (eq? :foo :foo)
 
 (eq? #f '#f)
 (eq? #t '#t)
 (eq? 10 '10)
-(eq? "foo" '"foo")
 (eq? #\space #\space)
 (eq? '() '())
 (not (eq? '() 'nil))
+(equal? "foo" '"foo")
 (equal? #() '#())
 (equal? #(a b) '#(a b))
 
