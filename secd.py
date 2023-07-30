@@ -4,6 +4,8 @@ import os
 import sys
 import argparse
 import unicodedata
+
+import runtime
 from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from snippet import show_snippet
 from utils import format_user_error
@@ -46,7 +48,7 @@ class Stack:
     def pushx(self, value):
         self.s.append(value)
 
-    def top(self, type=None, instr_name=None):
+    def top(self, type=None, instr_name=None, arg_name=None):
         "read top of the stack without popping it"
 
         if len(self.s) == 0:
@@ -63,25 +65,28 @@ class Stack:
                 prefix = ''
                 if instr_name:
                     prefix = f'{instr_name}: '
-                raise RunError(f'{prefix}Reading a value when zero is available.')
+                arg_desc = f' (for argument "{arg_name}")' if arg_name else ''
+                raise RunError(f'{prefix}Reading a value{arg_desc} when zero is available.')
             else:
                 prefix = ''
                 if instr_name:
                     prefix = f'{instr_name}: '
-                raise RunError(f'{prefix}Reading a value when multiple is available.')
+                arg_desc = f' (for argument "{arg_name}")' if arg_name else ''
+                raise RunError(f'{prefix}Reading a value{arg_desc} when multiple is available.')
 
         if type and not isinstance(value, type):
             prefix = ''
             if instr_name:
                 prefix = f'{instr_name}: '
+            arg_desc = f' "{arg_name}"' if arg_name else ''
             raise RunError(
-                f'{prefix}Expected operand of type "{type.__name__}", got: '
+                f'{prefix}Expected operand{arg_desc} of type "{type.__name__}", got: '
                 f'{value}')
 
         return value
 
-    def pop(self, type=None, instr_name=None):
-        value = self.top(type, instr_name)
+    def pop(self, type=None, instr_name=None, arg_name=None):
+        value = self.top(type, instr_name, arg_name=arg_name)
         self.s.pop()
         return value
 
@@ -209,12 +214,42 @@ class Secd:
             0x42: self.run_sel,
             0x43: self.run_ldf,
             0x44: self.run_st,
+            0x45: self.run_trap,
             0x46: self.run_ldstr,
             0x48: self.run_ldsym,
             0x4a: self.run_set,
             0x4b: self.run_get,
             0x4c: self.run_unset,
         }
+
+        self.runtime_procs = {}
+        for module_name, module_info in runtime.modules.items():
+            module_object = module_info['class']()
+            for proc_name, proc_info in module_info['procs'].items():
+                def get_do_proc(proc_info, method, full_name):
+                    def do_proc():
+                        args = []
+                        for arg_name, arg_type in proc_info['args'].items():
+                            value = self.s.pop(arg_type,
+                                               instr_name=full_name,
+                                               arg_name=arg_name)
+                            args.append(value)
+                        ret = method(*args)
+                        if not isinstance(ret, proc_info['return_type']):
+                            raise RunError(
+                                f'Expected runtime procedure {full_name}'
+                                f' to return a value of type '
+                                f'{proc_info["return_type"].__name__}, '
+                                f'but got: {ret}')
+                        self.s.pushx(ret)
+                    return do_proc
+                method = getattr(module_object, proc_name)
+                key = (module_info['opcode']), proc_info['opcode']
+                self.runtime_procs[key] = get_do_proc(
+                    proc_info, method, f'#$/{module_name}/{proc_name}')
+
+    def call_runtime_proc(self, module_opcode, proc_opcode):
+        self.runtime_procs[module_opcode, proc_opcode]()
 
     def find_expr(self, fasl, c):
         dbginfo = fasl.get_extra_section('dbginfo')
@@ -1001,6 +1036,15 @@ class Secd:
     def run_swap(self):
         self.s.swap()
         if self.debug: print('swap')
+
+    def run_trap(self):
+        runtime_opcodes = self.cur_fasl.code[self.c:self.c+2]
+        self.c += 2
+        runtime_opcodes = int.from_bytes(runtime_opcodes, byteorder='little', signed=True)
+
+        module_opcode = runtime_opcodes & 0x00ff
+        proc_opcode = (runtime_opcodes & 0xff00) >> 8
+        self.call_runtime_proc(module_opcode, proc_opcode)
 
 
 def configure_argparse(parser: argparse.ArgumentParser):

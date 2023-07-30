@@ -3,6 +3,8 @@
 import io
 import sys
 import argparse
+
+import runtime
 from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl, FaslDbgInfoSection
 from read import Reader, ReadError
 from machinetypes import List, Pair, String, Symbol
@@ -199,6 +201,18 @@ class Assembler:
                 code += bytes([0x44])
                 code += frame.to_bytes(length=2, byteorder='little', signed=False)
                 code += index.to_bytes(length=2, byteorder='little', signed=False)
+            elif instr == 'trap':
+                name_sym = expr[i]
+                i += 1
+                module_name, proc_name = name_sym.name.split('/')
+                if module_name not in runtime.modules:
+                    raise AssembleError(f'Unknown runtime module: {module_name}')
+                proc_desc = runtime.find_proc(module_name, proc_name)
+                if proc_desc is None:
+                    raise AssembleError(f'Unknown runtime procedure: {module_name}/{proc_name}')
+                code += bytes([0x45])
+                code += bytes([proc_desc['module_opcode']])
+                code += bytes([proc_desc['opcode']])
             elif instr == 'ldstr':
                 s = expr[i]
                 i += 1

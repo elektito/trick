@@ -664,4 +664,21 @@ class Vector(TrickType):
         ])
 
 
+class Port(TrickType):
+    def __init__(self, file, mode: str, *, filename=None):
+        assert mode in ['text', 'binary']
+        self.file = file
+        self.mode = mode
+        self.filename = filename
+
+    def __str__(self):
+        if self.filename:
+            return f'#<{self.mode} port "{self.filename}">'
+        else:
+            return f'#<{self.mode} port>'
+
+    def write(self, text: String):
+        self.file.write(text.value)
+
+
 shareable_types = (Pair, Vector)

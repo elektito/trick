@@ -110,7 +110,11 @@ def main():
             print(f'Read error: {e}')
             sys.exit(1)
 
-        lib_fasls = load_fasl_files(args.lib)
+        try:
+            lib_fasls = load_fasl_files(args.lib)
+        except FileNotFoundError as e:
+            print(e)
+            sys.exit(1)
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         try:
             expanded = compiler.macro_expand(form, [])

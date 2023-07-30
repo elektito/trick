@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
 import io
+import re
 import sys
 import argparse
+
+import runtime
 from fasl import DefineInfo, Fasl
 from read import Reader, ReadError
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String, Vector
@@ -193,6 +196,31 @@ primcalls = {
         'code': [S('veclen')],
     },
 }
+
+
+def get_primcall(name):
+    if name in primcalls:
+        ret = primcalls[name]
+        if isinstance(ret, str):
+            # primitive is a synonoym of another one. look it up again.
+            ret = primcalls[ret]
+        return ret
+
+    if name.startswith('#$/'):
+        m = re.match(r'#\$/(?P<module>\w+)/(?P<proc>\w+)', name)
+        if m:
+            module = m.group('module')
+            proc = m.group('proc')
+            desc = runtime.find_proc(module, proc)
+            if desc is None:
+                raise CompileError(f'Unknown runtime procedure: {name}')
+
+            return {
+                'nargs': len(desc['args']),
+                'code': [S('trap'), S(f'{module}/{proc}')],
+            }
+
+    return None
 
 
 class CompileError(Exception):
@@ -446,7 +474,8 @@ class Compiler:
         return code
 
     def compile_symbol(self, sym: Symbol, env):
-        if sym.name in primcalls:
+        prim = get_primcall(sym.name)
+        if prim:
             # using a primitive like "car" or "cons" as a symbol. this should
             # return a function that performs those primitives. what we do is
             # emit an ldf instruction which loads its arguments into the stack,
@@ -454,10 +483,6 @@ class Compiler:
             # arguments, and than performs the same instructions the primitive
             # itself would perform. and then returns of course.
             func_code = []
-            prim = primcalls[sym.name]
-            if isinstance(prim, str):
-                # primitive is a synonoym of another one. look it up again.
-                prim = primcalls[prim]
             for i in range(prim['nargs'] - 1, -1, -1):
                 func_code += [S('ld'), [Integer(0), Integer(i)]]
             func_code += prim['code']
@@ -817,12 +842,11 @@ class Compiler:
         return code
 
     def compile_primcall(self, expr, env, desc):
-        if isinstance(desc, str):
-            desc = primcalls[desc]
-
         nargs = desc['nargs']
         if len(expr) != nargs + 1:
-            raise CompileError(f'Invalid number of arguments for "{expr[0]}"')
+            raise CompileError(
+                f'Invalid number of arguments for "{expr[0]}" '
+                f'(expected: {nargs}, got {len(expr)-1})')
 
         code = []
         for i in range(nargs - 1, -1, -1):
@@ -859,9 +883,8 @@ class Compiler:
             if name in special_forms:
                 compile_func = special_forms[name]
                 return compile_func(expr, env)
-            elif name in primcalls:
-                prim = primcalls[name]
-                return self.compile_primcall(expr, env, prim)
+            elif desc := get_primcall(name):
+                return self.compile_primcall(expr, env, desc)
             elif name in self.macros:
                 macro = self.macros[name]
                 new_form = macro.expand(expr.cdr)
@@ -923,6 +946,8 @@ class Compiler:
             if cur.cdr in visited:
                 return True
             cur = cur.cdr
+            if not isinstance(cur, List):
+                return False
 
     def compile_toplevel(self, text):
         code = []

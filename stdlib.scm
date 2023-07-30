@@ -930,3 +930,30 @@
            (lambda () ,@set-new-bindings)
            (lambda () ,@body)
            (lambda () ,@set-old-bindings)))))
+
+;; io
+
+(define current-input-port (make-parameter (#$/io/stdin)))
+(define current-output-port (make-parameter (#$/io/stdout)))
+(define current-error-port (make-parameter (#$/io/stderr)))
+
+(define write
+  (case-lambda
+   ((obj) (write obj (current-output-port)))
+   ((obj port)
+    (let ((str (#$/str/format 'cyclic 'write obj)))
+      (#$/io/write str port)))))
+
+(define write-shared
+  (case-lambda
+   ((obj) (write obj (current-output-port)))
+   ((obj port)
+    (let ((str (#$/str/format 'shared 'write obj)))
+      (#$/io/write str port)))))
+
+(define write-simple
+  (case-lambda
+   ((obj) (write obj (current-output-port)))
+   ((obj port)
+    (let ((str (#$/str/format 'simple 'write obj)))
+      (#$/io/write str port)))))
