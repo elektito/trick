@@ -304,7 +304,10 @@ class Fasl:
 
         # write symbols
         for sym in self.symtab:
-            strnum = self.strtab.index(String(sym.name))
+            # can't do `self.strtab.index(String(sym.name))` because String
+            # objects do not implement content-based __eq__ (and we don't want
+            # them to).
+            strnum = [s.value for s in self.strtab].index(sym.name)
             output.write(struct.pack('<I', strnum))
 
         # write defines
