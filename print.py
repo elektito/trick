@@ -145,29 +145,29 @@ class Printer:
         return n
 
 
-def find_cycles(obj, parents=None, cycles=None):
-    if not isinstance(obj, (Pair, Vector)):
-        return cycles
-    if parents is None:
-        parents = set()
-    if cycles is None:
-        cycles = set()
+def find_cycles(obj):
+    parents = set()
+    cycles = set()
+    stack = [(obj, parents)]
 
-    # `parents |= {obj}` would mutate parents, so we use this to get a fresh
-    # copy
-    parents = set(parents | {obj})
-
-    if isinstance(obj, Pair):
-        children = [obj.car, obj.cdr]
-    elif isinstance(obj, Vector):
-        children = [ch for ch in obj]
-    else:
-        children = []
-
-    for child in children:
-        if child in parents:
-            cycles.add(child)
+    # we used to do this recursively, but then we'd run into python's maximum
+    # recursion depth for large-ish lists.
+    while stack:
+        obj, parents = stack.pop()
+        if not isinstance(obj, (Pair, Vector)):
+            continue
+        parents = set(parents | {obj})
+        if isinstance(obj, Pair):
+            children = [obj.car, obj.cdr]
+        elif isinstance(obj, Vector):
+            children = [ch for ch in obj]
         else:
-            find_cycles(child, parents, cycles)
+            children = []
+
+        for child in children:
+            if child in parents:
+                cycles.add(child)
+            else:
+                stack.append((child, parents))
 
     return cycles
