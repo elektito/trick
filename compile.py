@@ -940,6 +940,43 @@ class Compiler:
             if not isinstance(cur, List):
                 return False
 
+    def compile_toplevel_form(self, form, env):
+        if not isinstance(form, Pair):
+            return self.compile_form(form, env)
+
+        if form[0] == S('define-macro'):
+            form_code = self.process_define_macro(form, env)
+            if isinstance(form[1], Symbol):
+                defined_sym = form[1]     # (define-macro foo value)
+            else:
+                defined_sym = form[1][0]  # (define-macro (foo . formals) . body)
+
+            self.defines_fasl.add_define(defined_sym, is_macro=True)
+            self.assembler.assemble(form_code, self.defines_fasl)
+
+            # if we're not compiling a library, do not include the macro
+            # code in the output.
+            if not self.compiling_library:
+                form_code = []
+        elif form[0] == S('define'):
+            form_code = self.compile_form(form, env)
+            if isinstance(form[1], Symbol):
+                defined_sym = form[1]     # (define foo value)
+            else:
+                defined_sym = form[1][0]  # (define (foo . formals) . body)
+
+            if self.debug_info:
+                form_code = \
+                    [S(':define-start'), String(defined_sym.name), Integer(form.src_start)] + \
+                    form_code + \
+                    [S(':define-end'), Integer(form.src_end)]
+            self.defines_fasl.add_define(defined_sym, is_macro=False)
+            self.assembler.assemble(form_code, self.defines_fasl)
+        else:
+            form_code = self.compile_form(form, env)
+
+        return form_code
+
     def compile_toplevel(self, text):
         code = []
         toplevel_env = []
@@ -959,36 +996,7 @@ class Compiler:
                 raise CompileError(f'Cannot compile improper list: {form}')
             form = self.macro_expand(form, toplevel_env)
 
-            if isinstance(form, Pair) and len(form) > 0 and form[0] == S('define-macro'):
-                form_code = self.process_define_macro(form, toplevel_env)
-                if isinstance(form[1], Symbol):
-                    defined_sym = form[1]     # (define-macro foo value)
-                else:
-                    defined_sym = form[1][0]  # (define-macro (foo . formals) . body)
-
-                self.defines_fasl.add_define(defined_sym, is_macro=True)
-                self.assembler.assemble(form_code, self.defines_fasl)
-
-                # if we're not compiling a library, do not include the macro
-                # code in the output.
-                if not self.compiling_library:
-                    form_code = []
-            elif isinstance(form, Pair) and len(form) > 0 and form[0] == S('define'):
-                form_code = self.compile_form(form, toplevel_env)
-                if isinstance(form[1], Symbol):
-                    defined_sym = form[1]     # (define foo value)
-                else:
-                    defined_sym = form[1][0]  # (define (foo . formals) . body)
-
-                if self.debug_info:
-                    form_code = \
-                        [S(':define-start'), String(defined_sym.name), Integer(form.src_start)] + \
-                        form_code + \
-                        [S(':define-end'), Integer(form.src_end)]
-                self.defines_fasl.add_define(defined_sym, is_macro=False)
-                self.assembler.assemble(form_code, self.defines_fasl)
-            else:
-                form_code = self.compile_form(form, toplevel_env)
+            form_code = self.compile_toplevel_form(form, toplevel_env)
 
             if code == []:
                 code = form_code
