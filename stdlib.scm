@@ -134,10 +134,7 @@
       (cons (func (car args))
             (mapcar func (cdr args)))))
 
-;; begin and cond
-
-(define-macro (begin . body)
-  (list (append (list 'lambda '()) body)))
+;; cond
 
 (define-macro (cond . arms)
   (if (null? arms)

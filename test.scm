@@ -16,6 +16,50 @@ and still a comment
 
 ;; and now to more important things! |# <---make emacs scheme mode happy
 
+;; defines
+
+(= 200 (let ((x 10))
+         (define x 200)
+         x))
+
+(equal? '(100 200 300 400)
+        (let ()
+          (define x 100)
+          (begin
+            (define y 200)
+            (define z 300))
+          (define w 400)
+          (list x y z w)))
+
+(equal? '(20 100  200)
+        (let ((a 10))
+          (define x 100)
+          (begin
+            (define y 200)
+            (set! a 20))
+          (list a x y)))
+
+(equal? 100 (let ((x 10))
+              (define x 100)
+              x))
+
+(= 201 (let ()
+         (define (foo x) (+ 1 (bar x)))
+         (define (bar x) (+ x 100))
+         (foo 100)))
+
+(let ()
+  (define (is-even? n)
+    (or (zero? 0)
+        (is-odd? (- n 1))))
+  (define (is-odd? n)
+    (and (not (zero? n))
+         (is-even? (- n 1))))
+  (and (is-odd? 11)
+       (is-even? 12)))
+
+;;
+
 (eq? 1 1)
 (eq? 'foo 'foo)
 (eq? :foo :foo)

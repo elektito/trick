@@ -219,6 +219,13 @@ def get_primcall(name):
     return None
 
 
+def locate_var(var: Symbol, env):
+    for i, frame in enumerate(env):
+        if var in frame:
+            return [Integer(i), Integer(frame.index(var))]
+    return None
+
+
 class CompileError(Exception):
     pass
 
@@ -359,6 +366,9 @@ class Compiler:
             params = expr.cdar().cdr
             body = expr.cddr()
 
+            if not isinstance(name, Symbol):
+                raise CompileError(f'Invalid name for {form_name}: {name}')
+
             # form: (lambda . ( params . body ))
             value = Pair(S('lambda'), Pair(params, body))
         else:
@@ -411,6 +421,88 @@ class Compiler:
             false_code = [S('void'), S('join')]
         return cond_code + [S('sel')] + [true_code] + [false_code]
 
+    def collect_defines(self, body):
+        # receive the body a lambda (or let and the like).
+        # the body forms should have been macro-expanded already (not recursively)
+        # collects all initial defines (including those in begin statements)
+        # returns a pair, consisting of the list of defines, as well as the rest of the body
+
+        defines = []
+        while not isinstance(body, Nil):
+            form = body.car
+            if not isinstance(form, Pair):
+                break
+
+            if form.car == S('define'):
+                defines.append(('define', form))
+            elif form.car == S('begin'):
+                begin_defines, begin_rest = self.collect_defines(form.cdr)
+                defines += begin_defines
+                if begin_rest != Nil():
+                    # add whatever is remaining in the begin body to the
+                    # beginngin of the main body.
+                    body = body.cdr # remove current "begin" statement from the body
+                    for i in reversed(begin_rest.to_list()):
+                        body = Pair(i, body)
+                    break
+            else:
+                break
+
+            body = body.cdr
+
+        return defines, body
+
+    def compile_body(self, body, env):
+        # compile the body of a lambda (or a similar expression like let).
+        # the initial definitions are converted into and compiled as a letrec*.
+        # any begin at the initial part of the code is spliced into the body (recursively).
+
+        # we could do this in steps:
+        #  - first macro expand1 all body expressions
+        #  - traverse body expressions from the beginning
+        #    + if there's a define collect it and continue
+        #    + if there's a begin traverse it recursively
+        #    + (ideally we should also process local macros here)
+        #    + if there's anything else, stop traversing
+        #  - now convert the collected defines into a letrec*
+        #  - put the rest of the body as the body of the letrec*
+        #  - compile the letrec* as the body
+
+        code = []
+
+        # first macro expand the body, since collect_defines expects that.
+        cur = body
+        while not isinstance(cur, Nil):
+            cur.car = self.macro_expand(cur.car, env)
+            cur = cur.cdr
+
+        defines, body = self.collect_defines(body)
+
+        # expand the environment to include the defines
+        for define_type, define_form in defines:
+            name, value = self.parse_define_form(define_form, define_type)
+            if name not in env[0]:
+                env[0].append(name)
+                code += [S('xp')]
+
+        # now that the environment has all the new variables, set variable
+        # values
+        for define_type, define_form in defines:
+            name, value = self.parse_define_form(define_form, define_type)
+            code += self.compile_form(value, env)
+            code += [S('st'), locate_var(name, env)]
+
+        if isinstance(body, Nil):
+            raise CompileError('Empty body')
+
+        # compile the rest of the body normally
+        for i, e in enumerate(body):
+            code += self.compile_form(e, env)
+            if i < len(body) - 1:
+                code.append(S('drop'))
+
+        return code
+
     def compile_lambda(self, expr, env):
         if len(expr) < 3:
             raise CompileError(f'Invalid number of arguments for lambda: {expr}')
@@ -451,13 +543,8 @@ class Compiler:
 
         # expr: (lambda . (params . body))
         body = expr.cddr()
-        body_code = []
-        for i, e in enumerate(body):
-            body_code += self.compile_form(e, new_env)
-            if i < len(body) - 1:
-                body_code.append(S('drop'))
-
-        body_code = body_code + [S('ret')]
+        body_code = self.compile_body(body, new_env)
+        body_code += [S('ret')]
         if body_code[-2] == S('ap') or body_code[-2] == S('ap'):
             body_code[-2:] = [S('tap')]
 
@@ -487,12 +574,12 @@ class Compiler:
         if sym.name.startswith(':'):
             return [S('ldsym'), sym]
 
-        for i, frame in enumerate(env):
-            if sym in frame:
-                return [S('ld'), [Integer(i), Integer(frame.index(sym))]]
-
-        self.read_symbols.add(sym)
-        return [S('get'), sym]
+        local_var_spec = locate_var(sym, env)
+        if local_var_spec is None:
+            self.read_symbols.add(sym)
+            return [S('get'), sym]
+        else:
+            return [S('ld'), local_var_spec]
 
     def compile_string(self, s: String, env):
         return [S('ldstr'), s]
@@ -673,28 +760,6 @@ class Compiler:
         secd_code += [S('ap')]
         return secd_code
 
-    def compile_define(self, expr, env):
-        name, value = self.parse_define_form(expr, 'define')
-
-        if env == []:
-            self.defined_symbols[name] = DefineInfo(is_macro=False)
-
-            code = self.compile_form(value, env)
-
-            # the "dup" instructions makes sure "define" leaves its value on the
-            # stack (because all primitive forms are supposed to have a return
-            # value)
-            code += [S('dup'), S('set'), name]
-        else:
-            if name in env[0]:
-                raise CompileError(f'Duplicate local definition: {name}')
-            env[0].append(name)
-            code = [S('xp')]
-            code += self.compile_form(value, env)
-            code += [S('dup'), S('st'), [0, len(env[0]) - 1]]
-
-        return code
-
     def compile_set(self, expr, env):
         if len(expr) != 3:
             raise CompileError(f'Invalid number of arguments for set!')
@@ -706,16 +771,14 @@ class Compiler:
         value = expr[2]
         code = self.compile_form(value, env)
 
-        # leave the value on the stack as return value of set!
-        code += [S('dup')]
-
-        for i, frame in enumerate(env):
-            if name in frame:
-                code += [S('st'), [Integer(i), Integer(frame.index(name))]]
-                break
-        else:
+        local_var_spec = locate_var(name, env)
+        if local_var_spec is None:
             code += [S('set'), name]
             self.set_symbols.add(name)
+        else:
+            code += [S('st'), local_var_spec]
+
+        code += [S('void')]
 
         return code
 
@@ -850,6 +913,19 @@ class Compiler:
         code += desc['code']
         return code
 
+    def compile_begin(self, expr, env):
+        if expr.cdr == Nil():
+            # unlike at the top-level, or at the beginning of a lambda/let body,
+            # the normal "begin" expression cannot be empty.
+            raise CompileError('Empty "begin" expression')
+
+        code = []
+        for i, form in enumerate(expr.cdr):
+            if i > 0:
+                code += [S('drop')]
+            code += self.compile_form(form, env)
+        return code
+
     def compile_list(self, expr, env):
         if expr == Nil():
             raise CompileError('Empty list is not a valid form')
@@ -861,9 +937,11 @@ class Compiler:
             name = expr.car.name
             if name == S('define-macro'):
                 raise CompileError('define-macro only allowed at top-level')
+            if name == S('define'):
+                raise CompileError('Ill-placed define')
 
             special_forms = {
-                'define': self.compile_define,
+                'begin': self.compile_begin,
                 'set!': self.compile_set,
                 'if': self.compile_if,
                 'lambda': self.compile_lambda,
@@ -963,19 +1041,24 @@ class Compiler:
             if not self.compiling_library:
                 form_code = []
         elif form[0] == S('define'):
-            form_code = self.compile_form(form, env)
-            if isinstance(form[1], Symbol):
-                defined_sym = form[1]     # (define foo value)
-            else:
-                defined_sym = form[1][0]  # (define (foo . formals) . body)
+            name_sym, value = self.parse_define_form(form, 'define')
+            self.defined_symbols[name_sym] = DefineInfo(is_macro=False)
+            form_code = self.compile_form(value, env)
+            form_code += [S('set'), name_sym, S('void')]
 
             if self.debug_info:
                 form_code = \
-                    [S(':define-start'), String(defined_sym.name), Integer(form.src_start)] + \
+                    [S(':define-start'), String(name_sym.name), Integer(form.src_start)] + \
                     form_code + \
                     [S(':define-end'), Integer(form.src_end)]
-            self.defines_fasl.add_define(defined_sym, is_macro=False)
+            self.defines_fasl.add_define(name_sym, is_macro=False)
             self.assembler.assemble(form_code, self.defines_fasl)
+        elif form[0] == S('begin'):
+            form_code = []
+            for expr in form.cdr:
+                form_code += self.compile_toplevel_form(expr, env)
+            if form_code == []:
+                form_code = [S('void')]
         else:
             form_code = self.compile_form(form, env)
 
