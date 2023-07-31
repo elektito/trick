@@ -91,6 +91,7 @@ class Assembler:
                 'tap': 0x0a,
                 'dum': 0x0b,
                 'rap': 0x0c,
+                'void': 0x0d,
                 'halt': 0x0f,
                 'iadd': 0x10,
                 'isub': 0x11,

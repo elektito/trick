@@ -326,10 +326,10 @@
 ;; more macros now that we have quasiquote!
 
 (define-macro (when c . body)
-  `(if ,c (begin ,@body) #f))
+  `(if ,c (begin ,@body)))
 
 (define-macro (unless c . body)
-  `(if ,c #f (begin ,@body)))
+  `(if ,c (#$void) (begin ,@body)))
 
 (define-macro (with-gensyms names . body)
   `(let ,(mapcar (lambda (name) `(,name (gensym))) names)

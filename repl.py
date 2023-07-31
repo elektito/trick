@@ -5,6 +5,7 @@ import readline
 from assemble import Assembler
 from compile import CompileError
 from fasl import Fasl
+from machinetypes import Void
 from read import ReadError, read_expr
 from secd import RunError, Secd, UserError
 from utils import compile_expr_to_fasl, ensure_fasl, format_user_error
@@ -97,8 +98,10 @@ def main(args):
             machine.print_stack_trace()
         else:
             result = machine.s.pop_multiple()
-            for r in result.as_list():
-                print(r)
+            result = result.as_list()
+            if result != [Void()]:
+                for r in result:
+                    print(r)
 
         # if the expression was a definition, add the fasl to the our list of
         # libraries, so it's available to future expressions.

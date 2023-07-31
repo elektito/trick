@@ -10,7 +10,7 @@ from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from snippet import show_snippet
 from utils import format_user_error
 from machinetypes import (
-    Bool, Char, Integer, List, Nil, Pair, String, Symbol, Procedure, Continuation, TrickType, Values, Vector,
+    Bool, Char, Integer, List, Nil, Pair, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void,
 )
 
 
@@ -163,6 +163,7 @@ class Secd:
             0x0a: self.run_tap,
             0x0b: self.run_dum,
             0x0c: self.run_rap,
+            0x0d: self.run_void,
             0x0f: self.run_halt,
             0x10: self.run_iadd,
             0x11: self.run_isub,
@@ -729,7 +730,7 @@ class Secd:
         if self.debug: print(f'drop {value}')
 
     def run_xp(self):
-        self.e[0].append([])  # expand frame by adding a nil value to it
+        self.e[0].append(Void())  # expand frame by adding a void value to it
         if self.debug: print(f'xp')
 
     def run_dup(self):
@@ -776,6 +777,8 @@ class Secd:
             result = self.intern('char')
         elif isinstance(v, Vector):
             result = self.intern('vector')
+        elif isinstance(v, Void):
+            result = self.intern('void')
         else:
             raise RunError(f'Unknown type: {v}')
         self.s.pushx(result)
@@ -1036,6 +1039,11 @@ class Secd:
         module_opcode = runtime_opcodes & 0x00ff
         proc_opcode = (runtime_opcodes & 0xff00) >> 8
         self.call_runtime_proc(module_opcode, proc_opcode)
+        if self.debug: print(f'trap module={module_opcode} proc={proc_opcode}')
+
+    def run_void(self):
+        self.s.pushx(Void())
+        if self.debug: print('void')
 
 
 def configure_argparse(parser: argparse.ArgumentParser):

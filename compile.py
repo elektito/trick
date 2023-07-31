@@ -19,6 +19,10 @@ def S(s: str) -> Symbol:
 
 
 primcalls = {
+    '#$void': {
+        'nargs': 0,
+        'code': [S('void')],
+    },
     '#$call/cc': {
         'nargs': 1,
         'code': [S('ccc')],
@@ -101,11 +105,11 @@ primcalls = {
     },
     'set-car!': {
         'nargs': 2,
-        'code': [S('setcar'), S('false')],
+        'code': [S('setcar'), S('void')],
     },
     'set-cdr!': {
         'nargs': 2,
-        'code': [S('setcdr'), S('false')],
+        'code': [S('setcdr'), S('void')],
     },
     'type': {
         'nargs': 1,
@@ -157,7 +161,7 @@ primcalls = {
     },
     'string-set!': {
         'nargs': 3,
-        'code': [S('strset'), S('false')],
+        'code': [S('strset'), S('void')],
     },
     'string-length': {
         'nargs': 1,
@@ -181,7 +185,7 @@ primcalls = {
     },
     '#$vector-set!': {
         'nargs': 3,
-        'code': [S('vecset'), S('false')],
+        'code': [S('vecset'), S('void')],
     },
     'vector-length': {
         'nargs': 1,
@@ -385,7 +389,7 @@ class Compiler:
         self.defined_symbols[macro_name] = DefineInfo(is_macro=True)
 
         code = self.compile_form(lambda_form, env)
-        code += [S('dup'), S('set'), macro_name]
+        code += [S('set'), macro_name, S('void')]
 
         self.macros.append(macro_name.name)
         
@@ -404,7 +408,7 @@ class Compiler:
         if len(expr) == 4:
             false_code = self.compile_form(expr[3], env) + [S('join')]
         else:
-            false_code = [S('nil'), S('join')]
+            false_code = [S('void'), S('join')]
         return cond_code + [S('sel')] + [true_code] + [false_code]
 
     def compile_lambda(self, expr, env):

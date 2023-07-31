@@ -29,6 +29,23 @@ class Reference:
         return f'<Ref #{self.label}#>'
 
 
+class Void(TrickType):
+    _instance = None
+
+    def __new__(klass, *args, **kwargs):
+        if not isinstance(klass._instance, klass):
+            klass._instance = object.__new__(klass, *args, **kwargs)
+            klass._instance.src_start = None
+            klass._instance.src_end = None
+        return klass._instance
+
+    def __str__(self):
+        return '#<void>'
+
+    def __repr__(self):
+        return '#<void>'
+
+
 class Integer(int, TrickType):
     def __new__(cls, n, *args, **kwargs):
         obj = super().__new__(cls, n, *args, **kwargs)

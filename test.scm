@@ -115,11 +115,11 @@ and still a comment
 (eq? 100 (if #() 100 200))
 (eq? 100 (if #(1) 100 200))
 (eq? 100 (if #t 100))
-(eq? '() (if #f 100))
+(eq? (#$void) (if #f 100))
 
 (eq? 3 (when #t 1 2 3))
-(eq? #f (when #f 1 2 3))
-(eq? #f (unless #t 1 2 3))
+(eq? (#$void) (when #f 1 2 3))
+(eq? (#$void) (unless #t 1 2 3))
 (eq? 3 (unless #f 1 2 3))
 
 (cond (#t #t))
@@ -129,7 +129,7 @@ and still a comment
 
 ;; regression test: putting one-armed if in a lambda just to make sure the
 ;; "join" instruction is correctly generated for the implied "false" branch.
-(eq? '() ((lambda () (if #f 100))))
+(eq? (#$void) ((lambda () (if #f 100))))
 
 (eq? 0 (+))
 (eq? 2 (+ 2))
