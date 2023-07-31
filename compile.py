@@ -280,6 +280,9 @@ class Compiler:
               len(form) > 0 and \
               isinstance(form[0], Symbol):
             name_sym = form[0]
+            if name_sym.name == 'quote':
+                return form
+
             macro_name_sym = S(f'#m:{name_sym.name}')
             if macro_name_sym.name not in self.macros:
                 break
