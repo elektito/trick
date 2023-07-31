@@ -791,6 +791,39 @@ and still a comment
 (equal? ``,,3 '`,3)
 (equal? ```,,,3 '``,,3)
 
+;; the following are adopted from husk scheme test suite. see
+;; https://github.com/justinethier/husk-scheme/blob/master/tests/t-backquote.scm
+(equal? `(list ,(car '(3 6)) 4)
+         '(list 3 4))
+(equal? (let ((name 'a)) `(list ,name ',name))
+        '(list a (quote a)))
+(equal? (let ((name 'a)) '(list ,name ',name))
+        '(list (unquote name) (quote (unquote name))))
+(equal? (let ((name 'a)) `(list ,name (,name)))
+        '(list a (a)))
+(equal? (let ((name 'a)) `(list ,name ((,name))))
+        '(list a ((a))))
+(equal? `(a `(b ,(car '(3 6)) ,(foo ,(car '(3 6)) d) e) f)
+        '(a `(b ,(car '(3 6)) ,(foo 3 d) e) f))
+(equal? (let ((name1 'x) (name2 'y)) `(a `(b ,,name1 ,,name2 d) e))
+        '(a `(b ,x ,y d) e))
+(equal? (let ((name1 'x) (name2 'y)) `(a `(b ,,name1 ,',name2 d) e))
+        '(a `(b ,x ,'y d) e))
+(equal? (quasiquote (list (unquote (car '(3 6))) 4))
+        '(list 3 4))
+(equal? '(quasiquote (list (unquote (car '(3 6))) 4))
+        '`(list ,(car '(3 6)) 4))
+(equal? `(a `(b ,(foo ,(car '(3 6))) c) d)
+        '(a `(b ,(foo 3) c) d))
+
+;; vectors and quasiquotes
+
+(let ((square (lambda (x) (* x x))))
+  (equal? #(10 5 4 16 9 8)
+          `#(10 5 ,(square 2) ,@(map square '(4 3)) 8)))
+(equal? `#(a `(b ,(foo ,(car '(3 6))) c) d)
+        '#(a `(b ,(foo 3) c) d))
+
 ;; vectors
 
 (atom? #(1 2 3))
@@ -875,39 +908,6 @@ and still a comment
   (and (not (eq? v a)) ;; the return value should be a newly allocated vector
        (equal? #(1 2) a)))
 (equal? #(1 2 3 4 5 6) (vector-append #(1 2) #() #(3 4 5 6)))
-
-;; quasiquote
-
-(let ((square (lambda (x) (* x x))))
-  (equal? #(10 5 4 16 9 8)
-          `#(10 5 ,(square 2) ,@(map square '(4 3)) 8)))
-(equal? `#(a `(b ,(foo ,(car '(3 6))) c) d)
-        '#(a `(b ,(foo 3) c) d))
-
-;; the following are adopted from husk scheme test suite. see
-;; https://github.com/justinethier/husk-scheme/blob/master/tests/t-backquote.scm
-(equal? `(list ,(car '(3 6)) 4)
-         '(list 3 4))
-(equal? (let ((name 'a)) `(list ,name ',name))
-        '(list a (quote a)))
-(equal? (let ((name 'a)) '(list ,name ',name))
-        '(list (unquote name) (quote (unquote name))))
-(equal? (let ((name 'a)) `(list ,name (,name)))
-        '(list a (a)))
-(equal? (let ((name 'a)) `(list ,name ((,name))))
-        '(list a ((a))))
-(equal? `(a `(b ,(car '(3 6)) ,(foo ,(car '(3 6)) d) e) f)
-        '(a `(b ,(car '(3 6)) ,(foo 3 d) e) f))
-(equal? (let ((name1 'x) (name2 'y)) `(a `(b ,,name1 ,,name2 d) e))
-        '(a `(b ,x ,y d) e))
-(equal? (let ((name1 'x) (name2 'y)) `(a `(b ,,name1 ,',name2 d) e))
-        '(a `(b ,x ,'y d) e))
-(equal? (quasiquote (list (unquote (car '(3 6))) 4))
-        '(list 3 4))
-(equal? '(quasiquote (list (unquote (car '(3 6))) 4))
-        '`(list ,(car '(3 6)) 4))
-(equal? `(a `(b ,(foo ,(car '(3 6))) c) d)
-        '(a `(b ,(foo 3) c) d))
 
 ;; case-lambda
 
