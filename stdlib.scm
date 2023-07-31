@@ -234,7 +234,9 @@
         (#t #f)))
 
 (define (qq-process-list-item form level)
-  (cond ((atom? form)
+  (cond ((vector? form)
+         (list 'list (list 'list->vector (qq-process-list (vector->list form) level))))
+        ((atom? form)
          (list 'quote (list form)))
         ((qq-is-unquote form)
          (if (eq? level 1)
@@ -299,7 +301,7 @@
 
 (define (qq-process form level)
   (cond ((vector? form)
-         (list 'list->vector (qq-process (vector->list form) level)))
+         (list 'list->vector (qq-process-list (vector->list form) level)))
         ((atom? form)
          (if (= level 1)
              (list 'quote form)

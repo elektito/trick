@@ -824,6 +824,15 @@ and still a comment
 (equal? `#(a `(b ,(foo ,(car '(3 6))) c) d)
         '#(a `(b ,(foo 3) c) d))
 
+(let ((x 10) (y 20) (z 30))
+  (equal? ```#(x ,,,y z) '``#(x ,,20 z)))
+(equal? ``#(a ,,(+ 1 2) ,(+ 2 3))
+        '`#(a ,3 ,(+ 2 3)))
+(equal? `(x y #(z (w #(1 ,(+ 2 2)) a) b) c)
+        '(x y #(z (w #(1 4) a) b) c))
+(equal? ``(x y #(z (w #(1 ,,(+ 2 2)) a) b) c)
+        '`(x y #(z (w #(1 ,4) a) b) c))
+
 ;; vectors
 
 (atom? #(1 2 3))
