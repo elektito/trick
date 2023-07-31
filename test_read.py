@@ -10,6 +10,14 @@ class TestReader(unittest.TestCase):
         self.addTypeEqualityFunc(Nil, self._compare_lists)
         self.addTypeEqualityFunc(Pair, self._compare_lists)
         self.addTypeEqualityFunc(Vector, self._compare_vectors)
+        self.addTypeEqualityFunc(String, self._compare_strings)
+
+    def _compare_strings(self, s1, s2, msg=None):
+        if s1.value == s2.value:
+            return
+        if msg is None:
+            msg = f'String comparison failed: {s1} != {s2}'
+        raise self.failureException(msg)
 
     def _compare_lists(self, l1, l2, msg=None):
         if self._list_eq(l1, l2):
