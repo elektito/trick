@@ -953,7 +953,6 @@ class Compiler:
             if form is None:  # eof
                 break
 
-
             if self.detect_cycle(form):
                 raise CompileError(f'Cannot compile cyclic form: {form}')
             if isinstance(form, Pair) and not form.is_proper():
