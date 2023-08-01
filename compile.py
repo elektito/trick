@@ -961,10 +961,6 @@ class Compiler:
                 return compile_func(expr, env)
             elif desc := get_primcall(name):
                 return self.compile_primcall(expr, env, desc)
-            elif name in self.macros:
-                macro = self.macros[name]
-                new_form = macro.expand(expr.cdr)
-                return self.compile_form(new_form, env)
             else:
                 return self.compile_func_call(expr, env)
         else:
