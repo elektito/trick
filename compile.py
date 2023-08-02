@@ -1139,10 +1139,11 @@ class Compiler:
             form_code += [S('set'), name_sym, S('void')]
 
             if self.debug_info:
-                form_code = \
-                    [S(':define-start'), String(name_sym.name), Integer(form.src_start)] + \
-                    form_code + \
-                    [S(':define-end'), Integer(form.src_end)]
+                if form.src_start is not None and form.src_end is not None:
+                    form_code = \
+                        [S(':define-start'), String(name_sym.name), Integer(form.src_start)] + \
+                        form_code + \
+                        [S(':define-end'), Integer(form.src_end)]
             self.defines_fasl.add_define(name_sym, is_macro=False)
             self.assembler.assemble(form_code, self.defines_fasl)
         elif form[0] == S('begin'):
