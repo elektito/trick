@@ -1,3 +1,10 @@
+;; comparison
+
+(define (eqv? x y)
+  ;; for our current implementation, eq? already does the same thing as eqv?
+  ;; should
+  (eq? x y))
+
 ;; primcalls
 
 (define (make-string . args)
@@ -211,15 +218,13 @@
 
 ;; quasiquote
 
-(define (qq-simplify form)
-  ;; if there's an append in which all arguments are lists of size 1, convert it
-  ;; to a "list" call:
-  ;; (append '(x) (list y) '(z)) => (list 'x y 'z)
-  ;;
-  ;; if there is a list call in which all forms are quoted, convert it
-  ;; to a single quoted list:
-  ;; (list 'x 'y 'z) => '(x y z)
-  form)
+;; we'll use these unique symbols when we want to generate list, append, quote,
+;; and the like, so that when simplifying, we'll only process the values we
+;; generated, and not the ones passed into the macro.
+(define qq-quote (gensym))
+(define qq-list (gensym))
+(define qq-append (gensym))
+(define qq-list->vector (gensym))
 
 (define (qq-is-unquote form)
   (cond ((atom? form) #f)
@@ -240,27 +245,27 @@
 
 (define (qq-process-list-item form level)
   (cond ((vector? form)
-         (list 'list (list 'list->vector (qq-process-list (vector->list form) level))))
+         (list qq-list (list qq-list->vector (qq-process-list (vector->list form) level))))
         ((atom? form)
-         (list 'quote (list form)))
+         (list qq-quote (list form)))
         ((qq-is-unquote form)
          (if (eq? level 1)
-             (list 'list (cadr form))
-             (list 'list (qq-process-list form (- level 1)))))
+             (list qq-list (cadr form))
+             (list qq-list (qq-process-list form (- level 1)))))
         ((qq-is-unquote-splicing form)
          (if (eq? level 1)
              (cadr form)
-             (list 'list (qq-process-list form (- level 1)))))
+             (list qq-list (qq-process-list form (- level 1)))))
         ((qq-is-quasiquote form)
-         (list 'list
+         (list qq-list
                (qq-process-list form (+ level 1))))
         (#t
-         (list 'list
+         (list qq-list
                (qq-process-list form level)))))
 
 (define (qq-process-list-tail form level)
   (cond ((atom? form)
-         (list 'quote form))
+         (list qq-quote form))
         ((qq-is-unquote form)
          (if (eq? level 1)
              (cadr form)
@@ -298,7 +303,7 @@
   (let ((rest/tail (qq-split-improper-tail form)))
     (let ((rest (car rest/tail))
           (tail (cadr rest/tail)))
-      (let ((append-form (cons 'append
+      (let ((append-form (cons qq-append
                                (mapcar (lambda (form)
                                          (qq-process-list-item form level))
                                        rest))))
@@ -308,10 +313,10 @@
 
 (define (qq-process form level)
   (cond ((vector? form)
-         (list 'list->vector (qq-process-list (vector->list form) level)))
+         (list qq-list->vector (qq-process-list (vector->list form) level)))
         ((atom? form)
          (if (= level 1)
-             (list 'quote form)
+             (list qq-quote form)
              form))
         ((qq-is-unquote form)
          (if (= level 1)
@@ -325,9 +330,39 @@
         (#t
          (qq-process-list form level))))
 
+(define (qq-maptree fn x)
+  (if (atom? x)
+      (fn x)
+      (let ((a (fn (car x)))
+            (d (qq-maptree fn (cdr x))))
+        (if (eqv? a (car x))
+            (if (eqv? d (cdr x))
+                x
+                (cons a d))
+            (cons a d)))))
+
+(define (qq-remove-tokens x)
+  (cond ((eq? x qq-list) 'list)
+        ((eq? x qq-append) 'append)
+        ((eq? x qq-quote) 'quote)
+        ((eq? x qq-list->vector) 'list->vector)
+        ((atom? x) x)
+        (#t (qq-maptree qq-remove-tokens x))))
+
+(define (qq-simplify form)
+  ;; if there's an append in which all arguments are lists of size 1, convert it
+  ;; to a "list" call:
+  ;; (append '(x) (list y) '(z)) => (list 'x y 'z)
+  ;;
+  ;; if there is a list call in which all forms are quoted, convert it
+  ;; to a single quoted list:
+  ;; (list 'x 'y 'z) => '(x y z)
+  form)
+
 (define-macro (quasiquote form)
-  (qq-simplify
-   (qq-process form 1)))
+  (qq-remove-tokens
+   (qq-simplify
+    (qq-process form 1))))
 
 ;; more macros now that we have quasiquote!
 
@@ -532,11 +567,6 @@
         (#t (1+ (proper-length (cdr ls))))))
 
 ;; general comparison
-
-(define (eqv? x y)
-  ;; for our current implementation, eq? already does the same thing as eqv?
-  ;; should
-  (eq? x y))
 
 (define (_equal? x y recursed)
   (cond ((memq x recursed) ; if already checked this exact object
