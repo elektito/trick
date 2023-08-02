@@ -146,6 +146,38 @@
       (cons (func (car args))
             (mapcar func (cdr args)))))
 
+(define (reverse1 ls acc)
+  (if (null? ls)
+      acc
+      (reverse1 (cdr ls) (cons (car ls) acc))))
+
+(define (reverse ls)
+  (reverse1 ls '()))
+
+(define (any? values)
+  (if (null? values)
+      #f
+      (if (car values)
+          #t
+          (any? (cdr values)))))
+
+(define (all? values)
+  (if (null? values)
+      #t
+      (if (car values)
+          (all? (cdr values))
+          #f)))
+
+(define (map1 func arg-lists acc)
+  (if (any? (mapcar null? arg-lists))
+      (reverse acc)
+      (map1 func
+            (mapcar cdr arg-lists)
+            (cons (apply func (mapcar car arg-lists)) acc))))
+
+(define (map func . arg-lists)
+  (map1 func arg-lists '()))
+
 ;; cond
 
 (define-macro (cond . arms)
@@ -155,6 +187,56 @@
             (caar arms)
             (cons 'begin (cdar arms))
             (cons 'cond (cdr arms)))))
+
+;;
+
+(define-macro (and . forms)
+  (cond ((null? forms) '#t)
+        ((null? (cdr forms)) (car forms))
+        (#t (list 'if
+                  (car forms)
+                  (cons 'and (cdr forms))
+                  #f))))
+
+(define-macro (or . forms)
+  (cond ((null? forms) '#f)
+        ((null? (cdr forms)) (car forms))
+        (#t (let ((xcar (gensym)))
+              (list 'let (list (list xcar (car forms)))
+                    (list 'if xcar xcar (cons 'or (cdr forms))))))))
+
+;; general comparison
+
+(define (memq obj ls)
+  (if (null? ls)
+      #f
+      (or (eq? obj (car ls))
+          (memq obj (cdr ls)))))
+
+(define (_equal? x y recursed)
+  (cond ((memq x recursed) ; if already checked this exact object
+         #t)               ; don't compare it again
+        ((memq y recursed) ; same goes for y
+         #t)
+        ((eq? x y)
+         #t)
+        ((not (eq? (type x) (type y)))
+         #f)
+        ((null? x) #t)
+        ((vector? x)
+         (set! recursed (cons x (cons y recursed)))
+         (all? (vector->list (vector-map (lambda (a b)
+                                           (_equal? a b recursed))
+                                         x y))))
+        ((pair? x)
+         (set! recursed (cons x (cons y recursed)))
+         (and (_equal? (car x) (car y) recursed)
+              (_equal? (cdr x) (cdr y) recursed)))
+        ((string? x) (string=? x y))
+        (#t (eqv? x y))))
+
+(define (equal? x y)
+  (_equal? x y '()))
 
 ;; utility
 
@@ -218,13 +300,17 @@
 
 ;; quasiquote
 
+(define qq-simplify-enabled #t)
+
 ;; we'll use these unique symbols when we want to generate list, append, quote,
 ;; and the like, so that when simplifying, we'll only process the values we
 ;; generated, and not the ones passed into the macro.
 (define qq-quote (gensym))
 (define qq-list (gensym))
+(define qq-list* (gensym))
 (define qq-append (gensym))
 (define qq-list->vector (gensym))
+(define qq-quote-nil (list qq-quote '()))
 
 (define (qq-is-unquote form)
   (cond ((atom? form) #f)
@@ -264,7 +350,9 @@
                (qq-process-list form level)))))
 
 (define (qq-process-list-tail form level)
-  (cond ((atom? form)
+  (cond ((vector? form)
+         (list qq-list->vector (qq-process-list (vector->list form) level)))
+        ((atom? form)
          (list qq-quote form))
         ((qq-is-unquote form)
          (if (eq? level 1)
@@ -344,25 +432,101 @@
 (define (qq-remove-tokens x)
   (cond ((eq? x qq-list) 'list)
         ((eq? x qq-append) 'append)
+        ((eq? x qq-list*) 'list*)
         ((eq? x qq-quote) 'quote)
         ((eq? x qq-list->vector) 'list->vector)
         ((atom? x) x)
+        ((and (eq? (car x) qq-list*)
+              (pair? (cddr x))
+              (null? (cdddr x)))
+         (cons 'cons (qq-maptree qq-remove-tokens (cdr x))))
         (#t (qq-maptree qq-remove-tokens x))))
 
-(define (qq-simplify form)
-  ;; if there's an append in which all arguments are lists of size 1, convert it
-  ;; to a "list" call:
-  ;; (append '(x) (list y) '(z)) => (list 'x y 'z)
-  ;;
-  ;; if there is a list call in which all forms are quoted, convert it
-  ;; to a single quoted list:
-  ;; (list 'x 'y 'z) => '(x y z)
-  form)
+(define (qq-simplify x)
+  (if (atom? x)
+      x
+      (let ((x (if (eq? (car x) qq-quote)
+                   x
+                   (qq-maptree qq-simplify x))))
+        (if (not (eq? (car x) qq-append))
+            x
+            (qq-simplify-args x)))))
+
+(define (qq-simplify-args x)
+  (let loop ((args (reverse (cdr x)))
+             (result '()))
+    (if (null? args)
+        result
+        (loop (cdr args)
+              (cond ((atom? (car args))
+                     (qq-attach-append qq-append (car args) result))
+                    ((and (eq? (caar args) qq-list)
+                          (not (any? (map qq-splicing-frob? (cdar args)))))
+                     (qq-attach-conses (cdar args) result))
+                    ((and (eq? (caar args) qq-list*)
+                          (not (any? (map qq-splicing-frob? (cdar args)))))
+                     (qq-attach-conses
+                      (reverse (cdr (reverse (cdar args))))
+                      (qq-attach-append qq-append
+                                        (car (last (car args)))
+                                        result)))
+                    ((and (eq? (caar args) qq-quote)
+                          (pair? (cadar args))
+                          (not (qq-frob? (cadar args)))
+                          (null? (cddar args)))
+                     (qq-attach-conses (list (list qq-quote
+                                                   (caadar args)))
+                                       result))
+                    (#t (qq-attach-append qq-append
+                                          (car args)
+                                          result)))))))
+
+(define (qq-attach-conses items result)
+  (cond ((and (all? (map null-or-quoted? items))
+              (null-or-quoted? result))
+         (list qq-quote
+               (append (mapcar cadr items) (cl-cadr result))))
+        ((or (null? result) (equal? result qq-quote-nil))
+         (cons qq-list items))
+        ((and (pair? result)
+              (or (eq? (car result) qq-list)
+                  (eq? (car result) qq-list*)))
+         (cons (car result) (append items (cdr result))))
+        (#t (cons qq-list* (append items (list result))))))
+
+(define (null-or-quoted? x)
+  (or (null? x) (and (pair? x) (eq? (car x) qq-quote))))
+
+(define (cl-cadr x)
+  (if (null? x)
+      '()
+      (if (null? (cdr x))
+          '()
+          (car (cdr x)))))
+
+(define (qq-splicing-frob? x)
+  (and (pair? x)
+       (eq? (car x) 'unquote-splicing)))
+
+(define (qq-frob? x)
+  (and (pair? x)
+       (or (eq? (car x) 'unquote)
+           (eq? (car x) 'unquote-splicing))))
+
+(define (qq-attach-append op item result)
+  (cond ((and (null-or-quoted? item) (null-or-quoted? result))
+         (list qq-quote (append (cl-cadr item) (cl-cadr result))))
+        ((or (null? result) (equal? result qq-quote-nil))
+         (if (qq-splicing-frob? item) (list op item) item))
+        ((and (pair? result) (eq? (car result) op))
+         (list* (car result) item (cdr result)))
+        (#t (list op item result))))
 
 (define-macro (quasiquote form)
-  (qq-remove-tokens
-   (qq-simplify
-    (qq-process form 1))))
+  (let ((raw-result (qq-process form 1)))
+    (qq-remove-tokens (if qq-simplify-enabled
+                          (qq-simplify raw-result)
+                          raw-result))))
 
 ;; more macros now that we have quasiquote!
 
@@ -448,30 +612,6 @@
 
 ;;
 
-(define (any? values)
-  (if (null? values)
-      #f
-      (if (car values)
-          #t
-          (any? (cdr values)))))
-
-(define (all? values)
-  (if (null? values)
-      #t
-      (if (car values)
-          (all? (cdr values))
-          #f)))
-
-(define (map1 func arg-lists acc)
-  (if (any? (mapcar null? arg-lists))
-      (reverse acc)
-      (map1 func
-            (mapcar cdr arg-lists)
-            (cons (apply func (mapcar car arg-lists)) acc))))
-
-(define (map func . arg-lists)
-  (map1 func arg-lists '()))
-
 (define (for-each proc . arg-lists)
   ;; we can't use map here because map's results depend on the order of argument
   ;; evaluation, which is unspecified in scheme, and in our implementation is
@@ -519,14 +659,6 @@
 (define (iota n)
   (range 0 n))
 
-(define (reverse1 ls acc)
-  (if (null? ls)
-      acc
-      (reverse1 (cdr ls) (cons (car ls) acc))))
-
-(define (reverse ls)
-  (reverse1 ls '()))
-
 (define (list-tail ls k)
   (if (zero? k)
       ls
@@ -534,12 +666,6 @@
 
 (define (list-ref ls k)
   (car (list-tail ls k)))
-
-(define (memq obj ls)
-  (if (null? ls)
-      #f
-      (or (eq? obj (car ls))
-          (memq obj (cdr ls)))))
 
 (define (split-improper-tail ls)
   ;; () => (() ())
@@ -565,33 +691,6 @@
         ((not (pair? (cdr ls)))
          1)
         (#t (1+ (proper-length (cdr ls))))))
-
-;; general comparison
-
-(define (_equal? x y recursed)
-  (cond ((memq x recursed) ; if already checked this exact object
-         #t)               ; don't compare it again
-        ((memq y recursed) ; same goes for y
-         #t)
-        ((eq? x y)
-         #t)
-        ((not (eq? (type x) (type y)))
-         #f)
-        ((null? x) #t)
-        ((vector? x)
-         (set! recursed (cons x (cons y recursed)))
-         (all? (vector->list (vector-map (lambda (a b)
-                                           (_equal? a b recursed))
-                                         x y))))
-        ((pair? x)
-         (set! recursed (cons x (cons y recursed)))
-         (and (_equal? (car x) (car y) recursed)
-              (_equal? (cdr x) (cdr y) recursed)))
-        ((string? x) (string=? x y))
-        (#t (eqv? x y))))
-
-(define (equal? x y)
-  (_equal? x y '()))
 
 ;; characters
 
