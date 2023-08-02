@@ -106,6 +106,20 @@ class Str(RuntimeModule):
         return String(string)
 
 
+@module(opcode=0x99)
+class Dbg(RuntimeModule):
+    @proc(opcode=0x01)
+    def print(self, obj: TrickType) -> TrickType:
+        print(obj)
+        return obj
+
+    @proc(opcode=0x02)
+    def format(self, obj: TrickType) -> String:
+        p = Printer(obj)
+        s = p.print()
+        return String(s)
+
+
 def find_proc(module_name, proc_name):
     return modules.get(module_name, {'procs': {}})['procs'].get(proc_name)
 
