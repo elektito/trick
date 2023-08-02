@@ -170,8 +170,8 @@ class Symbol(TrickType):
         uid = str(uuid4()).replace('-', '')
 
         if isinstance(short_name, String):
+            full_name = f'#:{uid}-{short_name.value}'
             short_name = f'#:{short_name.value}'
-            full_name = f'#:{uid}-{short_name}'
         else:
             Symbol.gensym_number += 1
             gensym_number = Symbol.gensym_number
