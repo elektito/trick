@@ -92,6 +92,7 @@ def main():
                 dbg_info=args.dbg_info)
         except compile.CompileError as e:
             print('Compile error:', e)
+            e.print_snippet(filename=args.compile)
             sys.exit(1)
     elif args.compile_expr:
         lib_fasls = load_fasl_files(args.lib)

@@ -11,6 +11,7 @@ from read import Reader, ReadError
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String, Vector
 from assemble import Assembler
 from secd import RunError, Secd, UserError
+from snippet import show_snippet
 from utils import find_shared, format_user_error
 
 
@@ -194,22 +195,24 @@ primcalls = {
 }
 
 
-def get_primcall(name):
-    if name in primcalls:
-        ret = primcalls[name]
+def get_primcall(sym: Symbol):
+    if sym.name in primcalls:
+        ret = primcalls[sym.name]
         if isinstance(ret, str):
             # primitive is a synonoym of another one. look it up again.
             ret = primcalls[ret]
         return ret
 
-    if name.startswith('#$/'):
-        m = re.match(r'#\$/(?P<module>\w+)/(?P<proc>\w+)', name)
+    if sym.name.startswith('#$/'):
+        m = re.match(r'#\$/(?P<module>\w+)/(?P<proc>\w+)', sym.name)
         if m:
             module = m.group('module')
             proc = m.group('proc')
             desc = runtime.find_proc(module, proc)
             if desc is None:
-                raise CompileError(f'Unknown runtime procedure: {name}')
+                raise CompileError(
+                    f'Unknown runtime procedure: {sym.name}',
+                    form=sym)
 
             return {
                 'nargs': len(desc['args']),
@@ -227,7 +230,23 @@ def locate_var(var: Symbol, env):
 
 
 class CompileError(Exception):
-    pass
+    def __init__(self, msg, form=None):
+        self.msg = msg
+        self.form = form
+
+    def __repr__(self):
+        return self.msg
+
+    def print_snippet(self, *, filename='', text=''):
+        if self.form is not None:
+            if not text and filename:
+                with open(filename) as f:
+                    text = f.read()
+            if self.form.src_start is not None and self.form.src_end is not None:
+                print()
+                show_snippet(
+                    text, self.form.src_start, self.form.src_end,
+                    pre_lines=3, post_lines=3)
 
 
 class Compiler:
@@ -263,12 +282,16 @@ class Compiler:
             src_end = form.src_end
 
             args = form.cdr
-            form = self.expand_single_macro(macro_name_sym, args, env)
+            form = self.expand_single_macro(macro_name_sym, args, env, form)
             if isinstance(form, Pair) and not form.is_proper():
-                raise CompileError(f'Macro {macro_name_sym} returned an improper list: {form}')
+                raise CompileError(
+                    f'Macro {macro_name_sym} returned an improper list: {form}',
+                    form=form)
 
             if isinstance(form, Pair) and not form.is_proper():
-                raise CompileError(f'Macro {macro_name_sym} returned an improper list: {form}')
+                raise CompileError(
+                    f'Macro {macro_name_sym} returned an improper list: {form}',
+                    form=form)
 
             form.src_start = src_start
             form.src_end = src_end
@@ -288,7 +311,10 @@ class Compiler:
                 break
 
             args = form.cdr
-            form = self.expand_single_macro(macro_name_sym, args, env)
+            form = self.expand_single_macro(macro_name_sym, args, env, form)
+
+        if not isinstance(form, Pair):
+            return form
 
         rest = form.cdr
         while rest != Nil():
@@ -298,7 +324,7 @@ class Compiler:
 
         return form
 
-    def expand_single_macro(self, name_sym, args, env):
+    def expand_single_macro(self, name_sym, args, env, form):
         fasl = Fasl()
         func_call_code = [S('get'), name_sym, S('ap')]
         self.assembler.assemble(func_call_code, fasl)
@@ -313,9 +339,11 @@ class Compiler:
             err = machine.s.top()
             msg = format_user_error(err)
             msg = f'When loading libs for macro expansion of {name_sym}: {msg}'
-            raise CompileError(msg)
+            raise CompileError(msg, form=form)
         except RunError as e:
-            raise CompileError(f'Run error when loading libs for macro expansion of "{name_sym}": {e}')
+            raise CompileError(
+                f'Run error when loading libs for macro expansion of "{name_sym}": {e}',
+                form=form)
 
         # push the arguments directly on the machine stack. this is a better
         # approach than generating code for the quoted forms of the arguments.
@@ -331,19 +359,26 @@ class Compiler:
             err = machine.s.top()
             msg = format_user_error(err)
             msg = f'During macro expansion of {name_sym}: {msg}'
-            raise CompileError(msg)
+            raise CompileError(msg, form=form)
         except RunError as e:
-            raise CompileError(f'Run error during macro expansion of "{name_sym}": {e}')
+            machine.print_stack_trace()
+            raise CompileError(
+                f'Run error during macro expansion of "{name_sym}": {e}',
+                form=form)
 
         if len(machine.s) == 0:
-            raise CompileError(f'Internal error: macro did not return anything')
+            raise CompileError(
+                f'Internal error: macro did not return anything',
+                form=form)
 
         expanded = machine.s.top()
         return expanded
 
     def parse_define_form(self, expr, form_name):
         if len(expr) < 2:
-            raise CompileError(f'Invalid number of arguments for {form_name}.')
+            raise CompileError(
+                f'Invalid number of arguments for {form_name}.',
+                form=expr)
 
         if isinstance(expr[1], Symbol):
             name = expr[1]
@@ -356,12 +391,16 @@ class Compiler:
                 # which is: (define name . ( quote . (() . ()) ))
                 value = Pair(Symbol('quote'), Pair(Nil(), Nil()))
             else:
-                raise CompileError(f'Invalid number of arguments for {form_name}.')
+                raise CompileError(
+                    f'Invalid number of arguments for {form_name}.',
+                    form=expr)
         elif isinstance(expr[1], Pair):
             if len(expr) < 3:  # (define (foo))
-                raise CompileError(f'Invalid number of arguments for {form_name}.')
+                raise CompileError(
+                    f'Invalid number of arguments for {form_name}.',
+                    form=expr)
             if expr[1] == Nil():  # (define () x)
-                raise CompileError(f'Malformed {form_name}.')
+                raise CompileError(f'Malformed {form_name}.', form=expr)
 
             # expr: (define . ((name . params) . body))
             # expr[1] is in this form: (name . params)
@@ -370,12 +409,14 @@ class Compiler:
             body = expr.cddr()
 
             if not isinstance(name, Symbol):
-                raise CompileError(f'Invalid name for {form_name}: {name}')
+                raise CompileError(
+                    f'Invalid name for {form_name}: {name}',
+                    form=expr)
 
             # form: (lambda . ( params . body ))
             value = Pair(S('lambda'), Pair(params, body))
         else:
-            raise CompileError(f'Malformed {form_name}.')
+            raise CompileError(f'Malformed {form_name}.', form=expr)
 
         value.src_start = expr.src_start
         value.src_end = expr.src_end
@@ -389,7 +430,7 @@ class Compiler:
 
         name, lambda_form = self.parse_define_form(expr, 'define-macro')
         if len(expr) < 3:
-            raise CompileError('Not enough arguments for define-macro')
+            raise CompileError('Not enough arguments for define-macro', form=expr)
 
         # we'll define the macro as a function under another name, in order to
         # make sure the macro is not run as a function by accident (for example,
@@ -398,7 +439,8 @@ class Compiler:
         macro_name = S(f'#m:{name}')
 
         if macro_name in self.macros:
-            raise CompileError(f'Duplicate macro definition: {name}')
+            raise CompileError(f'Duplicate macro definition: {name}',
+                               form=expr)
         self.defined_symbols[macro_name] = DefineInfo(is_macro=True)
 
         code = self.compile_form(lambda_form, env)
@@ -414,7 +456,9 @@ class Compiler:
 
     def compile_if(self, expr, env):
         if len(expr) not in (3, 4):
-            raise CompileError(f'Invalid number of arguments for if: {expr}')
+            raise CompileError(
+                f'Invalid number of arguments for if: {expr}',
+                form=expr)
 
         cond_code = self.compile_form(expr[1], env)
         true_code = self.compile_form(expr[2], env) + [S('join')]
@@ -455,7 +499,7 @@ class Compiler:
 
         return defines, body
 
-    def compile_body(self, body, env):
+    def compile_body(self, body, env, full_form):
         # compile the body of a lambda (or a similar expression like let).
         # the initial definitions are converted into and compiled as a letrec*.
         # any begin at the initial part of the code is spliced into the body (recursively).
@@ -496,7 +540,7 @@ class Compiler:
             code += [S('st'), locate_var(name, env)]
 
         if isinstance(body, Nil):
-            raise CompileError('Empty body')
+            raise CompileError('Empty body', form=full_form)
 
         # compile the rest of the body normally
         for i, e in enumerate(body):
@@ -528,10 +572,13 @@ class Compiler:
 
         for p in params:
             if not isinstance(p, Symbol):
-                raise CompileError(f'Invalid parameter name: {p} (not a symbol)')
+                raise CompileError(
+                    f'Invalid parameter name: {p} (not a symbol)',
+                    form=expr)
 
         if rest_param and not isinstance(rest_param, Symbol):
-            raise CompileError(f'Invalid parameter name: {rest_param}')
+            raise CompileError(
+                f'Invalid parameter name: {rest_param}', form=expr)
 
         if rest_param:
             params = params + [rest_param]
@@ -546,7 +593,7 @@ class Compiler:
 
         # expr: (lambda . (params . body))
         body = expr.cddr()
-        body_code = self.compile_body(body, new_env)
+        body_code = self.compile_body(body, new_env, full_form=expr)
         body_code += [S('ret')]
         if body_code[-2] == S('ap') or body_code[-2] == S('ap'):
             body_code[-2:] = [S('tap')]
@@ -559,7 +606,7 @@ class Compiler:
         return code
 
     def compile_symbol(self, sym: Symbol, env):
-        prim = get_primcall(sym.name)
+        prim = get_primcall(sym)
         if prim:
             # using a primitive like "car" or "cons" as a symbol. this should
             # return a function that performs those primitives. what we do is
@@ -626,23 +673,33 @@ class Compiler:
 
     def check_let_bindings(self, bindings, let_name):
         if not isinstance(bindings, List):
-            raise CompileError(f'Invalid bindings list for {let_name}: {bindings}')
+            raise CompileError(
+                f'Invalid bindings list for {let_name}: {bindings}',
+                form=bindings)
 
         if not bindings.is_proper():
-            raise CompileError(f'Invalid {let_name} bindings: {bindings}')
+            raise CompileError(
+                f'Invalid {let_name} bindings: {bindings}',
+                form=bindings)
 
         for pair in bindings:
             if not isinstance(pair, Pair) or len(pair) != 2 or not isinstance(pair[0], Symbol):
-                raise CompileError(f'Invalid {let_name} binding: {pair}')
+                raise CompileError(
+                    f'Invalid {let_name} binding: {pair}',
+                    form=bindings)
 
     def compile_let(self, expr, env):
         if len(expr) < 2:
-            raise CompileError(f'Invalid number of arguments for let: {expr}')
+            raise CompileError(
+                f'Invalid number of arguments for let: {expr}',
+                form=expr)
 
         # convert named let to letrec
         if isinstance(expr[1], Symbol):
             if len(expr) < 3:
-                raise CompileError(f'Invalid number of arguments for named-let: {expr}')
+                raise CompileError(
+                    f'Invalid number of arguments for named-let: {expr}',
+                    form=expr)
 
             # this:
             #    (let f bindings . body)
@@ -690,7 +747,7 @@ class Compiler:
 
         for v in vars:
             if not isinstance(v, Symbol):
-                raise CompileError(f'Invalid let variable: {v}')
+                raise CompileError(f'Invalid let variable: {v}', form=v)
 
         # transform let to a lambda call and compile that instead
         # ((lambda . ( params . body )) . args)
@@ -707,7 +764,9 @@ class Compiler:
 
     def compile_letrec(self, expr, env):
         if len(expr) < 2:
-            raise CompileError(f'Invalid number of arguments for letrec: {expr}')
+            raise CompileError(
+                f'Invalid number of arguments for letrec: {expr}',
+                form=expr)
 
         bindings = expr[1]
         self.check_let_bindings(expr[1], 'letrec')
@@ -719,7 +778,7 @@ class Compiler:
 
         for v in vars:
             if not isinstance(v, Symbol):
-                raise CompileError(f'Invalid let variable: {v}')
+                raise CompileError(f'Invalid let variable: {v}', form=v)
 
         if values != Nil():
             for v, b in zip(values, bindings):
@@ -752,7 +811,8 @@ class Compiler:
 
     def compile_apply(self, expr, env):
         if len(expr) != 3:
-            raise CompileError('Invalid number of arguments for #$apply')
+            raise CompileError(
+                'Invalid number of arguments for #$apply', form=expr)
 
         # compile second argument which should be a list
         secd_code = self.compile_form(expr[2], env)
@@ -765,10 +825,12 @@ class Compiler:
 
     def compile_set(self, expr, env):
         if len(expr) != 3:
-            raise CompileError(f'Invalid number of arguments for set!')
+            raise CompileError(
+                f'Invalid number of arguments for set!', form=expr)
 
         if not isinstance(expr[1], Symbol):
-            raise CompileError(f'Variable name passed to set! not a symbol')
+            raise CompileError(
+                f'Variable name passed to set! not a symbol', form=expr)
 
         name = expr[1]
         value = expr[2]
@@ -800,7 +862,8 @@ class Compiler:
             ]
         else:
             raise CompileError(
-                f'Internal error: do not know how to create object of type: {type(form).__name__}')
+                f'Internal error: do not know how to create object of '
+                f'type: {type(form).__name__}', form=expr)
 
         # notice that we should make sure the code generated by this function
         # does not leave anything on the stack
@@ -868,17 +931,20 @@ class Compiler:
 
     def compile_quote(self, expr, env):
         if len(expr) != 2:
-            raise CompileError(f'Invalid number of arguments for quote.')
+            raise CompileError(
+                f'Invalid number of arguments for quote.', form=expr)
 
         return self.compile_literal(expr[1], env)
 
     def compile_error(self, expr, env):
         if len(expr) < 2 or len(expr) % 2 != 0:
-            raise CompileError(f'Invalid number of arguments for error')
+            raise CompileError(
+                f'Invalid number of arguments for error', form=expr)
 
         error_sym = expr[1]
         if not isinstance(error_sym, Symbol):
-            raise CompileError(f'First argument to error must be a symbol')
+            raise CompileError(
+                f'First argument to error must be a symbol', form=expr)
 
         error_args = [S(':type'), error_sym]
 
@@ -888,7 +954,8 @@ class Compiler:
         while cur != Nil():
             name = cur.car
             if cur.cdr == Nil():
-                raise CompileError('Malformed error arguments')
+                raise CompileError(
+                    'Malformed error arguments', form=expr)
             value = cur.cdar()
             cur = cur.cddr()
             error_args.append(name)
@@ -907,7 +974,7 @@ class Compiler:
         if len(expr) != nargs + 1:
             raise CompileError(
                 f'Invalid number of arguments for "{expr[0]}" '
-                f'(expected: {nargs}, got {len(expr)-1})')
+                f'(expected: {nargs}, got {len(expr)-1})', form=expr)
 
         code = []
         for i in range(nargs - 1, -1, -1):
@@ -920,7 +987,7 @@ class Compiler:
         if expr.cdr == Nil():
             # unlike at the top-level, or at the beginning of a lambda/let body,
             # the normal "begin" expression cannot be empty.
-            raise CompileError('Empty "begin" expression')
+            raise CompileError('Empty "begin" expression', form=expr)
 
         code = []
         for i, form in enumerate(expr.cdr):
@@ -931,17 +998,22 @@ class Compiler:
 
     def compile_list(self, expr, env):
         if expr == Nil():
-            raise CompileError('Empty list is not a valid form')
+            #raise RuntimeError
+            raise CompileError(
+                'Empty list is not a valid form', form=expr)
 
         if not expr.is_proper():
-            raise CompileError(f'Cannot compile improper list: {expr}')
+            raise CompileError(
+                f'Cannot compile improper list: {expr}', form=expr)
 
         if isinstance(expr.car, Symbol):
-            name = expr.car.name
+            sym = expr.car
+            name = sym.name
             if name == S('define-macro'):
-                raise CompileError('define-macro only allowed at top-level')
+                raise CompileError(
+                    'define-macro only allowed at top-level', form=expr)
             if name == S('define'):
-                raise CompileError('Ill-placed define')
+                raise CompileError('Ill-placed define', form=expr)
 
             special_forms = {
                 'begin': self.compile_begin,
@@ -959,7 +1031,7 @@ class Compiler:
             if name in special_forms:
                 compile_func = special_forms[name]
                 return compile_func(expr, env)
-            elif desc := get_primcall(name):
+            elif desc := get_primcall(sym):
                 return self.compile_primcall(expr, env, desc)
             else:
                 return self.compile_func_call(expr, env)
@@ -968,9 +1040,11 @@ class Compiler:
 
     def compile_form(self, expr, env):
         if self.detect_cycle(expr):
-            raise CompileError(f'Cannot compile cyclic list: {expr}')
+            raise CompileError(
+                f'Cannot compile cyclic list: {expr}', form=expr)
         if isinstance(expr, Pair) and not expr.is_proper():
-            raise CompileError(f'Cannot compile improper list: {expr}')
+            raise CompileError(
+                f'Cannot compile improper list: {expr}', form=expr)
 
         expr = self.macro_expand(expr, env)
 
@@ -993,7 +1067,7 @@ class Compiler:
         elif isinstance(expr, Vector):
             secd_code += self.compile_vector(expr, env)
         else:
-            raise CompileError(f'Invalid value: {expr}')
+            raise CompileError(f'Invalid value: {expr}', form=expr)
 
         if self.debug_info and expr.src_start is not None and expr.src_end is not None:
             secd_code += [S(':expr-end'), Integer(expr.src_end)]
@@ -1077,9 +1151,11 @@ class Compiler:
                 break
 
             if self.detect_cycle(form):
-                raise CompileError(f'Cannot compile cyclic form: {form}')
+                raise CompileError(
+                    f'Cannot compile cyclic form: {form}', form=form)
             if isinstance(form, Pair) and not form.is_proper():
-                raise CompileError(f'Cannot compile improper list: {form}')
+                raise CompileError(
+                    f'Cannot compile improper list: {form}', form=form)
             form = self.macro_expand(form, toplevel_env)
 
             form_code = self.compile_toplevel_form(form, toplevel_env)
@@ -1150,6 +1226,7 @@ def main(args):
         sys.exit(1)
     except CompileError as e:
         print(f'Compile error: {e}', file=sys.stderr)
+        e.print_snippet(filename=args.input)
         sys.exit(1)
 
     secd_code = List.from_list_recursive(secd_code)
