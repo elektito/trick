@@ -1243,3 +1243,24 @@ and still a comment
     (add (p2)))
   (equal? '(10 21 100 201 10 21 100 201 100 201 10 21)
           (reverse results)))
+
+;; record types
+
+(let ()
+  (define-record-type pare
+    (kons x y)
+    pare?
+    (x kar set-kar!)
+    (y kdr))
+  (define r1 (kons 10 20))
+  (define r2 (kons 1 2))
+  (and (pare? r1)
+       (pare? r2)
+       (not (any? (map (lambda (pred) (pred r1))
+                       (list integer? pair? vector? string?
+                             symbol? null? bool? char?
+                             procedure?))))
+       (= 10 (kar r1))
+       (= 20 (kdr r1))
+       (= 1 (kar r2))
+       (= 2 (kdr r2))))

@@ -10,7 +10,7 @@ from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from snippet import show_snippet
 from utils import format_user_error
 from machinetypes import (
-    Bool, Char, Integer, List, Nil, Pair, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void,
+    Bool, Char, Integer, List, Nil, Pair, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
 )
 
 
@@ -209,6 +209,8 @@ class Secd:
             0x39: self.run_vecset,
             0x3a: self.run_vecref,
             0x3b: self.run_veclen,
+            0x3c: self.run_wrap,
+            0x3d: self.run_unwrap,
             0x40: self.run_ldc,
             0x41: self.run_ld,
             0x42: self.run_sel,
@@ -781,6 +783,8 @@ class Secd:
             result = self.intern('vector')
         elif isinstance(v, Void):
             result = self.intern('void')
+        elif isinstance(v, WrappedValue):
+            result = v.type_id
         else:
             raise RunError(f'Unknown type: {v}')
         self.s.pushx(result)
@@ -1047,6 +1051,19 @@ class Secd:
     def run_void(self):
         self.s.pushx(Void())
         if self.debug: print('void')
+
+    def run_wrap(self):
+        value = self.s.popx()
+        type_id = self.s.pop(Symbol, 'wrap')
+        wrapped = WrappedValue(value, type_id)
+        self.s.pushx(wrapped)
+        if self.debug: print(f'wrap {value} in {type_id}')
+
+    def run_unwrap(self):
+        wrapped = self.s.pop(WrappedValue, 'unwrap')
+        value = wrapped.value
+        self.s.pushx(value)
+        if self.debug: print(f'unwrap {value} from {wrapped.type_id}')
 
 
 def configure_argparse(parser: argparse.ArgumentParser):

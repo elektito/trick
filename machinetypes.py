@@ -698,4 +698,12 @@ class Port(TrickType):
         self.file.write(text.value)
 
 
+class WrappedValue(TrickType):
+    def __init__(self, value: TrickType, type_id: Symbol):
+        self.value = value
+        self.type_id = type_id
+
+    def __str__(self):
+        return f'#<wrapped {self.value} ({self.type_id})>'
+
 shareable_types = (Pair, Vector)

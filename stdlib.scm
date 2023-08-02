@@ -1149,36 +1149,24 @@
 ;; record types
 
 (define-macro (define-record-type name constructor pred . fields)
-  (define (get-field-accessor-defines)
-    '())
-  (define (unquote-name name)
-    (list 'unquote name))
-  (with-gensyms (type-id)
+  (define get-field-accessors
+    (case-lambda
+     ((i field-name getter) `((define (,getter rec)
+                                (vector-ref (unwrap rec) ,i))))
+     ((i field-name getter setter) `((define (,getter rec)
+                                       (vector-ref (unwrap rec) ,i))
+                                     (define (,setter rec val)
+                                       (vector-set! (unwrap rec) ,i val))))))
+  (let ((type-id (gensym (symbol->string name))))
     `(begin
-       (define ,type-id (#$create-type ,name ,type-id))
-       (define (,pred x) (eq? (#$get-type x) ,type-id))
-       `#(xx ,@(map unquote-name (cdr constructor)) yy)
-       (define ,constructor (#$wrap ,type-id `#(,@(map unquote-name (cdr constructor)))))
-       ;;,@get-field-accessor-defines
-       )))
-
-#|
-(define-record-type pare
-  (kons x y)
-  pare?
-  (x kar set-kar!)
-  (y kdr))
-
-=>
-
-(begin
-  (define #:type-id (#$create-type 'pare))
-  (define (pare? x) (eq? #$(get-type x) #:type-id))
-  (define (kons x y) (#$wrap #:type-id `#(,x ,y)))
-  (define (kar x) (vector-ref (#$unwrap x) 0))
-  (define (set-kar! x v) (vector-set (#$unwrap x) 0 v))
-  (define (kdr x) (vector-ref (#$unwrap x) 1)))
-
-FOR THIS TO WORK, we need "begin" to work like the spec explains, that is
-it should be spliced into its environment.
-|#
+       (define (,pred x) (eq? (type x) ',type-id))
+       (define ,constructor (wrap (vector ,@(cdr constructor)) ',type-id))
+       ,@(let loop ((fields fields)
+                    (i 0)
+                    (results '()))
+           (if (null? fields)
+               results
+               (loop (cdr fields)
+                     (1+ i)
+                     (append results
+                             (apply get-field-accessors i (car fields)))))))))

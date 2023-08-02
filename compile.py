@@ -192,26 +192,14 @@ primcalls = {
         'nargs': 1,
         'code': [S('veclen')],
     },
-    '#$create-type': {
+    'wrap': {
         'nargs': 2,
-        'code': [S('gentype')],
+        'code': [S('wrap')],
     },
-    #
-    # pare-id = (gensym)
-    # pare = (create-type foobar-id)
-    # pare? = (lambda (x) (type x))
-    # kons = (lambda (x y) (create-value pare-id `#(,x ,y))
-    # kar = (lambda (x) (vector-ref (value-get x) 0))
-    # set-kar! = (lambda (x v) (vector-set! (value-get x 0 v)))
-    # kdr = (lambda (x) (vector-ref (value-get x) 1))
-    #
-    # machine primitives required:
-    #  - something to create a new unique type with an identifier
-    #    + not required, but we could have a way to set a name for the type that can be used when printing
-    #    + and/or, we could have a way to set a "stringify" function for a type which is called when we want to print it
-    #  - something to construct a value of that type with an underlying value (maybe call it "wrap"?)
-    #  - something to get the value from a constructed value ("unwrap?")
-    #
+    'unwrap': {
+        'nargs': 1,
+        'code': [S('unwrap')],
+    },
 }
 
 
