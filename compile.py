@@ -1018,7 +1018,6 @@ class Compiler:
 
     def compile_list(self, expr, env):
         if expr == Nil():
-            #raise RuntimeError
             raise CompileError(
                 'Empty list is not a valid form', form=expr)
 
