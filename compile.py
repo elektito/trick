@@ -1115,6 +1115,7 @@ class Compiler:
                 return False
 
     def compile_toplevel_form(self, form, env):
+        form = self.macro_expand(form, env)
         if not isinstance(form, Pair):
             return self.compile_form(form, env)
 
@@ -1176,7 +1177,6 @@ class Compiler:
             if isinstance(form, Pair) and not form.is_proper():
                 raise CompileError(
                     f'Cannot compile improper list: {form}', form=form)
-            form = self.macro_expand(form, toplevel_env)
 
             form_code = self.compile_toplevel_form(form, toplevel_env)
 
