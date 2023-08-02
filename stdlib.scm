@@ -1145,3 +1145,40 @@
        (dummy 0 (write-char #\space)))
       ((null? objs) (newline))
     (write (car objs))))
+
+;; record types
+
+(define-macro (define-record-type name constructor pred . fields)
+  (define (get-field-accessor-defines)
+    '())
+  (define (unquote-name name)
+    (list 'unquote name))
+  (with-gensyms (type-id)
+    `(begin
+       (define ,type-id (#$create-type ,name ,type-id))
+       (define (,pred x) (eq? (#$get-type x) ,type-id))
+       `#(xx ,@(map unquote-name (cdr constructor)) yy)
+       (define ,constructor (#$wrap ,type-id `#(,@(map unquote-name (cdr constructor)))))
+       ;;,@get-field-accessor-defines
+       )))
+
+#|
+(define-record-type pare
+  (kons x y)
+  pare?
+  (x kar set-kar!)
+  (y kdr))
+
+=>
+
+(begin
+  (define #:type-id (#$create-type 'pare))
+  (define (pare? x) (eq? #$(get-type x) #:type-id))
+  (define (kons x y) (#$wrap #:type-id `#(,x ,y)))
+  (define (kar x) (vector-ref (#$unwrap x) 0))
+  (define (set-kar! x v) (vector-set (#$unwrap x) 0 v))
+  (define (kdr x) (vector-ref (#$unwrap x) 1)))
+
+FOR THIS TO WORK, we need "begin" to work like the spec explains, that is
+it should be spliced into its environment.
+|#

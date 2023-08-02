@@ -385,7 +385,9 @@ class Secd:
 
     def execute_fasl(self, fasl):
         self.cur_fasl = fasl
+        self.e = []
         self.c = 0
+        self.d = []
         while self.halt_code is None:
             try:
                 opcode = self.cur_fasl.code[self.c]
