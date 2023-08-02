@@ -378,6 +378,17 @@ and still a comment
 (not (symbol? (lambda (x) x)))
 (not (symbol? #(1)))
 
+(boolean? #f)
+(boolean? #t)
+(not (boolean? -1))
+(not (boolean? 0))
+(not (boolean? 1))
+(not (boolean? 'foo))
+(not (boolean? '()))
+(not (boolean? '(1 2)))
+(not (boolean? (lambda (x) x)))
+(not (boolean? #(1)))
+
 (integer? -1)
 (integer? 0)
 (integer? 1)
@@ -1258,7 +1269,7 @@ and still a comment
        (pare? r2)
        (not (any? (map (lambda (pred) (pred r1))
                        (list integer? pair? vector? string?
-                             symbol? null? bool? char?
+                             symbol? null? boolean? char?
                              procedure?))))
        (= 10 (kar r1))
        (= 20 (kdr r1))

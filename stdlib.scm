@@ -35,7 +35,7 @@
 (define (string? v) (eq? (type v) 'string))
 (define (char? v) (eq? (type v) 'char))
 (define (procedure? v) (eq? (type v) 'procedure))
-(define (bool? v) (eq? (type v) 'bool))
+(define (boolean? v) (eq? (type v) 'bool))
 (define (list? v)
   (if (null? v)
       #t
