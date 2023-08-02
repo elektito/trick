@@ -1028,10 +1028,10 @@ class Compiler:
         if isinstance(expr.car, Symbol):
             sym = expr.car
             name = sym.name
-            if name == S('define-macro'):
+            if name == 'define-macro':
                 raise CompileError(
                     'define-macro only allowed at top-level', form=expr)
-            if name == S('define'):
+            if name == 'define':
                 raise CompileError('Ill-placed define', form=expr)
 
             special_forms = {
