@@ -120,8 +120,8 @@ primcalls = {
         'nargs': 2,
         'code': [S('eq')],
     },
-    'gensym': {
-        'nargs': 0,
+    '#$gensym': {
+        'nargs': 1,
         'code': [S('gensym')],
     },
     'char->integer': {

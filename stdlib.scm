@@ -16,6 +16,11 @@
   ;; last argument must be a list
   (#$apply fn (append (butlast args) (last args))))
 
+(define (gensym . x)
+  (if (null? x)
+      (#$gensym (#$void))
+      (#$gensym (car x))))
+
 ;; type predicates
 
 (define (null? x) (eq? 'nil (type x)))
@@ -305,11 +310,11 @@
 ;; we'll use these unique symbols when we want to generate list, append, quote,
 ;; and the like, so that when simplifying, we'll only process the values we
 ;; generated, and not the ones passed into the macro.
-(define qq-quote (gensym))
-(define qq-list (gensym))
-(define qq-list* (gensym))
-(define qq-append (gensym))
-(define qq-list->vector (gensym))
+(define qq-quote (gensym "quote"))
+(define qq-list (gensym "list"))
+(define qq-list* (gensym "list*"))
+(define qq-append (gensym "append"))
+(define qq-list->vector (gensym "list->vector"))
 (define qq-quote-nil (list qq-quote '()))
 
 (define (qq-is-unquote form)

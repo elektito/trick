@@ -166,13 +166,18 @@ class Symbol(TrickType):
             return f'<Symbol {self.name}>'
 
     @staticmethod
-    def gensym():
-        Symbol.gensym_number += 1
-        gensym_number = Symbol.gensym_number
+    def gensym(short_name=None):
         uid = str(uuid4()).replace('-', '')
 
-        short_name = f'#:{gensym_number}'
-        full_name = f'#:{uid}-{gensym_number}'
+        if isinstance(short_name, String):
+            short_name = f'#:{short_name.value}'
+            full_name = f'#:{uid}-{short_name}'
+        else:
+            Symbol.gensym_number += 1
+            gensym_number = Symbol.gensym_number
+            short_name = f'#:{gensym_number}'
+            full_name = f'#:{uid}-{gensym_number}'
+
         return Symbol(full_name, short_name=short_name)
 
 
