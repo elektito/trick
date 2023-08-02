@@ -168,3 +168,27 @@ class TestReader(unittest.TestCase):
         for _ in range(n):
             expected = Pair(i1, expected)
         self._test(text, expected)
+
+    def test_too_many_items_after_dot(self):
+        with self.assertRaises(ReadError):
+            self._read('(1 2 . 3 4)')
+
+    def test_no_item_after_dot(self):
+        with self.assertRaises(ReadError):
+            self._read('(1 2 . )')
+
+    def test_no_item_before_dot(self):
+        with self.assertRaises(ReadError):
+            self._read('( . 1 )')
+
+    def test_multiple_dots1(self):
+        with self.assertRaises(ReadError):
+            self._read('( 1 . . 2 )')
+
+    def test_multiple_dots2(self):
+        with self.assertRaises(ReadError):
+            self._read('( 1 . 2 . 3 )')
+
+    def test_lone_dot(self):
+        with self.assertRaises(ReadError):
+            self._read('.')

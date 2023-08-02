@@ -212,6 +212,8 @@ class Reader:
                     raise ReadError('More than one dot in list')
                 read_dot = True
             elif read_dot:
+                if value_after_dot is not None:
+                    raise ReadError('More than one item after dot')
                 value_after_dot = value
             else:
                 values.append(value)
