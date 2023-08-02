@@ -1,6 +1,6 @@
 import io
 import unittest
-from machinetypes import Integer, Nil, Pair, Symbol, List
+from machinetypes import Integer, Nil, Pair, Symbol, List, String
 
 from read import ReadError, Reader
 
@@ -15,6 +15,14 @@ class TestReader(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.addTypeEqualityFunc(Pair, self._compare_lists)
+        self.addTypeEqualityFunc(String, self._compare_strings)
+
+    def _compare_strings(self, s1, s2, msg=None):
+        if s1.value == s2.value:
+            return
+        if msg is None:
+            msg = f'String comparison failed: {s1} != {s2}'
+        raise self.failureException(msg)
 
     def _compare_lists(self, l1, l2, msg=None):
         if self._list_eq(l1, l2):
@@ -192,3 +200,17 @@ class TestReader(unittest.TestCase):
     def test_lone_dot(self):
         with self.assertRaises(ReadError):
             self._read('.')
+
+    def test_with_leading_whitespace(self):
+        self._test('   100', Integer(100))
+
+    def test_with_trialing_whitespace(self):
+        self._test('""    ', String(''))
+
+    def test_cramped1(self):
+        expected = List.from_list_recursive([Integer(1), [Integer(2), []]])
+        self._test('(1(2()))', expected)
+
+    def test_cramped2(self):
+        expected = List.from_list_recursive([Integer(1), [Integer(2), [Symbol('quote'), Integer(3)]]])
+        self._test("(1(2'3))", expected)
