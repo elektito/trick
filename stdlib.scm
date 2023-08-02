@@ -69,6 +69,11 @@
 
 (define (list . values) values)
 
+(define (list* first . rest)
+  (if (null? rest)
+      first
+      (cons first (apply list* rest))))
+
 (define (append1 ls1 ls2)
   (if (null? ls1)
       ls2
