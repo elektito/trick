@@ -2,9 +2,9 @@ import inspect
 import sys
 import traceback
 
-from machinetypes import Bool, Integer, Port, String, Symbol, TrickType
+from machinetypes import Port, String, Symbol, TrickType, Void
 from print import PrintMode, PrintStyle, Printer
-from secd import RunError, Secd
+from secd import RunError
 
 
 modules = {}
@@ -73,12 +73,12 @@ class Io(RuntimeModule):
     @proc(opcode=0x04)
     def write(self, text: String, port: Port) -> TrickType:
         port.write(text)
-        return Bool(True)
+        return Void()
 
     @proc(opcode=0x05)
     def flush(self, port: Port) -> TrickType:
         port.file.flush()
-        return Bool(True)
+        return Void()
 
 
 @module(opcode=0x02)
