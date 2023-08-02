@@ -815,6 +815,22 @@ and still a comment
         '`(list ,(car '(3 6)) 4))
 (equal? `(a `(b ,(foo ,(car '(3 6))) c) d)
         '(a `(b ,(foo 3) c) d))
+(equal? '(x `(,@'(a b c)))
+        `(x `(,@'(a b c))))
+(equal? '`(,@(+ 1 1))
+        ``(,@(+ 1 1)))
+(equal? '(a `(b ,(+ 1 2) ,(foo 4 d) e) f)
+        `(a `(b ,(+ 1 2) ,(foo ,(+ 1 3) d) e) f))
+
+;; from chez scheme docs at: https://www.scheme.com/tspl2d/control.html
+(equal? '(1 . 2)
+        (let ((a 1) (b 2))
+          `(,a . ,b)))
+(equal? '(1 . 2)
+        (let ((a 1) (b 2))
+          `(,a ,@b)))
+(equal? ''(a . b)
+        `',(cons 'a 'b))
 
 ;; vectors and quasiquotes
 

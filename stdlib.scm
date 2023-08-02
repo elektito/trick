@@ -248,7 +248,9 @@
              (list 'list (cadr form))
              (list 'list (qq-process-list form (- level 1)))))
         ((qq-is-unquote-splicing form)
-         (cadr form))
+         (if (eq? level 1)
+             (cadr form)
+             (list 'list (qq-process-list form (- level 1)))))
         ((qq-is-quasiquote form)
          (list 'list
                (qq-process-list form (+ level 1))))
