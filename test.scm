@@ -1339,6 +1339,29 @@ and still a comment
                 (add 'b))))))))
   (equal? '(handled d c a) results))
 
+
+(let* ((results '())
+       (add (lambda (x)
+              (set! results (cons x results)))))
+  (add (call/cc
+        (lambda (k)
+          (with-exception-handler
+           (lambda (e)
+             (add 'd)
+             (add e)
+             (k 'handled))
+           (lambda ()
+             (with-exception-handler
+              (lambda (e)
+                (add 'c)
+                (add e)
+                (raise 'bar))
+              (lambda ()
+                (add 'a)
+                (raise 'foo)
+                (add 'b))))))))
+  (equal? '(handled bar d foo c a) results))
+
 (call/cc (lambda (k)
            (with-exception-handler
             (lambda (e)
