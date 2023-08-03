@@ -757,6 +757,33 @@ and still a comment
   (and (equal? s r)
        (not (eq? s r))))
 
+(let ((s "1234567"))
+  (string-copy! s 2 "ab")
+  (equal? s "12ab567"))
+(let ((s "1234567"))
+  (string-copy! s 2 "abcde" 3)
+  (equal? s "12de567"))
+(let ((s "1234567"))
+  (string-copy! s 3 "abcde" 2 4)
+  (equal? s "123cd67"))
+
+(equal? "" (string-append))
+(let* ((s "12")
+       (a (string-append s)))
+  (and (not (eq? s a)) ;; the return value should be a newly allocated string
+       (equal? "12" a)))
+(equal? "123456" (string-append "12" "" "3456"))
+
+(let ((s "12345"))
+  (string-fill! s #\a)
+  (equal? "aaaaa" s))
+(let ((s "12345"))
+  (string-fill! s #\a 2)
+  (equal? "12aaa" s))
+(let ((s "12345"))
+  (string-fill! s #\a 2 4)
+  (equal? "12aa5" s))
+
 (equal? (string->list "") '())
 (equal? (string->list "ABC") '(#\A #\B #\C))
 (equal? (string->list "ABCDEFG" 2 5) '(#\C #\D #\E))

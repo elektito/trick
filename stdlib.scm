@@ -845,6 +845,43 @@
    ((str start) (substring str start (string-length str)))
    ((str start end) (substring str start end))))
 
+(define (_string-copy! to at from start end)
+  (let ((n (- end start)))
+    (do ((from-idx start (1+ from-idx))
+         (to-idx at (1+ to-idx)))
+        ((= from-idx end) to)
+      (string-set! to to-idx (string-ref from from-idx)))))
+
+(define string-copy!
+  (case-lambda
+   ((to at from) (_string-copy! to at from 0 (string-length from)))
+   ((to at from start) (_string-copy! to at from start (string-length from)))
+   ((to at from start end) (_string-copy! to at from start end))))
+
+(define (_string-append s1 s2)
+  (let ((result (make-string (+ (string-length s1) (string-length s2)))))
+    (string-copy! result 0 s1)
+    (string-copy! result (string-length s1) s2)))
+
+(define string-append
+  (case-lambda
+   (() "")
+   ((s) (string-copy s))
+   ((s1 s2) (_string-append s1 s2))
+   ((s1 s2 . rest) (_string-append (_string-append s1 s2)
+                                   (apply string-append rest)))))
+
+(define (_string-fill! str fill start end)
+  (do ((i start (1+ i)))
+      ((= i end) str)
+    (string-set! str i fill)))
+
+(define string-fill!
+  (case-lambda
+   ((str fill) (_string-fill! str fill 0 (string-length str)))
+   ((str fill start) (_string-fill! str fill start (string-length str)))
+   ((str fill start end) (_string-fill! str fill start end))))
+
 ;; vectors
 
 (define (make-vector . args)
