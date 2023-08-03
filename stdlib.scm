@@ -258,6 +258,16 @@
          (cons (fn (car ls) (cadr ls))
                (pairwise fn (cdr ls))))))
 
+(define (reduce func values)
+  (cond ((null? values)
+         (func))
+        ((null? (cdr values))
+         (func (car values)))
+        ((null? (cddr values))
+         (func (car values) (cadr values)))
+        (#t (reduce func (cons (func (car values) (cadr values))
+                               (cddr values))))))
+
 ;; arithmetic
 
 (define (+ . r)
