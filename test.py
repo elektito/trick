@@ -9,6 +9,20 @@ from secd import RunError, Secd
 from utils import compile_expr_to_fasl, ensure_fasl
 
 
+def test_filter(value):
+    parts=value.split(',')
+    results = set()
+    for part in parts:
+        if '-' in part:
+            start = part[:part.index('-')]
+            end = part[part.index('-')+1:]
+            start = int(start)
+            end = int(end)
+            results |= {i for i in range(start, end + 1)}
+        else:
+            results.add(int(part))
+    return list(sorted(results))
+
 def main():
     parser = argparse.ArgumentParser(description='Run test suite.')
 
@@ -19,6 +33,11 @@ def main():
     parser.add_argument(
         '--verbose', '-v', action='store_true', default=False,
         help='Run tests in verbose mode.')
+
+    parser.add_argument(
+        '--filter', '-f', type=test_filter, default=None,
+        help='Specify which tests to run by number. Ranges, and comma '
+        'separated values are also accepted.')
 
     args = parser.parse_args()
 
@@ -50,9 +69,12 @@ def main():
     errors = []
     fails = []
     success = 0
-    for i, expr in enumerate(test_exprs):
+    for i, expr in enumerate(test_exprs, 1):
+        if args.filter and i not in args.filter:
+            continue
+
         if args.verbose:
-            print(f'[{i+1}] Running: {expr} ', end='', flush=True)
+            print(f'[{i}] Running: {expr} ', end='', flush=True)
 
         try:
             expr_fasl = compile_expr_to_fasl(expr, libs)
