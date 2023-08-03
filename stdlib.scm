@@ -1170,3 +1170,28 @@
                      (1+ i)
                      (append results
                              (apply get-field-accessors i (car fields)))))))))
+
+;; exit
+
+;; will be set further down
+(define exit-continuation #f)
+
+(define exit
+  (case-lambda
+   (() (exit 0))
+   ((exit-code) (exit-continuation exit-code))))
+
+(define emergency-exit
+  (case-lambda
+   (() (emergency-exit 0))
+   ((exit-code) (#$/sys/exit (if exit-code exit-code 1))))) ;; if exit-code == #f, return 1 as exit code
+
+;; capture a continuation that will exit the system when called again, and store
+;; it in exit-continuation. we exit this way to make sure all dynamic-wind
+;; out-guards are called before we exit.
+(let* ((dont-exit (gensym))
+       (code (call/cc (lambda (k)
+                        (set! exit-continuation k)
+                        dont-exit))))
+  (unless (eq? code dont-exit)
+    (emergency-exit code)))

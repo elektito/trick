@@ -2,7 +2,7 @@ import inspect
 import sys
 import traceback
 
-from machinetypes import Port, String, Symbol, TrickType, Void
+from machinetypes import Integer, Port, String, Symbol, TrickType, Void
 from print import PrintMode, PrintStyle, Printer
 from secd import RunError
 
@@ -104,6 +104,13 @@ class Str(RuntimeModule):
         string = printer.print()
 
         return String(string)
+
+
+@module(opcode=0x03)
+class Sys(RuntimeModule):
+    @proc(opcode=0x01)
+    def exit(self, exit_code: Integer) -> Void:
+        sys.exit(exit_code)
 
 
 @module(opcode=0x99)
