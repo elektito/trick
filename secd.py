@@ -430,6 +430,8 @@ class Secd:
             try:
                 func()
             except RunError as e:
+                if isinstance(e, runtime.TrickExitException):
+                    raise
                 if self.exception_handler:
                     msg = String(str(e))
                     irritants = Nil()
@@ -1160,6 +1162,8 @@ def main(args):
     m.debug = args.debug
     try:
         m.execute_fasl(fasl)
+    except runtime.TrickExitException as e:
+        sys.exit(e.exit_code)
     except RunError as e:
         print('Run error:', e)
         m.print_stack_trace()

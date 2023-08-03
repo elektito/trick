@@ -22,6 +22,15 @@ class TrickRuntimeError(RunError):
         return f'{self.module_name}/{self.proc_name}: {self.msg}'
 
 
+class TrickExitException(TrickRuntimeError):
+    def __init__(self, module, proc_name, exit_code):
+        super().__init__(module, proc_name, f'Exit with code {exit_code}')
+        self.exit_code = exit_code
+
+    def __str__(self):
+        return f'<TrickExitException exit_code={self.exit_code}>'
+
+
 class RuntimeModule:
     def _runtime_error(self, msg):
         # get the name of the function that called _runtime_error
@@ -110,7 +119,7 @@ class Str(RuntimeModule):
 class Sys(RuntimeModule):
     @proc(opcode=0x01)
     def exit(self, exit_code: Integer) -> Void:
-        sys.exit(exit_code)
+        raise TrickExitException(self, 'exit', exit_code)
 
 
 @module(opcode=0x99)

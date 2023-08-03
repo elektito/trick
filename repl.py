@@ -7,6 +7,7 @@ from compile import CompileError
 from fasl import Fasl
 from machinetypes import Void
 from read import ReadError, read_expr
+from runtime import TrickExitException
 from secd import RunError, Secd
 from utils import compile_expr_to_fasl, ensure_fasl
 
@@ -85,6 +86,8 @@ def main(args):
 
         try:
             machine.execute_fasl(expr_fasl)
+        except TrickExitException as e:
+            print('Expression exited with code:', e.exit_code)
         except RunError as e:
             print(e)
             machine.print_stack_trace()
