@@ -602,12 +602,12 @@ class Secd:
         if self.debug: print(f'{name} {self.c} => {proc.c}')
 
         if isinstance(proc, Continuation):
+            # a continuation has only a "rest" argument
             rest_args = args[0]
-            v = Values(rest_args.to_list())
-            self.s = proc.s.extended([v])
-            self.e = [i for i in proc.e]
-            self.c = proc.c
-            self.d = [i for i in proc.d]
+
+            # resume the continuation, passing the rest args as the "return
+            # values" it expects.
+            self.resume_continuation(proc, rest_args.to_list())
         else:
             if dummy_frame:
                 # we've already placed the arguments inside proc.e, so we
