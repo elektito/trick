@@ -1224,10 +1224,6 @@
       (display e)))
 
 (define (terminate-with-exception e)
-  ;; disable system exception handler, in case something goes wrong in this
-  ;; procedure
-  (set-system-exception-handler #f)
-
   (display "Unhandled exception: ")
   (display-exception e)
   (newline)
