@@ -1140,8 +1140,10 @@ class Compiler:
             self.assembler.assemble(form_code, self.defines_fasl)
         elif form[0] == S('begin'):
             form_code = []
-            for expr in form.cdr:
+            for i, expr in enumerate(form.cdr):
                 form_code += self.compile_toplevel_form(expr, env)
+                if i > 0:
+                    form_code += [S('drop')]
             if form_code == []:
                 form_code = [S('void')]
         else:
