@@ -5,8 +5,8 @@ import sys
 from compile import CompileError
 from fasl import Fasl
 from read import ReadError, Reader
-from secd import RunError, Secd, UserError
-from utils import compile_expr_to_fasl, ensure_fasl, format_user_error
+from secd import RunError, Secd
+from utils import compile_expr_to_fasl, ensure_fasl
 
 
 def main():
@@ -68,16 +68,6 @@ def main():
 
         try:
             machine.execute_fasl(expr_fasl)
-        except UserError:
-            err = machine.s.top()
-            msg = format_user_error(err)
-            errors.append((expr, msg))
-            if args.verbose:
-                print('Error')
-            else:
-                print('E', end='', flush=True)
-            if args.stop_on_failure:
-                break
         except RunError as e:
             errors.append((expr, str(e)))
             if args.verbose:

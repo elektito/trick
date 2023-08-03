@@ -8,7 +8,6 @@ import unicodedata
 import runtime
 from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from snippet import show_snippet
-from utils import format_user_error
 from machinetypes import (
     Bool, Char, Integer, List, Nil, Pair, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
 )
@@ -18,8 +17,22 @@ class RunError(Exception):
     pass
 
 
-class UserError(RunError):
-    pass
+class SystemContinuation(Continuation):
+    def action(self, machine):
+        raise NotImplementedError
+
+
+class ExceptionReraiseContinuation(SystemContinuation):
+    def __init__(self, python_exception: Exception, msg: str):
+        self.python_exception = python_exception
+        self.msg = msg
+
+    def action(self, machine):
+        # disable exception handler (likely installed by stdlib), otherwise
+        # we could get caught up in an infinite loop
+        machine.exception_handler = None
+
+        raise RunError(self.msg) from self.python_exception
 
 
 class Stack:
@@ -142,6 +155,7 @@ class Secd:
         self.debug = False
         self.symvals = {}
         self.cur_fasl = None
+        self.exception_handler = None
 
         self.setup_instructions()
         self.setup_runtime()
@@ -184,7 +198,6 @@ class Secd:
             0x20: self.run_dup,
             0x21: self.run_xp,
             0x22: self.run_type,
-            0x23: self.run_error,
             0x24: self.run_gensym,
             0x25: self.run_ccc,
             0x26: self.run_i2ch,
@@ -211,6 +224,7 @@ class Secd:
             0x3b: self.run_veclen,
             0x3c: self.run_wrap,
             0x3d: self.run_unwrap,
+            0x3e: self.run_seh,
             0x40: self.run_ldc,
             0x41: self.run_ld,
             0x42: self.run_sel,
@@ -343,6 +357,10 @@ class Secd:
 
         i = 1
         for cont in reversed(self.d):
+            if isinstance(cont, SystemContinuation):
+                print(f'=[{i}]= <system continuation>')
+                continue
+
             # exclude continuations created by the "sel" instruction (for the
             # "if" primitive). these are not what one usually considers as part
             # of the stack trace.
@@ -360,6 +378,10 @@ class Secd:
             kind=kind)
 
     def resume_continuation(self, cont: Continuation, retvals: list):
+        if isinstance(cont, SystemContinuation):
+            cont.action(self)
+            return
+
         self.cur_fasl = cont.fasl
         self.s = cont.s.copy()
         self.e = [i for i in cont.e]
@@ -401,9 +423,37 @@ class Secd:
             try:
                 func = self.op_funcs[opcode]
             except KeyError:
+                # this will not be raised as a Trick exception, because at this
+                # points its unlikely we can even call an exception handler.
                 raise RunError(f'Invalid op-code: {opcode}')
 
-            func()
+            try:
+                func()
+            except RunError as e:
+                if self.exception_handler:
+                    msg = String(str(e))
+                    irritants = Nil()
+                    args = List.from_list([msg, irritants])
+                    self.s.push(args)
+                    self.s.push(self.exception_handler)
+
+                    # add a continuation that would cause the exception to be
+                    # re-raised if the handler ever returns. this should NOT
+                    # happen, if it does, it's a bug in the stdlib exception
+                    # handler, and this continuation is a guard to catch that.
+                    # Notice that this exception handler is not the same as the
+                    # Scheme concept of exception handler, which is implemented
+                    # entirely in stdlib.
+                    self.d.append(ExceptionReraiseContinuation(
+                        e,
+                        'System exception handler returned. This is '
+                        'likely a bug in stdlib.'))
+
+                    # call the handler as a tail call so that current
+                    # continuation is not added to d.
+                    self._do_apply('<eh>', tail_call=True)
+                else:
+                    raise
 
     def intern(self, name):
         sym = Symbol(name)
@@ -843,10 +893,6 @@ class Secd:
         del self.symvals[sym]
         if self.debug: print(f'unset {self.cur_fasl.symtab[symnum]}')
 
-    def run_error(self):
-        if self.debug: print(f'error')
-        raise UserError('User error')
-
     def run_gensym(self):
         short_name = self.s.popx()
         sym = Symbol.gensym(short_name)
@@ -1065,6 +1111,18 @@ class Secd:
         self.s.pushx(value)
         if self.debug: print(f'unwrap {value} from {wrapped.type_id}')
 
+    def run_seh(self):
+        proc = self.s.pop((Procedure, Bool), 'seh')
+        if proc == Bool(False):
+            self.exception_handler = None
+        elif proc == Bool(True):
+            raise RunError('Invalid exception handler: #t')
+        else:
+            if not proc.accepts_argument_count(2):
+                raise RunError('Exception handler must accept two arguments (message and irritants)')
+            self.exception_handler = proc
+        if self.debug: print(f'seh: {proc}')
+
 
 def configure_argparse(parser: argparse.ArgumentParser):
     parser.description = 'Run a binary SECD program'
@@ -1102,12 +1160,6 @@ def main(args):
     m.debug = args.debug
     try:
         m.execute_fasl(fasl)
-    except UserError:
-        err = m.s.pop()
-        msg = format_user_error(err)
-        print(f'Run error: {msg}', file=sys.stderr)
-        m.print_stack_trace()
-        sys.exit(1)
     except RunError as e:
         print('Run error:', e)
         m.print_stack_trace()

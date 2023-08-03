@@ -321,6 +321,12 @@ class Procedure(TrickType):
         self.src_start = None
         self.src_end = None
 
+    def accepts_argument_count(self, n: int):
+        if self.rest_param:
+            return n == self.nparams
+        else:
+            return n >= self.nparams
+
     def __repr__(self):
         return '#<procedure>'
 
@@ -704,6 +710,7 @@ class WrappedValue(TrickType):
         self.type_id = type_id
 
     def __str__(self):
-        return f'#<wrapped {self.value} ({self.type_id})>'
+        return f'#<wrapped {self.type_id} {self.value}>'
+
 
 shareable_types = (Pair, Vector)

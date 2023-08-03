@@ -10,17 +10,6 @@ def assoc(item, alist):
     return None
 
 
-def format_user_error(err):
-    from machinetypes import Symbol
-
-    err_type = assoc(Symbol(':type'), err)
-    msg = f'User error of type {err_type}'
-    err_msg = assoc(Symbol(':msg'), err)
-    if err_msg is not None:
-        msg += f': {err_msg}'
-    return msg
-
-
 def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
                              dbg_info=False):
     from compile import Compiler

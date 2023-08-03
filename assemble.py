@@ -139,6 +139,7 @@ class Assembler:
                 'veclen': 0x3b,
                 'wrap': 0x3c,
                 'unwrap': 0x3d,
+                'seh': 0x3e,
             }
             opcode = single_byte_instrs.get(instr)
             if opcode is not None:

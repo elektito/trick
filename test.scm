@@ -1275,3 +1275,53 @@ and still a comment
        (= 20 (kdr r1))
        (= 1 (kar r2))
        (= 2 (kdr r2))))
+
+;; exceptions
+
+(equal? '(handled foo)
+        (call/cc (lambda (k)
+                   (with-exception-handler
+                    (lambda (e)
+                      (k (list 'handled e)))
+                    (lambda ()
+                      (raise 'foo))))))
+
+(equal? '(back handled foo)
+        (with-exception-handler
+         (lambda (e)
+           (list 'handled e))
+         (lambda ()
+           (cons 'back (raise-continuable 'foo)))))
+
+(let* ((results '())
+       (add (lambda (x)
+              (set! results (cons x results)))))
+  (add (call/cc
+        (lambda (k)
+          (with-exception-handler
+           (lambda (e)
+             (add 'd)
+             (k 'handled))
+           (lambda ()
+             (with-exception-handler
+              (lambda (e)
+                (add 'c))
+              (lambda ()
+                (add 'a)
+                (raise 'foo)
+                (add 'b))))))))
+  (equal? '(handled d c a) results))
+
+(call/cc (lambda (k)
+           (with-exception-handler
+            (lambda (e)
+              (k #t))
+            (lambda ()
+              ;; cause a system exception
+              (car '())
+              ;; in case that somehow returned, cause the test to still fail!
+              #f))))
+
+(= 200 (with-exception-handler
+        (lambda (e) 100)
+        (lambda () 200)))

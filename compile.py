@@ -10,9 +10,9 @@ from fasl import DefineInfo, Fasl
 from read import Reader, ReadError
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String, Vector
 from assemble import Assembler
-from secd import RunError, Secd, UserError
+from secd import RunError, Secd
 from snippet import show_snippet
-from utils import find_shared, format_user_error
+from utils import find_shared
 
 
 def S(s: str) -> Symbol:
@@ -200,6 +200,10 @@ primcalls = {
         'nargs': 1,
         'code': [S('unwrap')],
     },
+    'set-system-exception-handler': {
+        'nargs': 1,
+        'code': [S('seh'), S('void')],
+    },
 }
 
 
@@ -343,11 +347,6 @@ class Compiler:
             # since we want to push arguments on the stack, load the libraries
             # first to make sure they won't interfere with what we push.
             machine.load_fasls(self.libs + [self.defines_fasl])
-        except UserError:
-            err = machine.s.top()
-            msg = format_user_error(err)
-            msg = f'When loading libs for macro expansion of {name_sym}: {msg}'
-            raise CompileError(msg, form=form)
         except RunError as e:
             raise CompileError(
                 f'Run error when loading libs for macro expansion of "{name_sym}": {e}',
@@ -363,11 +362,6 @@ class Compiler:
 
         try:
             machine.execute_fasl(fasl)
-        except UserError:
-            err = machine.s.top()
-            msg = format_user_error(err)
-            msg = f'During macro expansion of {name_sym}: {msg}'
-            raise CompileError(msg, form=form)
         except RunError as e:
             machine.print_stack_trace()
             raise CompileError(
@@ -944,39 +938,6 @@ class Compiler:
 
         return self.compile_literal(expr[1], env)
 
-    def compile_error(self, expr, env):
-        if len(expr) < 2 or len(expr) % 2 != 0:
-            raise CompileError(
-                f'Invalid number of arguments for error', form=expr)
-
-        error_sym = expr[1]
-        if not isinstance(error_sym, Symbol):
-            raise CompileError(
-                f'First argument to error must be a symbol', form=expr)
-
-        error_args = [S(':type'), error_sym]
-
-        # expr: (error :type :kw1 v1 :kw2 v2)
-        # i.e.: (error . (:type . (:kw1 . (v1 . (:kw2 . (v2 . nil))))))
-        cur = expr.cddr() # :type :kw1 v1 :kw2
-        while cur != Nil():
-            name = cur.car
-            if cur.cdr == Nil():
-                raise CompileError(
-                    'Malformed error arguments', form=expr)
-            value = cur.cdar()
-            cur = cur.cddr()
-            error_args.append(name)
-            error_args.append(value)
-
-        code = [S('nil')]
-        for arg in reversed(error_args):
-            code += self.compile_form(arg, env)
-            code += [S('cons')]
-        code += [S('error')]
-
-        return code
-
     def compile_primcall(self, expr, env, desc):
         nargs = desc['nargs']
         if len(expr) != nargs + 1:
@@ -1030,7 +991,6 @@ class Compiler:
                 'let': self.compile_let,
                 'letrec': self.compile_letrec,
                 'quote': self.compile_quote,
-                'error': self.compile_error,
                 '#$apply': self.compile_apply,
             }
 

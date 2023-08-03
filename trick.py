@@ -11,7 +11,7 @@ from machinetypes import List
 from read import Reader, ReadError, read_expr
 import secd
 import repl
-from utils import compile_expr_to_fasl, compile_src_file_to_fasl, format_user_error, load_fasl_files
+from utils import compile_expr_to_fasl, compile_src_file_to_fasl, load_fasl_files
 
 
 VERSION = '0.1.0'
@@ -157,10 +157,6 @@ def main():
         machine = secd.Secd(lib_fasls)
         try:
             machine.execute_fasl(expr_fasl)
-        except secd.UserError:
-            err = machine.s.top()
-            msg = format_user_error(err)
-            print(msg)
         except secd.RunError as e:
             print(e)
         else:

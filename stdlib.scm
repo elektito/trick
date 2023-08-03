@@ -251,7 +251,7 @@
 ;; for example, (pairwise list '(1 2 3 4)) would result in (1 2) (2 3) (3 4)
 (define (pairwise fn ls)
   (cond ((< (length ls) 2)
-         (error :arg-error :msg "Invalid number of arguments for pairwise"))
+         (error "Invalid number of arguments for pairwise"))
         ((eqv? (length ls) 2)
          (list (fn (car ls) (cadr ls))))
         (#t
@@ -267,7 +267,7 @@
 
 (define (- . r)
   (if (null? r)
-      (error :arg-error :msg "Invalid number of arguments for -")
+      (error "Invalid number of arguments for -")
       (if (null? (cdr r))
           (#$isub 0 (car r))
           (if (null? (cddr r))
@@ -281,7 +281,7 @@
 
 (define (/ . r)
   (if (null? r)
-      (error :arg-error :msg "Invalid number of arguments for /")
+      (error "Invalid number of arguments for /")
       (if (null? (cdr r))
           (#$idiv 1 (car r))
           (if (null? (cddr r))
@@ -364,8 +364,7 @@
              (cadr form)
              (qq-process-list form (- level 1))))
         ((qq-is-unquote-splicing form)
-         (error :quasiquote-error
-                :msg "unquote-splicing in dotted tail"))
+         (error "unquote-splicing in dotted tail"))
         ((qq-is-quasiquote form)
          (qq-process-list form (+ level 1)))
         (#t
@@ -416,8 +415,7 @@
              (cadr form)
              (qq-process-list form (- level 1))))
         ((qq-is-unquote-splicing form)
-         (error :quasiquote-error
-                :msg "unquote-splicing immediately inside quasiquote."))
+         (error "unquote-splicing immediately inside quasiquote."))
         ((qq-is-quasiquote form)
          (qq-process-list form (+ level 1)))
         (#t
@@ -612,7 +610,7 @@
   `(lambda args
      (apply
       (cond ,@(map create-case-lambda-clause clauses)
-            (#t (lambda x (error :bad-args))))
+            (#t (lambda x (error "Argument list does not match any case-lambda clause"))))
       args)))
 
 ;;
@@ -641,16 +639,30 @@
 (define (assv obj alist)
   (assq obj alist))
 
+;; looks up obj in the given property list, using eq?
+;; if obj is not found, #f is returned
+;; if plist has an odd number of values (not a valid plist), the last
+;; argument is silently ignored.
+(define (plist-getq obj plist)
+  (let loop ((plist plist))
+    (if (and (pair? plist)
+             (pair? (cdr plist)))
+        (begin
+          (if (eq? obj (car plist))
+              (cadr plist)
+              (loop (cddr plist))))
+        #f)))
+
 ;; more list operations
 
 (define (length ls)
   (cond ((null? ls) 0)
         ((not (pair? ls))
-         (error :arg-error :msg "length: argument not a list"))
+         (error "length: argument not a list"))
         ((null? (cdr ls))
          1)
         ((not (pair? (cdr ls)))
-         (error :arg-error :msg "length: argument not a proper list"))
+         (error "length: argument not a proper list"))
         (#t (+ 1 (length (cdr ls))))))
 
 (define (range1 start n acc)
@@ -690,7 +702,7 @@
 (define (proper-length ls)
   (cond ((null? ls) 0)
         ((not (pair? ls))
-         (error :arg-error :msg "proper-length: argument not a list"))
+         (error "proper-length: argument not a list"))
         ((null? (cdr ls))
          1)
         ((not (pair? (cdr ls)))
@@ -786,7 +798,7 @@
 
 (define (string->list . args)
   (if (or (null? args) (> (length args) 3))
-      (error :arg-error :msg "string->list accepts 1-3 arguments."))
+      (error "string->list accepts 1-3 arguments."))
   (let* ((str (car args))
          (strlen (string-length str))
          (start (if (>= (length args) 2)
@@ -1195,3 +1207,92 @@
                         dont-exit))))
   (unless (eq? code dont-exit)
     (emergency-exit code)))
+
+;; exceptions
+
+;; whenever a system exception happens, this function is called in the dynamic
+;; environment in which the exception happened. we convert the passed arguments
+;; into an error object and raise that.
+(set-system-exception-handler (lambda (msg irritants)
+                                (apply error msg irritants)))
+
+(define exception-handlers '())
+
+(define (display-exception e)
+  (if (error-object? e)
+      (display (error-object-message e))
+      (display e)))
+
+(define (terminate-with-exception e)
+  ;; disable system exception handler, in case something goes wrong in this
+  ;; procedure
+  (set-system-exception-handler #f)
+
+  (display "Unhandled exception: ")
+  (display-exception e)
+  (newline)
+
+  (let loop ((e e))
+    (when (error-object? e)
+      (let ((wrapped (plist-getq 'wrapped-exception
+                                 (error-object-irritants e))))
+        (when wrapped
+          (display "This happened while handling another exception: ")
+          (display-exception wrapped)
+          (newline)
+          (loop wrapped)))))
+
+  (exit #f))
+
+(define (raise e)
+  (when (null? exception-handlers)
+    (terminate-with-exception e))
+
+  (let ((old-handlers exception-handlers)
+        (cur-handler #f))
+    (dynamic-wind
+        (lambda ()
+          (set! old-handlers exception-handlers)
+          (set! cur-handler (car exception-handlers))
+          (set! exception-handlers (cdr exception-handlers)))
+        (lambda ()
+          (cur-handler e)
+          (raise (error "an exception handler returned" 'wrapped-exception e)))
+        (lambda ()
+          (set! exception-handlers old-handlers)))))
+
+(define (raise-continuable e)
+  (when (null? exception-handlers)
+    (raise
+     (error "a continuable exception happened, but there was no error handler"
+            'wrapped-exception e)))
+
+  (let ((old-handlers exception-handlers)
+        (cur-handler #f))
+    (dynamic-wind
+        (lambda ()
+          (set! old-handlers exception-handlers)
+          (set! cur-handler (car exception-handlers))
+          (set! exception-handlers (cdr old-handlers)))
+        (lambda ()
+          (cur-handler e))
+        (lambda ()
+          (set! exception-handlers old-handlers)))))
+
+(define (with-exception-handler handler thunk)
+  (dynamic-wind
+      (lambda ()
+        (set! exception-handlers
+              (cons handler exception-handlers)))
+      (lambda () (thunk))
+      (lambda ()
+        (set! exception-handlers (cdr exception-handlers)))))
+
+(define-record-type error
+  (make-error message irritants)
+  error-object?
+  (message error-object-message)
+  (irritants error-object-irritants))
+
+(define (error msg . irritants)
+  (raise (make-error msg irritants)))

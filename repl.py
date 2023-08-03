@@ -7,8 +7,8 @@ from compile import CompileError
 from fasl import Fasl
 from machinetypes import Void
 from read import ReadError, read_expr
-from secd import RunError, Secd, UserError
-from utils import compile_expr_to_fasl, ensure_fasl, format_user_error
+from secd import RunError, Secd
+from utils import compile_expr_to_fasl, ensure_fasl
 
 
 HISTORY_FILE = os.path.expanduser('~/.trick-repl-history')
@@ -85,11 +85,6 @@ def main(args):
 
         try:
             machine.execute_fasl(expr_fasl)
-        except UserError:
-            err = machine.s.top()
-            msg = format_user_error(err)
-            print(msg)
-            machine.print_stack_trace()
         except RunError as e:
             print(e)
             machine.print_stack_trace()
