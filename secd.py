@@ -587,7 +587,7 @@ class Secd:
             # note that we don't store e[0] on d, since it contains the dummy
             # frame. in normal 'ap' that does not exist, so we can store the
             # entire contents of e.
-            self.d.append(self.create_continuation(offset=0, e=self.e[1:]))
+            self.d.append(self.create_continuation(e=self.e[1:]))
 
             # replace dummy frame with actual frame
             proc.e[0] = args
