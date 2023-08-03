@@ -1,5 +1,4 @@
 import io
-from typing_extensions import runtime
 from machinetypes import Integer, Symbol, List, Nil, Pair, Bool, String, Char, Reference, TrickType, Vector
 
 
