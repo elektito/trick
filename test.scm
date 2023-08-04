@@ -138,10 +138,6 @@ and still a comment
   (define (foo x) (+ 900 x))
   (eq? 1000 (foo 100)))
 
-(let ()
-  (define foo)
-  (eq? foo '()))
-
 (let ((ls '()))
   (let f ((x 5))
     (unless (= x 0)

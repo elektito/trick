@@ -393,9 +393,9 @@ class Compiler:
             elif len(expr) == 2:
                 # define with no value
                 # convert from: (define name)
-                # to: (define name (quote ()))
-                # which is: (define name . ( quote . (() . ()) ))
-                value = Pair(Symbol('quote'), Pair(Nil(), Nil()))
+                # to: (define name (#$void))
+                # which is: (define name . ( #$void . () ) )
+                value = Pair(Symbol('#$void'), Nil())
             else:
                 raise CompileError(
                     f'Invalid number of arguments for {form_name}.',
