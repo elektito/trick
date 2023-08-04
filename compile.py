@@ -204,6 +204,10 @@ primcalls = {
         'nargs': 1,
         'code': [S('seh'), S('void')],
     },
+    'abort': {
+        'nargs': 2,
+        'code': [S('abort')],
+    }
 }
 
 

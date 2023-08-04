@@ -17,6 +17,18 @@ class RunError(Exception):
     pass
 
 
+class AbortedException(Exception):
+    def __init__(self, message, continuation):
+        self.message = message
+        self.continuation = continuation
+
+    def __str__(self):
+        if self.continuation:
+            return f'<AbortedException "{self.message}" with continuation>'
+        else:
+            return f'<AbortedException "{self.message}">'
+
+
 class SystemContinuation(Continuation):
     def action(self, machine):
         raise NotImplementedError
@@ -225,6 +237,7 @@ class Secd:
             0x3c: self.run_wrap,
             0x3d: self.run_unwrap,
             0x3e: self.run_seh,
+            0x3f: self.run_abort,
             0x40: self.run_ldc,
             0x41: self.run_ld,
             0x42: self.run_sel,
@@ -429,13 +442,23 @@ class Secd:
 
             try:
                 func()
+            except AbortedException as e:
+                # this happens when an exception is not handled. we first
+                # restore the original continuation, if available, so that the
+                # user can see where the actual error happened.
+                if e.continuation:
+                    # we'll pass a void value to the continuation, but that's
+                    # just arbitrary, since we have no intention of actually
+                    # continuing with the continuation!
+                    self.resume_continuation(e.continuation, [Void()])
+                raise RunError(e.message)
             except RunError as e:
                 if isinstance(e, runtime.TrickExitException):
                     raise
                 if self.exception_handler:
                     msg = String(str(e))
-                    irritants = Nil()
-                    args = List.from_list([msg, irritants])
+                    continuation = self.create_continuation()
+                    args = List.from_list([msg, continuation])
                     self.s.push(args)
                     self.s.push(self.exception_handler)
 
@@ -1124,6 +1147,21 @@ class Secd:
                 raise RunError('Exception handler must accept two arguments (message and irritants)')
             self.exception_handler = proc
         if self.debug: print(f'seh: {proc}')
+
+    def run_abort(self):
+        message = self.s.popx()
+        continuation = self.s.popx()
+        if self.debug: print(f'abort {message}')
+
+        if isinstance(message, String):
+            message = message.value
+        else:
+            message = str(message)
+
+        if not isinstance(continuation, Continuation):
+            continuation = None
+
+        raise AbortedException(message, continuation)
 
 
 def configure_argparse(parser: argparse.ArgumentParser):

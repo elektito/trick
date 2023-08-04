@@ -1260,8 +1260,11 @@
 ;; whenever a system exception happens, this function is called in the dynamic
 ;; environment in which the exception happened. we convert the passed arguments
 ;; into an error object and raise that.
-(set-system-exception-handler (lambda (msg irritants)
-                                (apply error msg irritants)))
+(set-system-exception-handler
+ (lambda (msg continuation)
+   (error msg
+          'context 'system
+          'continuation continuation)))
 
 (define exception-handlers '())
 
@@ -1271,21 +1274,14 @@
       (display e)))
 
 (define (terminate-with-exception e)
-  (display "Unhandled exception: ")
-  (display-exception e)
-  (newline)
-
-  (let loop ((e e))
-    (when (error-object? e)
-      (let ((wrapped (plist-getq 'wrapped-exception
-                                 (error-object-irritants e))))
-        (when wrapped
-          (display "This happened while handling another exception: ")
-          (display-exception wrapped)
-          (newline)
-          (loop wrapped)))))
-
-  (exit #f))
+  (define (system-error? e)
+    (eq? 'system (plist-getq 'context (error-object-irritants e))))
+  (if (error-object? e)
+      (if (system-error? e)
+          (abort (error-object-message e)
+                 (plist-getq 'continuation (error-object-irritants e)))
+          (abort (error-object-message e) #f))
+      (abort e #f)))
 
 (define (raise e)
   (when (null? exception-handlers)
