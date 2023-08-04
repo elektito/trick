@@ -1112,6 +1112,9 @@
     (out)
     (apply values ans*)))
 
+(define-macro (let/cc k . body)
+  `(call/cc (lambda (,k) ,@body)))
+
 ;; parameters
 
 (define make-parameter
