@@ -1268,11 +1268,6 @@
 
 (define exception-handlers '())
 
-(define (display-exception e)
-  (if (error-object? e)
-      (display (error-object-message e))
-      (display e)))
-
 (define (terminate-with-exception e)
   (define (system-error? e)
     (eq? 'system (plist-getq 'context (error-object-irritants e))))
