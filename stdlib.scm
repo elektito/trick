@@ -1274,6 +1274,26 @@
 (define (terminate-with-exception e)
   (define (system-error? e)
     (eq? 'system (plist-getq 'context (error-object-irritants e))))
+
+  ;; do we need to call the "after" procedures of any active dynamic-wind
+  ;; invocations here? I'd argue that we don't. reading through the definition
+  ;; of entering/exiting dynamic environment in r7rs small spec (page 53), i see
+  ;; it's only described in terms of either calling/returning, or invoking
+  ;; call/cc, neither of which is happening here.
+  ;;
+  ;; still, we _could_ call the "after" procedures here, and i don't think that
+  ;; would be entirely against the spec, but there a few issues. what if there
+  ;; is another unhandled exception when unwinding? we might go into an infinite
+  ;; loop. one half-solution to that would be to clear the list of winders
+  ;; before unwinding, but that's a risky maneuver that might break things.
+  ;;
+  ;; another risk of unwinding is that one of the unwinders might invoke another
+  ;; continuation and never return, but that's undefined behavior according to
+  ;; the spec ("the effect of using a captured continuation to enter or exit the
+  ;; dynamic extent of a call to before or after is unspecified."), so i
+  ;; wouldn't be too much worried about i could find a solution to the previous
+  ;; issue.
+
   (if (error-object? e)
       (if (system-error? e)
           (abort (error-object-message e)
