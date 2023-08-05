@@ -40,14 +40,14 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
 
 
 def compile_expr_to_fasl(expr, lib_fasls=[]):
-    from compile import Compiler
+    from compile import Compiler, Environment
     from assemble import Assembler
     from fasl import Fasl
 
     compiler = Compiler(lib_fasls)
 
     fasl = Fasl()
-    asm_code = compiler.compile_toplevel_form(expr, [])
+    asm_code = compiler.compile_toplevel_form(expr, Environment())
     fasl.defines = compiler.defined_symbols
 
     assembler = Assembler()

@@ -19,6 +19,48 @@ def S(s: str) -> Symbol:
     return Symbol(s)
 
 
+class EnvironmentFrame:
+    def __init__(self, initial_variables=None):
+        if initial_variables is None:
+            self.variables = []
+        else:
+            self.variables = initial_variables
+
+    def copy(self):
+        copy = EnvironmentFrame()
+        copy.variables = [s for s in self.variables]
+        return copy
+
+    def contains(self, name: Symbol):
+        return name in self.variables
+
+    def add(self, name: Symbol):
+        self.variables.append(name)
+
+
+class Environment:
+    def __init__(self):
+        self.frames = []
+
+    def copy(self):
+        copy = Environment()
+        copy.frames = [f.copy() for f in self.frames]
+        return copy
+
+    def add_frame(self, variables):
+        self.frames.insert(0, EnvironmentFrame(variables))
+
+    def locate(self, name: Symbol):
+        for i, frame in enumerate(self.frames):
+            try:
+                j = frame.variables.index(name)
+            except ValueError:
+                pass
+            else:
+                return [Integer(i), Integer(j)]
+        return None
+
+
 primcalls = {
     '#$void': {
         'nargs': 0,
@@ -235,13 +277,6 @@ def get_primcall(sym: Symbol):
                 'code': [S('trap'), S(f'{module}/{proc}')],
             }
 
-    return None
-
-
-def locate_var(var: Symbol, env):
-    for i, frame in enumerate(env):
-        if var in frame:
-            return [Integer(i), Integer(frame.index(var))]
     return None
 
 
@@ -534,8 +569,8 @@ class Compiler:
 
             # it's okay if the name already exists though, we're just shadowing
             # a let/letrec/lambda varaible
-            if name not in env[0]:
-                env[0].append(name)
+            if not env.frames[0].contains(name):
+                env.frames[0].add(name)
                 code += [S('xp')]
 
         # now that the environment has all the new variables, set variable
@@ -543,7 +578,7 @@ class Compiler:
         for define_type, define_form in defines:
             name, value = self.parse_define_form(define_form, define_type)
             code += self.compile_form(value, env)
-            code += [S('st'), locate_var(name, env)]
+            code += [S('st'), env.locate(name)]
 
         if isinstance(body, Nil):
             raise CompileError('Empty body', form=full_form)
@@ -599,7 +634,8 @@ class Compiler:
         # writing the "ldf" instruction though.
         original_nparams = len(params)
 
-        new_env = [params] + env
+        new_env = env.copy()
+        new_env.add_frame(params)
 
         # expr: (lambda . (params . body))
         body = expr.cddr()
@@ -634,7 +670,7 @@ class Compiler:
         if sym.name.startswith(':'):
             return [S('ldsym'), sym]
 
-        local_var_spec = locate_var(sym, env)
+        local_var_spec = env.locate(sym)
         if local_var_spec is None:
             self.read_symbols.add(sym)
             return [S('get'), sym]
@@ -797,7 +833,9 @@ class Compiler:
 
         secd_code = [S('dum'), S('nil')]
         for v in reversed(values.to_list()):
-            secd_code += self.compile_form(v, [vars] + env) + [S('cons')]
+            new_env = env.copy()
+            new_env.add_frame(vars)
+            secd_code += self.compile_form(v, new_env) + [S('cons')]
 
         # ((lambda . ( params . body )) . args)
         lambda_call = Pair(S('lambda'), Pair(vars, body))
@@ -846,7 +884,7 @@ class Compiler:
         value = expr[2]
         code = self.compile_form(value, env)
 
-        local_var_spec = locate_var(name, env)
+        local_var_spec = env.locate(name)
         if local_var_spec is None:
             code += [S('set'), name]
             self.set_symbols.add(name)
@@ -1121,7 +1159,7 @@ class Compiler:
 
     def compile_toplevel(self, text):
         code = []
-        toplevel_env = []
+        toplevel_env = Environment()
         input = io.StringIO(text)
         reader = Reader(input)
         while True:
