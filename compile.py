@@ -658,8 +658,8 @@ class Compiler:
             # return a function that performs those primitives. what we do is
             # emit an ldf instruction which loads its arguments into the stack,
             # in the same order as the call to the primitive itself pushes its
-            # arguments, and than performs the same instructions the primitive
-            # itself would perform. and then returns of course.
+            # arguments, then performs the same instructions the primitive
+            # itself would perform, and then returns of course.
             func_code = []
             for i in range(prim['nargs'] - 1, -1, -1):
                 func_code += [S('ld'), [Integer(0), Integer(i)]]
