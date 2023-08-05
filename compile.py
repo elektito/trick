@@ -40,7 +40,8 @@ class EnvironmentFrame:
 
 class Environment:
     def __init__(self):
-        self.frames = []
+        self.frames: list[EnvironmentFrame] = []
+        self.defined_symbols: dict[Symbol, DefineInfo] = {}
 
     def copy(self):
         copy = Environment()
@@ -301,10 +302,9 @@ class CompileError(Exception):
 
 
 class Compiler:
-    def __init__(self, libs, debug_info=False):
+    def __init__(self, libs: list[Fasl], debug_info=False):
         self.assembler = Assembler()
         self.macros = []
-        self.defined_symbols: dict[Symbol, DefineInfo] = {}
         self.set_symbols = set()
         self.read_symbols = set()
         self.defines_fasl = Fasl()
@@ -465,7 +465,7 @@ class Compiler:
     def process_define_macro(self, expr, env):
         # we'll be compiling the macro almost exactly the same as we compile a
         # regular top-level define. we only set the define type as a macro in
-        # self.defined_symbols.
+        # env.defined_symbols.
 
         name, lambda_form = self.parse_define_form(expr, 'define-macro')
         if len(expr) < 3:
@@ -474,7 +474,7 @@ class Compiler:
         if name in self.macros:
             raise CompileError(f'Duplicate macro definition: {name}',
                                form=expr)
-        self.defined_symbols[name] = DefineInfo(is_macro=True)
+        env.defined_symbols[name] = DefineInfo(is_macro=True)
 
         code = self.compile_form(lambda_form, env)
         code += [S('set'), name, S('void')]
@@ -1132,7 +1132,7 @@ class Compiler:
                 form_code = []
         elif form[0] == S('define'):
             name_sym, value = self.parse_define_form(form, 'define')
-            self.defined_symbols[name_sym] = DefineInfo(is_macro=False)
+            env.defined_symbols[name_sym] = DefineInfo(is_macro=False)
             form_code = self.compile_form(value, env)
             form_code += [S('set'), name_sym, S('void')]
 
@@ -1157,9 +1157,11 @@ class Compiler:
 
         return form_code
 
-    def compile_toplevel(self, text):
+    def compile_toplevel(self, text, env=None):
+        if env is None:
+            env = Environment()
+
         code = []
-        toplevel_env = Environment()
         input = io.StringIO(text)
         reader = Reader(input)
         while True:
@@ -1177,7 +1179,7 @@ class Compiler:
                 raise CompileError(
                     f'Cannot compile improper list: {form}', form=form)
 
-            form_code = self.compile_toplevel_form(form, toplevel_env)
+            form_code = self.compile_toplevel_form(form, env)
 
             if code == []:
                 code = form_code
@@ -1187,7 +1189,7 @@ class Compiler:
         if code != []:
             code += [S('drop')]
 
-        all_defines = set(self.defined_symbols.keys())
+        all_defines = set(env.defined_symbols.keys())
         for lib in self.libs:
             all_defines |= set(lib.defines)
 

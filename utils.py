@@ -12,9 +12,9 @@ def assoc(item, alist):
 
 def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
                              dbg_info=False):
-    from compile import Compiler
+    from compile import Compiler, Environment
     from assemble import Assembler
-    from fasl import Fasl, FaslDbgInfoSection
+    from fasl import Fasl
 
     lib_fasls = []
     for lib in libs:
@@ -26,8 +26,9 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
         text = f.read()
 
     fasl = Fasl()
-    asm_code = compiler.compile_toplevel(text)
-    fasl.defines = compiler.defined_symbols
+    env = Environment()
+    asm_code = compiler.compile_toplevel(text, env)
+    fasl.defines = env.defined_symbols
 
     assembler = Assembler()
     assembler.assemble(asm_code, fasl)
@@ -47,8 +48,9 @@ def compile_expr_to_fasl(expr, lib_fasls=[]):
     compiler = Compiler(lib_fasls)
 
     fasl = Fasl()
-    asm_code = compiler.compile_toplevel_form(expr, Environment())
-    fasl.defines = compiler.defined_symbols
+    env = Environment()
+    asm_code = compiler.compile_toplevel_form(expr, env)
+    fasl.defines = env.defined_symbols
 
     assembler = Assembler()
     assembler.assemble(asm_code, fasl)
