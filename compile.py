@@ -290,23 +290,22 @@ class Compiler:
               len(form) > 0 and \
               isinstance(form[0], Symbol):
             name_sym = form[0]
-            macro_name_sym = S(f'#m:{name_sym.name}')
-            if macro_name_sym.name not in self.macros:
+            if name_sym.name not in self.macros:
                 break
 
             src_start = form.src_start
             src_end = form.src_end
 
             args = form.cdr
-            form = self.expand_single_macro(macro_name_sym, args, env, form)
+            form = self.expand_single_macro(name_sym, args, env, form)
             if isinstance(form, Pair) and not form.is_proper():
                 raise CompileError(
-                    f'Macro {macro_name_sym} returned an improper list: {form}',
+                    f'Macro {name_sym} returned an improper list: {form}',
                     form=form)
 
             if isinstance(form, Pair) and not form.is_proper():
                 raise CompileError(
-                    f'Macro {macro_name_sym} returned an improper list: {form}',
+                    f'Macro {name_sym} returned an improper list: {form}',
                     form=form)
 
             form.src_start = src_start
@@ -322,12 +321,11 @@ class Compiler:
             if name_sym.name == 'quote':
                 return form
 
-            macro_name_sym = S(f'#m:{name_sym.name}')
-            if macro_name_sym.name not in self.macros:
+            if name_sym.name not in self.macros:
                 break
 
             args = form.cdr
-            form = self.expand_single_macro(macro_name_sym, args, env, form)
+            form = self.expand_single_macro(name_sym, args, env, form)
 
         if not isinstance(form, Pair):
             return form
@@ -438,21 +436,15 @@ class Compiler:
         if len(expr) < 3:
             raise CompileError('Not enough arguments for define-macro', form=expr)
 
-        # we'll define the macro as a function under another name, in order to
-        # make sure the macro is not run as a function by accident (for example,
-        # due to the fact that the macro is being used before being defined
-        # inside another macro)
-        macro_name = S(f'#m:{name}')
-
-        if macro_name in self.macros:
+        if name in self.macros:
             raise CompileError(f'Duplicate macro definition: {name}',
                                form=expr)
-        self.defined_symbols[macro_name] = DefineInfo(is_macro=True)
+        self.defined_symbols[name] = DefineInfo(is_macro=True)
 
         code = self.compile_form(lambda_form, env)
-        code += [S('set'), macro_name, S('void')]
+        code += [S('set'), name, S('void')]
 
-        self.macros.append(macro_name.name)
+        self.macros.append(name.name)
         
         return code
 
@@ -1162,14 +1154,12 @@ class Compiler:
             all_defines |= set(lib.defines)
 
         for sym in self.set_symbols:
-            macro_name = S(f'#m:{sym.name}')
-            if sym not in all_defines and not macro_name in all_defines:
+            if sym not in all_defines:
                 raise CompileError(
                     f'Symbol {sym} is set at some point but never defined')
 
         for sym in self.read_symbols:
-            macro_name = S(f'#m:{sym.name}')
-            if sym not in all_defines and not macro_name in all_defines:
+            if sym not in all_defines:
                 raise CompileError(f'Symbol {sym} is read at some point but never defined')
 
         return code
