@@ -532,8 +532,16 @@ class Compiler:
         defines, body = self.collect_defines(body)
 
         # expand the environment to include the defines
+        seen = set()
         for define_type, define_form in defines:
+            # a name cannot be defined more than once
             name, value = self.parse_define_form(define_form, define_type)
+            if name in seen:
+                raise CompileError(f'Duplicate definition: {name}')
+            seen.add(name)
+
+            # it's okay if the name already exists though, we're just shadowing
+            # a let/letrec/lambda varaible
             if name not in env[0]:
                 env[0].append(name)
                 code += [S('xp')]
@@ -576,7 +584,11 @@ class Compiler:
             rest_param = params.after_dot()
             params = new_params
 
+        seen = set()
         for p in params:
+            if p in seen:
+                raise CompileError(f'Duplicate variable: {p}')
+            seen.add(p)
             if not isinstance(p, Symbol):
                 raise CompileError(
                     f'Invalid parameter name: {p} (not a symbol)',

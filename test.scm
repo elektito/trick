@@ -58,6 +58,10 @@ and still a comment
   (and (is-odd? 11)
        (is-even? 12)))
 
+(= 20 (let ((x 10))
+        (define x 20)
+        x))
+
 ;;
 
 (eq? 1 1)
