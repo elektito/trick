@@ -23,13 +23,13 @@ class Label:
 
 
 class Reader:
-    def __init__(self, input):
+    def __init__(self, input, *, casefold=False):
         assert hasattr(input, 'read')
 
         self._input = input
         self.input_idx = 0
         self._unread_chars = []
-        self._fold_case = False
+        self._fold_case = casefold
         self._labeled_data = {}
         self._seen_labels = set()
 
@@ -47,6 +47,17 @@ class Reader:
         self._resolve_refs(value)
 
         return value
+
+    def read_all(self) -> list[TrickType]:
+        """Read all expressions in the input file and return them as a python
+        list."""
+        forms = []
+        while True:
+            form = self.read()
+            if form is None:
+                break
+            forms.append(form)
+        return forms
 
     def _read(self, eof_error=None, allow_delim=None, label=None) -> (None | TrickType):
         self._skip_whitespace(eof_error)

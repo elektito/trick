@@ -1066,6 +1066,76 @@ class Compiler:
             code += self.compile_form(form, env)
         return code
 
+    def _compile_include(self, expr, env, *, toplevel: bool, casefold: bool):
+        if len(expr) < 2:
+            raise CompileError(
+                'Missing filenames in include directive', form=expr)
+
+        code = []
+        for filename in expr.cdr:
+            if not isinstance(filename, String):
+                raise CompileError(
+                    f'Filename in include directive not a string '
+                    f'literal: {filename}',
+                    form=expr)
+            filename = filename.value
+            try:
+                with open(filename) as f:
+                    reader = Reader(f, casefold=casefold)
+                    exprs = reader.read_all()
+            except FileNotFoundError as f:
+                raise CompileError(
+                    f'Included filename not found: {filename}',
+                    form=expr)
+            except ReadError as e:
+                raise CompileError(
+                    f'Read error while expanding included file '
+                    f'"{filename}": {e}',
+                    form=expr)
+
+            if exprs == []:
+                continue
+
+            exprs = List.from_list(exprs)
+            begin_form = Pair(S('begin'), exprs)
+
+            if toplevel:
+                include_code = self.compile_toplevel_form(begin_form, env)
+            else:
+                include_code = self.compile_form(begin_form, env)
+
+            if self.debug_info:
+                include_code = [S(':filename-start'), String(filename)] + include_code
+                include_code += [S(':filename-end')]
+
+            code += include_code
+
+        return code
+
+    def compile_include_toplevel(self, expr, env):
+        return self._compile_include(
+            expr, env,
+            toplevel=True,
+            casefold=False)
+
+    def compile_include_ci_toplevel(self, expr, env):
+        return self._compile_include(
+            expr, env,
+            toplevel=True,
+            casefold=True)
+
+    def compile_include_local(self, expr, env):
+        return self._compile_include(
+            expr, env,
+            toplevel=True,
+            casefold=False)
+
+    def compile_include_ci_local(self, expr, env):
+        return self._compile_include(
+            expr, env,
+            toplevel=False,
+            casefold=True)
+
     def compile_list(self, expr, env):
         if expr == Nil():
             raise CompileError(
@@ -1093,6 +1163,8 @@ class Compiler:
                 'letrec': self.compile_letrec,
                 'quote': self.compile_quote,
                 '#$apply': self.compile_apply,
+                'include': self.compile_include_local,
+                'include-ci': self.compile_include_ci_local,
             }
 
             compile_func = special_forms.get(name)
@@ -1208,6 +1280,10 @@ class Compiler:
                     form_code += [S('drop')]
             if form_code == []:
                 form_code = [S('void')]
+        elif form[0] == S('include'):
+            form_code = self.compile_include_toplevel(form, env)
+        elif form[0] == S('include-ci'):
+            form_code = self.compile_include_ci_toplevel(form, env)
         else:
             form_code = self.compile_form(form, env)
 
