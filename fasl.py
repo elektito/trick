@@ -422,7 +422,6 @@ def print_dbg_records(fasl):
     for i, r in enumerate(exprs, 1):
         print(f'[{i}] src={r.src_start}-{r.src_end} asm={r.asm_start}-{r.asm_end}')
         if text:
-            #print(text[r.src_start:r.src_end])
             show_snippet(text, r.src_start, r.src_end)
 
     print()
@@ -434,7 +433,6 @@ def print_dbg_records(fasl):
         print(f'[{i}] {r.symbol_name} src={r.src_start}-{r.src_end} asm={r.asm_start}-{r.asm_end}')
         if text:
             print(text[r.src_start:r.src_end])
-            #show_snippet(text, r.src_start, r.src_end)
 
     if len(unknown) > 0:
         print()
