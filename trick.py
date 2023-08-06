@@ -37,6 +37,11 @@ def main():
         help='Load the given FASL as a library when compiling.')
 
     parser.add_argument(
+        '--include-path', '-I', action='append', default=[],
+        help='Add a given path to the include search path. Can be '
+        'specified multiple times.')
+
+    parser.add_argument(
         '--macro-expand', '-m', metavar='EXPR', dest='macro_expr',
         help='Macro-expand the given expression (only first term is '
         'expanded).')
@@ -89,6 +94,7 @@ def main():
         try:
             compile_src_file_to_fasl(
                 args.compile, args.output, args.lib,
+                include_paths=args.include_path,
                 dbg_info=args.dbg_info)
         except compile.CompileError as e:
             print('Compile error:', e)

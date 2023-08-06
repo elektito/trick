@@ -11,7 +11,7 @@ def assoc(item, alist):
 
 
 def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
-                             dbg_info=False):
+                             include_paths=None, dbg_info=False):
     from compile import Compiler, Environment
     from assemble import Assembler
     from fasl import Fasl
@@ -22,6 +22,9 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
             lib_fasls.append(Fasl.load(f, lib))
 
     compiler = Compiler(lib_fasls, debug_info=dbg_info)
+    if include_paths:
+        compiler.include_paths = include_paths
+
     with open(input_filename) as f:
         text = f.read()
 

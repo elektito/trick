@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import io
+import os
 import re
 import sys
 import argparse
@@ -350,6 +351,7 @@ class Compiler:
         self.macros_fasl = Fasl()
         self.libs = libs
         self.debug_info = debug_info
+        self.include_paths = []
 
         self.current_source = None
         self.current_form = None
@@ -1091,6 +1093,17 @@ class Compiler:
             code += self.compile_form(form, env)
         return code
 
+    def find_include_file(self, filename: str):
+        if os.path.exists(filename):
+            return filename
+        else:
+            for path in self.include_paths:
+                full_path = os.path.join(path, filename)
+                if os.path.exists(full_path):
+                    return str(full_path)
+
+        return None
+
     def _compile_include(self, expr, env, *, toplevel: bool, casefold: bool):
         if len(expr) < 2:
             raise self._compile_error(
@@ -1102,18 +1115,20 @@ class Compiler:
                 raise self._compile_error(
                     f'Filename in include directive not a string '
                     f'literal: {filename}')
-            filename = filename.value
-            try:
-                with open(filename) as f:
+
+            full_path = self.find_include_file(filename.value)
+            if full_path is None:
+                raise self._compile_error(
+                    f'Included file not found: {filename}')
+
+            with open(full_path) as f:
+                try:
                     reader = Reader(f, casefold=casefold)
                     exprs = reader.read_all()
-            except FileNotFoundError as f:
-                raise self._compile_error(
-                    f'Included filename not found: {filename}')
-            except ReadError as e:
-                raise self._compile_error(
-                    f'Read error while expanding included file '
-                    f'"{filename}": {e}')
+                except ReadError as e:
+                    raise self._compile_error(
+                        f'Read error while expanding included file '
+                        f'"{filename}": {e}')
 
             if exprs == []:
                 continue
@@ -1123,7 +1138,7 @@ class Compiler:
 
             if toplevel:
                 old_source = self.current_source
-                self.current_source = SourceFile(filename=filename)
+                self.current_source = SourceFile(filename=full_path)
                 include_code = self.compile_toplevel_form(begin_form, env)
                 self.current_source = old_source
             else:
