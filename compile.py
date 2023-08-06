@@ -597,7 +597,8 @@ class Compiler:
             # a name cannot be defined more than once
             name, value = self.parse_define_form(define_form, define_type)
             if name in seen:
-                raise CompileError(f'Duplicate definition: {name}')
+                raise CompileError(
+                    f'Duplicate definition: {name}', form=define_form)
             seen.add(name)
 
             if define_type == 'define':
@@ -641,7 +642,9 @@ class Compiler:
 
     def compile_lambda(self, expr, env):
         if len(expr) < 3:
-            raise CompileError(f'Invalid number of arguments for lambda: {expr}')
+            raise CompileError(
+                f'Invalid number of arguments for lambda: {expr}',
+                form=expr)
 
         params = expr[1]
         if params == Nil():
@@ -662,7 +665,7 @@ class Compiler:
         seen = set()
         for p in params:
             if p in seen:
-                raise CompileError(f'Duplicate variable: {p}')
+                raise CompileError(f'Duplicate variable: {p}', form=params)
             seen.add(p)
             if not isinstance(p, Symbol):
                 raise CompileError(
@@ -719,7 +722,8 @@ class Compiler:
             return [S('ldsym'), sym]
 
         if self.is_macro(sym, env):
-            raise CompileError(f'Invalid use of macro name: {sym}')
+            raise CompileError(f'Invalid use of macro name: {sym}',
+                               form=sym)
 
         local_var_spec = env.locate(sym)
         if local_var_spec is None:
@@ -1161,7 +1165,8 @@ class Compiler:
 
     def compile_toplevel_form(self, form, env):
         if isinstance(form, Pair) and not form.is_proper():
-            raise CompileError(f'Cannot compile improper list: {form}')
+            raise CompileError(
+                f'Cannot compile improper list: {form}', form=form)
 
         form = self.macro_expand(form, env)
         if not isinstance(form, Pair):
