@@ -718,6 +718,9 @@ class Compiler:
         if sym.name.startswith(':'):
             return [S('ldsym'), sym]
 
+        if self.is_macro(sym, env):
+            raise CompileError(f'Invalid use of macro name: {sym}')
+
         local_var_spec = env.locate(sym)
         if local_var_spec is None:
             self.read_symbols.add(sym)
