@@ -1205,7 +1205,7 @@ class Compiler:
 
         return form_code
 
-    def compile_toplevel(self, text, env=None):
+    def compile_toplevel(self, text, env=None, *, filename=None):
         if env is None:
             env = Environment()
 
@@ -1236,6 +1236,10 @@ class Compiler:
 
         if code != []:
             code += [S('drop')]
+
+        if filename and self.debug_info:
+            code = [S(':filename-start'), String(filename)] + code
+            code += [S(':filename-end')]
 
         all_defines = set(env.defined_symbols.keys())
         for lib in self.libs:
@@ -1282,12 +1286,14 @@ def main(args):
 
     if args.input == '-':
         text = sys.stdin.read()
+        source_filename = None
     else:
+        source_filename = args.input
         with open(args.input) as f:
             text = f.read()
 
     try:
-        secd_code = compiler.compile_toplevel(text)
+        secd_code = compiler.compile_toplevel(text, filename=source_filename)
     except ReadError as e:
         print(f'Read error: {e}', file=sys.stderr)
         sys.exit(1)

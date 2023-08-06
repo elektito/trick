@@ -5,7 +5,7 @@ import sys
 import argparse
 
 import runtime
-from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl, FaslDbgInfoSection
+from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, DbgInfoSourceFileRecord, Fasl, FaslDbgInfoSection
 from read import Reader, ReadError
 from machinetypes import List, Pair, String, Symbol
 
@@ -19,6 +19,7 @@ class Assembler:
         self.dbg_info = []
         self.dbg_expr_start_stack = []
         self.dbg_define_start_stack = []
+        self.dbg_filename_start_stack = []
 
     def _assemble(self, expr, fasl: Fasl, offset: int) -> bytes:
         if not isinstance(expr, list):
@@ -70,6 +71,21 @@ class Assembler:
                         defined_sym,
                         src_start,
                         src_end,
+                        asm_start,
+                        asm_end))
+                continue
+            elif instr.name == ':filename-start':
+                filename = expr[i]
+                i += 1
+                asm_start = offset + len(code)
+                self.dbg_filename_start_stack.append((filename, asm_start))
+                continue
+            elif instr.name == ':filename-end':
+                filename, asm_start = self.dbg_filename_start_stack.pop()
+                asm_end = offset + len(code)
+                self.dbg_info.append(
+                    DbgInfoSourceFileRecord(
+                        filename,
                         asm_start,
                         asm_end))
                 continue
@@ -274,8 +290,8 @@ class Assembler:
 
         return assembled
 
-    def add_dbg_info_to_fasl(self, fasl, source_file=None):
-        section = FaslDbgInfoSection(source_file=source_file)
+    def add_dbg_info_to_fasl(self, fasl):
+        section = FaslDbgInfoSection()
         for r in self.dbg_info:
             section.add_record(r)
         fasl.add_extra_section(section)

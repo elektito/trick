@@ -337,16 +337,16 @@ class Secd:
                 print(f'{prefix}<debug info is empty>')
             return
 
-        source_file = dbginfo.source_file
+        source_file = dbginfo.get_source_file(c)
         if source_file:
             with open(source_file) as f:
                 text = f.read()
 
             if fasl.filename is not None:
                 fasl_modify_time = os.path.getmtime(fasl.filename)
-                src_modify_time = os.path.getmtime(dbginfo.source_file)
+                src_modify_time = os.path.getmtime(source_file)
                 if src_modify_time > fasl_modify_time:
-                    print(f'WARNING: source file {dbginfo.source_file} is '
+                    print(f'WARNING: source file {source_file} is '
                           f'newer than fasl {fasl.filename}')
         else:
             source_file = '<no source file>'

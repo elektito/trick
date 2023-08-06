@@ -166,11 +166,45 @@ class DbgInfoDefineRecord(DbgInfoRecord):
         return record
 
 
+class DbgInfoSourceFileRecord(DbgInfoRecord):
+    record_id = 3
+
+    def __init__(self,
+                 filename: str,
+                 asm_start: int,
+                 asm_end: int):
+        self.filename = filename
+        self.asm_start = asm_start
+        self.asm_end = asm_end
+
+    def __repr__(self):
+        return \
+            f'<DbgInfoFilenameRecord {self.filename} ' \
+            f'asm={self.asm_start}-{self.asm_end}>'
+
+    def _serialize(self) -> bytes:
+        result = serialize_string(self.filename)
+        result += struct.pack(
+            '<II',
+            self.asm_start,
+            self.asm_end)
+        return result
+
+    @staticmethod
+    def _deserialize(data: bytes) -> 'DbgInfoSourceFileRecord':
+        offset = 0
+        filename, offset = deserialize_string(data, offset)
+        asm_start, asm_end = \
+            struct.unpack('<II', data[offset:offset+16])
+        record = DbgInfoSourceFileRecord(
+            filename, asm_start, asm_end)
+        return record
+
+
 class FaslDbgInfoSection(FaslSection):
     section_id = 1
 
-    def __init__(self, source_file):
-        self.source_file = source_file
+    def __init__(self):
         self.records = []
 
     def __repr__(self):
@@ -184,9 +218,7 @@ class FaslDbgInfoSection(FaslSection):
         return 'dbginfo'
 
     def _serialize(self) -> bytes:
-        filename = self.source_file if self.source_file else ''
         result = b''
-        result += serialize_string(filename)
         result += struct.pack('<I', len(self.records))
         for r in self.records:
             file = io.BytesIO()
@@ -196,13 +228,9 @@ class FaslDbgInfoSection(FaslSection):
 
     @staticmethod
     def _deserialize(data: bytes):
-        section = FaslDbgInfoSection(source_file=None)
+        section = FaslDbgInfoSection()
 
         offset = 0
-        filename, offset = deserialize_string(data, offset)
-        if filename:
-            section.source_file = filename
-
         nrecords, = struct.unpack('<I', data[offset:offset+4])
         offset += 4
         file = io.BytesIO(data[offset:])
@@ -212,6 +240,16 @@ class FaslDbgInfoSection(FaslSection):
                 section.add_record(record)
 
         return section
+
+    def get_source_file(self, asm_offset):
+        """Given an asm offset, return the source filename, if a matching source
+        file record exists"""
+        for r in self.records:
+            if not isinstance(r, DbgInfoSourceFileRecord):
+                continue
+            if r.asm_start <= asm_offset < r.asm_end:
+                return r.filename
+        return None
 
 
 class DefineInfo:
@@ -392,26 +430,43 @@ def configure_argparse(parser: argparse.ArgumentParser):
 
 
 def print_dbg_records(fasl):
+    sources = {}
+    def get_source(asm_offset):
+        """Return source text for the given asm offset, if an appropriate source
+        file record exists."""
+        filename = dbginfo.get_source_file(asm_offset)
+        if filename is None:
+            return ''
+
+        if filename in sources:
+            return sources[filename]
+
+        try:
+            with open(filename) as f:
+                text = f.read()
+        except FileNotFoundError:
+            return ''
+
+        sources[filename] = text
+
+        return text
+
     dbginfo = fasl.get_extra_section('dbginfo')
     if dbginfo is None:
         print('No debug info.')
         return
 
-    if dbginfo.source_file:
-        with open(dbginfo.source_file) as f:
-            text = f.read()
-    else:
-        print('No source file indicated in debug info.')
-        text = ''
-
     defines = []
     exprs = []
+    source_files = []
     unknown = []
     for r in dbginfo.records:
         if isinstance(r, DbgInfoExprRecord):
             exprs.append(r)
         elif isinstance(r, DbgInfoDefineRecord):
             defines.append(r)
+        elif isinstance(r, DbgInfoSourceFileRecord):
+            source_files.append(r)
         else:
             unknown.append(r)
 
@@ -421,6 +476,7 @@ def print_dbg_records(fasl):
         print('Expression records:')
     for i, r in enumerate(exprs, 1):
         print(f'[{i}] src={r.src_start}-{r.src_end} asm={r.asm_start}-{r.asm_end}')
+        text = get_source(r.asm_start)
         if text:
             show_snippet(text, r.src_start, r.src_end)
 
@@ -431,8 +487,17 @@ def print_dbg_records(fasl):
         print('Define records:')
     for i, r in enumerate(defines, 1):
         print(f'[{i}] {r.symbol_name} src={r.src_start}-{r.src_end} asm={r.asm_start}-{r.asm_end}')
+        text = get_source(r.asm_start)
         if text:
             print(text[r.src_start:r.src_end])
+
+    print()
+    if not source_files:
+        print('No source file records')
+    else:
+        print('Source file records:')
+    for i, r in enumerate(source_files, 1):
+        print(f'[{i}] {r.filename} asm={r.asm_start}-{r.asm_end}')
 
     if len(unknown) > 0:
         print()

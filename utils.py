@@ -27,14 +27,14 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
 
     fasl = Fasl()
     env = Environment()
-    asm_code = compiler.compile_toplevel(text, env)
+    asm_code = compiler.compile_toplevel(text, env, filename=input_filename)
     fasl.defines = env.defined_symbols
 
     assembler = Assembler()
     assembler.assemble(asm_code, fasl)
 
     if dbg_info:
-        assembler.add_dbg_info_to_fasl(fasl, source_file=input_filename)
+        assembler.add_dbg_info_to_fasl(fasl)
 
     with open(output_filename, 'wb') as f:
         fasl.dump(f)
