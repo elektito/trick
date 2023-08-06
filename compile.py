@@ -365,9 +365,10 @@ class Compiler:
         # for now, we'll treat everything as a library
         self.compiling_library = True
 
-    def _compile_error(self, msg, form=None):
+    def _compile_error(self, msg, form=None, source=None):
         form = form or self.current_form
-        return CompileError(msg, form=form, source=self.current_source)
+        source = source or self.current_source
+        return CompileError(msg, form=form, source=source)
 
     def get_primcall(self, sym: Symbol):
         if sym.name in primcalls:
@@ -763,7 +764,7 @@ class Compiler:
 
         local_var_spec = env.locate(sym)
         if local_var_spec is None:
-            self.read_symbols.add(sym)
+            self.read_symbols.add((sym, self.current_source))
             return [S('get'), sym]
         else:
             return [S('ld'), local_var_spec]
@@ -975,7 +976,7 @@ class Compiler:
         local_var_spec = env.locate(name)
         if local_var_spec is None:
             code += [S('set'), name]
-            self.set_symbols.add(name)
+            self.set_symbols.add((name, self.current_source))
         else:
             code += [S('st'), local_var_spec]
 
@@ -1393,14 +1394,17 @@ class Compiler:
         for lib in self.libs:
             all_defines |= set(lib.defines)
 
-        for sym in self.set_symbols:
+        for sym, filename in self.set_symbols:
             if sym not in all_defines:
                 raise self._compile_error(
-                    f'Symbol {sym} is set at some point but never defined')
+                    f'Symbol {sym} is set at some point but never defined',
+                    form=sym, source=filename)
 
-        for sym in self.read_symbols:
+        for sym, filename in self.read_symbols:
             if sym not in all_defines:
-                raise self._compile_error(f'Symbol {sym} is read at some point but never defined')
+                raise self._compile_error(
+                    f'Symbol {sym} is read at some point but never defined',
+                    form=sym, source=filename)
 
         return code
 
