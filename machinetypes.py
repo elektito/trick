@@ -392,6 +392,13 @@ class Nil(List):
     def __len__(self):
         return 0
 
+    def __bool__(self):
+        # we need this because otherwise python considers Nil() to be a true
+        # value, likely because its __len__ is zero. that means we wouldn't be
+        # able to use a nil value in an expression like `form or other_form` and
+        # expect to get `other_form` when form is not None.
+        return True
+
     def is_proper(self):
         return True
 
