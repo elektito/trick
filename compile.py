@@ -533,21 +533,6 @@ class Compiler:
         return defines, body
 
     def compile_body(self, body, env, full_form):
-        # compile the body of a lambda (or a similar expression like let).
-        # the initial definitions are converted into and compiled as a letrec*.
-        # any begin at the initial part of the code is spliced into the body (recursively).
-
-        # we could do this in steps:
-        #  - first macro expand1 all body expressions
-        #  - traverse body expressions from the beginning
-        #    + if there's a define collect it and continue
-        #    + if there's a begin traverse it recursively
-        #    + (ideally we should also process local macros here)
-        #    + if there's anything else, stop traversing
-        #  - now convert the collected defines into a letrec*
-        #  - put the rest of the body as the body of the letrec*
-        #  - compile the letrec* as the body
-
         code = []
 
         # first macro expand the body, since collect_defines expects that.
