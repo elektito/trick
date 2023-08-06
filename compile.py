@@ -3,6 +3,7 @@
 import io
 import os
 import re
+import platform
 import sys
 import argparse
 
@@ -14,10 +15,60 @@ from assemble import Assembler
 from secd import RunError, Secd
 from snippet import show_snippet
 from utils import find_shared
+from version import __version__
 
 
 def S(s: str) -> Symbol:
     return Symbol(s)
+
+
+def get_features():
+    architecture = platform.machine().replace('_', '-')
+
+    extra_features = []
+    if sys.platform.startswith('linux'):
+        os_name = 'gnu-linux'
+        extra_features.append('linux')
+    elif sys.platform.startswith('freebsd'):
+        os_name = 'freebsd'
+        extra_features.append('bsd')
+    elif sys.platform == 'win32':
+        os_name = 'windows'
+    else:
+        os_name = sys.platform
+        if os_name[-1].isnumeric():
+            os_name = os_name[:-1]
+
+    if sys.byteorder == 'little':
+        endianness = 'little-endian'
+    else:
+        endianness = 'big-endian'
+
+    features = [
+        'r7rs',
+        'trick',
+        'trick-' + __version__[:__version__.rindex('.')], # only add major and minor versions
+        'full-unicode',
+        architecture,
+        os_name,
+        endianness,
+    ]
+    features += extra_features
+
+    if os.name == 'posix':
+        features.append('posix')
+
+    return features
+
+
+def asm_code_for_features():
+    features = get_features()
+
+    code = [S('nil')]
+    for feature in reversed(features):
+        code += [S('ldsym'), S(feature), S('cons')]
+
+    return code
 
 
 class SourceFile:
@@ -321,7 +372,11 @@ primcalls = {
     'abort': {
         'nargs': 2,
         'code': [S('abort')],
-    }
+    },
+    'features': {
+        'nargs': 0,
+        'code': asm_code_for_features(),
+    },
 }
 
 

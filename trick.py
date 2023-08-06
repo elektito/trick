@@ -8,13 +8,11 @@ import compile
 import assemble
 import fasl
 from machinetypes import List
-from read import Reader, ReadError, read_expr
+from read import ReadError, read_expr
 import secd
 import repl
 from utils import compile_expr_to_fasl, compile_src_file_to_fasl, load_fasl_files
-
-
-VERSION = '0.1.0'
+from version import __version__
 
 
 def main():
@@ -84,7 +82,7 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        print(f'Trick Version: v{VERSION}')
+        print(f'Trick Version: v{__version__}')
         sys.exit(0)
 
     if args.compile:
