@@ -62,6 +62,11 @@ and still a comment
         (define x 20)
         x))
 
+(= 30 (let ()
+        (define x 10)
+        (define y (+ x 20))
+        y))
+
 ;;
 
 (eq? 1 1)
