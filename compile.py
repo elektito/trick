@@ -26,28 +26,42 @@ class EnvironmentFrame:
         else:
             self.variables = initial_variables
 
+        self.macros = {}
+
     def copy(self):
         copy = EnvironmentFrame()
         copy.variables = [s for s in self.variables]
+        copy.macros = {
+            name: unique_name
+            for name, unique_name in self.macros.items()
+        }
         return copy
 
     def contains(self, name: Symbol):
         return name in self.variables
 
-    def add(self, name: Symbol):
+    def add_variable(self, name: Symbol):
         self.variables.append(name)
+
+    def add_macro(self, name: Symbol):
+        if name in self.macros:
+            raise CompileError(f'Duplicate macro definition: {name}')
+        self.macros[name] = Symbol.gensym()
+
+    def find_macro(self, name: Symbol):
+        return self.macros.get(name, None)
 
 
 class Environment:
     def __init__(self):
         self.frames: list[EnvironmentFrame] = []
         self.defined_symbols: dict[Symbol, DefineInfo] = {}
-        self.macros = []
+        self.toplevel_macros = []
 
     def copy(self):
         copy = Environment()
         copy.frames = [f.copy() for f in self.frames]
-        copy.macros = [m for m in self.macros]
+        copy.toplevel_macros = [m for m in self.toplevel_macros]
         return copy
 
     def add_frame(self, variables):
@@ -64,11 +78,26 @@ class Environment:
         return None
 
     def add_macro(self, name: Symbol):
-        self.macros.append(name)
+        self.toplevel_macros.append(name)
         self.defined_symbols[name] = DefineInfo(is_macro=True)
 
-    def contains_macro(self, name: Symbol):
-        return name in self.macros
+    def find_macro(self, name: Symbol):
+        """
+        Look up a name as a macro. If found as a local macro, its unique
+        global name is returned. If found as a top-level macro, its name is
+        returned (which is the same as the defined name). Otherwise None is
+        returned.
+        """
+
+        if name in self.toplevel_macros:
+            return name
+
+        for frame in self.frames:
+            unique_name = frame.find_macro(name)
+            if unique_name is not None:
+                return unique_name
+
+        return None
 
 
 primcalls = {
@@ -324,7 +353,7 @@ class Compiler:
         self.compiling_library = True
 
     def is_macro(self, name: Symbol, env: Environment):
-        if env.contains_macro(name):
+        if env.find_macro(name):
             return True
 
         for lib in self.libs:
@@ -388,8 +417,13 @@ class Compiler:
         return form
 
     def expand_single_macro(self, name_sym, args, env, form):
+        unique_name = env.find_macro(name_sym)
+        if unique_name is None:
+            # must be a library macro, which should be under its own name
+            unique_name = name_sym
+
         fasl = Fasl()
-        func_call_code = [S('get'), name_sym, S('ap')]
+        func_call_code = [S('get'), unique_name, S('ap')]
         self.assembler.assemble(func_call_code, fasl)
 
         machine = Secd()
@@ -485,7 +519,7 @@ class Compiler:
         if len(expr) < 3:
             raise CompileError('Not enough arguments for define-macro', form=expr)
 
-        if env.contains_macro(name):
+        if env.find_macro(name):
             raise CompileError(f'Duplicate macro definition: {name}',
                                form=expr)
         env.add_macro(name)
@@ -527,6 +561,8 @@ class Compiler:
 
             if form.car == S('define'):
                 defines.append(('define', form))
+            elif form.car == S('define-macro'):
+                defines.append(('define-macro', form))
             elif form.car == S('begin'):
                 begin_defines, begin_rest = self.collect_defines(form.cdr)
                 defines += begin_defines
@@ -564,18 +600,33 @@ class Compiler:
                 raise CompileError(f'Duplicate definition: {name}')
             seen.add(name)
 
-            # it's okay if the name already exists though, we're just shadowing
-            # a let/letrec/lambda varaible
-            if not env.frames[0].contains(name):
-                env.frames[0].add(name)
-                code += [S('xp')]
+            if define_type == 'define':
+                # it's okay if the name already exists though, we're just
+                # shadowing a let/letrec/lambda varaible
+                if not env.frames[0].contains(name):
+                    env.frames[0].add_variable(name)
+                    code += [S('xp')]
+            elif define_type == 'define-macro':
+                env.frames[0].add_macro(name)
+            else:
+                assert False, 'Unhandled define type'
 
         # now that the environment has all the new variables, set variable
         # values
         for define_type, define_form in defines:
             name, value = self.parse_define_form(define_form, define_type)
-            code += self.compile_form(value, env)
-            code += [S('st'), env.locate(name)]
+            if define_type == 'define':
+                code += self.compile_form(value, env)
+                code += [S('st'), env.locate(name)]
+            elif define_type == 'define-macro':
+                # compile the macro as a global define under its unique name in
+                # the macros fasl.
+                unique_name = env.find_macro(name)
+                macro_code = self.compile_form(value, env)
+                macro_code += [S('set'), unique_name]
+                self.assembler.assemble(macro_code, self.macros_fasl)
+            else:
+                assert False, 'Unhandled define type'
 
         if isinstance(body, Nil):
             raise CompileError('Empty body', form=full_form)
