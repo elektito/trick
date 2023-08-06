@@ -44,6 +44,12 @@ class SourceFile:
     def filename(self):
         return self._filename
 
+    def __repr__(self):
+        if self.filename:
+            return f'<SourceFile {self._filename}>'
+        else:
+            return f'<SourceFile>'
+
 
 class EnvironmentFrame:
     def __init__(self, initial_variables=None):
