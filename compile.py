@@ -316,6 +316,7 @@ class Compiler:
         self.set_symbols = set()
         self.read_symbols = set()
         self.defines_fasl = Fasl()
+        self.macros_fasl = Fasl()
         self.libs = libs
         self.debug_info = debug_info
 
@@ -396,7 +397,7 @@ class Compiler:
         try:
             # since we want to push arguments on the stack, load the libraries
             # first to make sure they won't interfere with what we push.
-            machine.load_fasls(self.libs + [self.defines_fasl])
+            machine.load_fasls(self.libs + [self.defines_fasl, self.macros_fasl])
         except RunError as e:
             raise CompileError(
                 f'Run error when loading libs for macro expansion of "{name_sym}": {e}',
@@ -1119,8 +1120,8 @@ class Compiler:
             else:
                 defined_sym = form[1][0]  # (define-macro (foo . formals) . body)
 
-            self.defines_fasl.add_define(defined_sym, is_macro=True)
-            self.assembler.assemble(form_code, self.defines_fasl)
+            self.macros_fasl.add_define(defined_sym, is_macro=True)
+            self.assembler.assemble(form_code, self.macros_fasl)
 
             # if we're not compiling a library, do not include the macro
             # code in the output.
