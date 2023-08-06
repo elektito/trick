@@ -553,20 +553,6 @@
   `(let ,(mapcar (lambda (name) `(,name (gensym))) names)
      ,@body))
 
-(define-macro (and . forms)
-  (cond ((null? forms) '#t)
-        ((null? (cdr forms)) (car forms))
-        (#t `(if ,(car forms)
-                 (and ,@(cdr forms))
-                 '#f))))
-
-(define-macro (or . forms)
-  (cond ((null? forms) '#f)
-        ((null? (cdr forms)) (car forms))
-        (#t (with-gensyms (xcar)
-              `(let ((,xcar ,(car forms)))
-                 (if ,xcar ,xcar (or ,@(cdr forms))))))))
-
 (define-macro (let* bindings . body)
   (if (null? bindings)
       `(begin ,@body)
