@@ -118,7 +118,7 @@ def main():
             sys.exit(1)
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         try:
-            expanded = compiler.macro_expand(form, [])
+            expanded = compiler.macro_expand(form, compile.Environment())
         except compile.CompileError as e:
             print('Compile error:', e)
             sys.exit(1)
@@ -134,7 +134,7 @@ def main():
         lib_fasls = load_fasl_files(args.lib)
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         try:
-            expanded = compiler.macro_expand_full(form, [])
+            expanded = compiler.macro_expand_full(form, compile.Environment())
         except compile.CompileError as e:
             print('Compile error:', e)
             sys.exit(1)
