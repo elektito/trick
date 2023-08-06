@@ -1248,6 +1248,53 @@ class Compiler:
             toplevel=False,
             casefold=True)
 
+    def _compile_cond_expand(self, expr, env, *, toplevel: bool):
+        if len(expr) < 2:
+            raise self._compile_error(
+                'Invalid number of arguments for cond-expand')
+
+        features = get_features()
+        def match(req):
+            if isinstance(req, Symbol):
+                return req.name in features
+            elif isinstance(req, Pair):
+                if req.car == S('and'):
+                    return all(match(r) for r in req.cdr)
+                elif req.car == S('or'):
+                    return any(match(r) for r in req.cdr)
+                elif req.car == S('not'):
+                    return not(match(req.cdr))
+                elif req.car == S('library'):
+                    raise self._compile_error(
+                        'cond-expand library clause not implemented yet',
+                        form=req)
+            return False
+
+        code = []
+        for clause in expr.cdr:
+            if not isinstance(clause, Pair) or len(clause) < 2:
+                raise self._compile_error(
+                    f'Invalid cond-expand clause: {clause}',
+                    form=clause)
+            requirement = clause.car
+            expressions = clause.cdr
+            if match(requirement):
+                begin_form = Pair(S('begin'), expressions)
+                begin_form.src_start = clause.src_start
+                begin_form.src_end = clause.src_end
+                if toplevel:
+                    code += self.compile_toplevel_form(begin_form, env)
+                else:
+                    code += self.compile_form(begin_form, env)
+
+        return code
+
+    def compile_cond_expand_toplevel(self, expr, env):
+        return self._compile_cond_expand(expr, env, toplevel=True)
+
+    def compile_cond_expand_local(self, expr, env):
+        return self._compile_cond_expand(expr, env, toplevel=False)
+
     def compile_list(self, expr, env):
         if expr == Nil():
             raise self._compile_error(
@@ -1277,6 +1324,7 @@ class Compiler:
                 '#$apply': self.compile_apply,
                 'include': self.compile_include_local,
                 'include-ci': self.compile_include_ci_local,
+                'cond-expand': self.compile_cond_expand_local,
             }
 
             compile_func = special_forms.get(name)
@@ -1404,6 +1452,8 @@ class Compiler:
             form_code = self.compile_include_toplevel(form, env)
         elif form[0] == S('include-ci'):
             form_code = self.compile_include_ci_toplevel(form, env)
+        elif form[0] == S('cond-expand'):
+            form_code = self.compile_cond_expand_toplevel(form, env)
         else:
             form_code = self.compile_form(form, env)
 
