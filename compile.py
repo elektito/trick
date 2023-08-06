@@ -77,7 +77,8 @@ class EnvironmentFrame:
 
     def add_macro(self, name: Symbol):
         if name in self.macros:
-            raise self._compile_error(f'Duplicate macro definition: {name}')
+            raise CompileError(
+                f'Duplicate macro definition: {name}')
         self.macros[name] = Symbol.gensym()
 
     def find_macro(self, name: Symbol):
@@ -558,7 +559,11 @@ class Compiler:
         if env.find_macro(name):
             raise self._compile_error(
                 f'Duplicate macro definition: {name}')
-        env.add_macro(name)
+        try:
+            env.add_macro(name)
+        except CompileError as e:
+            # re-raise compile error with appropriate debug info attached
+            raise self._compile_error(str(e))
 
         code = self.compile_form(lambda_form, env)
         code += [S('set'), name, S('void')]
@@ -643,7 +648,11 @@ class Compiler:
                     env.frames[0].add_variable(name)
                     code += [S('xp')]
             elif define_type == 'define-macro':
-                env.frames[0].add_macro(name)
+                try:
+                    env.frames[0].add_macro(name)
+                except CompileError as e:
+                    # re-raise compile error with appropriate debug info attached
+                    raise self._compile_error(str(e))
             else:
                 assert False, 'Unhandled define type'
 
