@@ -42,10 +42,12 @@ class Environment:
     def __init__(self):
         self.frames: list[EnvironmentFrame] = []
         self.defined_symbols: dict[Symbol, DefineInfo] = {}
+        self.macros = []
 
     def copy(self):
         copy = Environment()
         copy.frames = [f.copy() for f in self.frames]
+        copy.macros = [m for m in self.macros]
         return copy
 
     def add_frame(self, variables):
@@ -60,6 +62,13 @@ class Environment:
             else:
                 return [Integer(i), Integer(j)]
         return None
+
+    def add_macro(self, name: Symbol):
+        self.macros.append(name)
+        self.defined_symbols[name] = DefineInfo(is_macro=True)
+
+    def contains_macro(self, name: Symbol):
+        return name in self.macros
 
 
 primcalls = {
@@ -304,28 +313,32 @@ class CompileError(Exception):
 class Compiler:
     def __init__(self, libs: list[Fasl], debug_info=False):
         self.assembler = Assembler()
-        self.macros = []
         self.set_symbols = set()
         self.read_symbols = set()
         self.defines_fasl = Fasl()
         self.libs = libs
         self.debug_info = debug_info
 
-        # add library macros to our macro list
-        for lib in libs:
-            for sym, info in lib.defines.items():
-                if info.is_macro:
-                    self.macros.append(sym.name)
-
         # for now, we'll treat everything as a library
         self.compiling_library = True
+
+    def is_macro(self, name: Symbol, env: Environment):
+        if env.contains_macro(name):
+            return True
+
+        for lib in self.libs:
+            for sym, info in lib.defines.items():
+                if sym == name and info.is_macro:
+                    return True
+
+        return False
 
     def macro_expand(self, form, env):
         while isinstance(form, Pair) and \
               len(form) > 0 and \
               isinstance(form[0], Symbol):
             name_sym = form[0]
-            if name_sym.name not in self.macros:
+            if not self.is_macro(name_sym, env):
                 break
 
             src_start = form.src_start
@@ -356,7 +369,7 @@ class Compiler:
             if name_sym.name == 'quote':
                 return form
 
-            if name_sym.name not in self.macros:
+            if not self.is_macro(name_sym, env):
                 break
 
             args = form.cdr
@@ -471,16 +484,14 @@ class Compiler:
         if len(expr) < 3:
             raise CompileError('Not enough arguments for define-macro', form=expr)
 
-        if name in self.macros:
+        if env.contains_macro(name):
             raise CompileError(f'Duplicate macro definition: {name}',
                                form=expr)
-        env.defined_symbols[name] = DefineInfo(is_macro=True)
+        env.add_macro(name)
 
         code = self.compile_form(lambda_form, env)
         code += [S('set'), name, S('void')]
 
-        self.macros.append(name.name)
-        
         return code
 
     def compile_int(self, expr, env):
