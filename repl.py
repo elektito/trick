@@ -3,7 +3,7 @@ import atexit
 import argparse
 import readline
 from assemble import Assembler
-from compile import CompileError
+from compile import CompileError, primcalls
 from fasl import Fasl
 from machinetypes import Void
 from read import ReadError, read_expr
@@ -40,11 +40,17 @@ class Completer:
         if state == 0:
             syms = set()
             for lib in self.libs:
-                syms |= set(s for s in lib.defines.keys() if s.name.startswith(text))
-            self.syms = list(sorted(syms, key=lambda s: s.name))
+                syms |= set(s.name for s in lib.defines.keys() if s.name.startswith(text))
+            syms |= {
+                name
+                for name, desc in primcalls.items()
+                if name.startswith(text)
+                if desc.get('exported')
+            }
+            self.syms = list(sorted(syms))
 
         try:
-            return self.syms[state].name
+            return self.syms[state]
         except IndexError:
             return None
 
