@@ -547,7 +547,6 @@ class Compiler:
         try:
             machine.execute_fasl(fasl)
         except RunError as e:
-            machine.print_stack_trace()
             raise self._compile_error(
                 f'Run error during macro expansion of "{name_sym}": {e}')
 
