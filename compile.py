@@ -1321,12 +1321,6 @@ class Compiler:
         if isinstance(expr.car, Symbol):
             sym = expr.car
             name = sym.name
-            if name == 'define-macro':
-                raise self._compile_error(
-                    'define-macro only allowed at top-level')
-            if name == 'define':
-                raise self._compile_error('Ill-placed define')
-
             special_forms = {
                 'begin': self.compile_begin,
                 'set!': self.compile_set,
