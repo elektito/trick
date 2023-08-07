@@ -9,19 +9,50 @@ from secd import RunError, Secd
 from utils import compile_expr_to_fasl, ensure_fasl
 
 
+class TestFilter:
+    def __init__(self, ranges=set()):
+        self.ranges = ranges
+        self.n_tests = None
+
+    def set_tests_count(self, n: int):
+        self.n_tests = n
+
+    def match(self, i):
+        for start, end in self.ranges:
+            if start is None and end is None:
+                return True
+            elif start is None:
+                if i <= end:
+                    return True
+            elif end is None:
+                if i >= start:
+                    return True
+            else:
+                if start <= i <= end:
+                    return True
+
+        return False
+
+
 def test_filter(value):
     parts=value.split(',')
-    results = set()
+    ranges = []
     for part in parts:
-        if '-' in part:
+        if part.startswith('-'):
+            end = int(part[1:])
+            ranges.append((None, end))
+        elif part.endswith('-'):
+            start = int(part[:-1])
+            ranges.append((start, None))
+        elif '-' in part:
             start = part[:part.index('-')]
             end = part[part.index('-')+1:]
             start = int(start)
             end = int(end)
-            results |= {i for i in range(start, end + 1)}
+            ranges.append((start, end))
         else:
-            results.add(int(part))
-    return list(sorted(results))
+            ranges.append((int(part), int(part)))
+    return TestFilter(ranges)
 
 def main():
     parser = argparse.ArgumentParser(description='Run test suite.')
@@ -69,8 +100,10 @@ def main():
     errors = []
     fails = []
     success = 0
+    skips = 0
     for i, expr in enumerate(test_exprs, 1):
-        if args.filter and i not in args.filter:
+        if args.filter and not args.filter.match(i):
+            skips += 1
             continue
 
         if args.verbose:
@@ -79,7 +112,7 @@ def main():
         try:
             expr_fasl = compile_expr_to_fasl(expr, libs)
         except CompileError as e:
-            errors.append((expr, e))
+            errors.append((i, expr, e))
             if args.verbose:
                 print('Error')
             else:
@@ -91,7 +124,7 @@ def main():
         try:
             machine.execute_fasl(expr_fasl)
         except RunError as e:
-            errors.append((expr, str(e)))
+            errors.append((i, expr, str(e)))
             if args.verbose:
                 print('Error')
             else:
@@ -101,9 +134,9 @@ def main():
         else:
             if len(machine.s) != 1:
                 if len(machine.s) == 0:
-                    errors.append((expr, 'Expression did not leave anything on the stack'))
+                    errors.append((i, expr, 'Expression did not leave anything on the stack'))
                 else:
-                    errors.append((expr, f'Expression left more than one value on the stack ({machine.s})'))
+                    errors.append((i, expr, f'Expression left more than one value on the stack ({machine.s})'))
                 if args.verbose:
                     print('Error')
                 else:
@@ -114,7 +147,7 @@ def main():
                 result = machine.s.pop_multiple()
                 if len(result) != 1:
                     errors.append(
-                        (expr,
+                        (i, expr,
                          f'Expression returned {len(result)} values '
                          f'instead of a single boolean'))
                     if args.verbose:
@@ -136,26 +169,29 @@ def main():
                             print('Failed')
                         else:
                             print('F', end='', flush=True)
-                        fails.append(expr)
+                        fails.append((i, expr))
                         if args.stop_on_failure:
                             break
 
     print()
     if fails:
         print('Failed test case(s):')
-        for expr in fails:
-            print('    ', end='')
+        for i, expr in fails:
+            print(f'   [{i}] ', end='')
             print(expr)
 
     if errors:
         print('Error(s):')
-        for expr, err in errors:
-            print(f'    {err}: ', end='')
+        for i, expr, err in errors:
+            print(f'    [{i}] {err}: ', end='')
             print(expr)
 
-    if fails or errors:
+    if fails or errors or skips:
         print()
-        print(f'Failed: {len(fails)}  Error: {len(errors)}  Success: {success}')
+        if skips:
+            print(f'Skipped: {skips}  Failed: {len(fails)}  Error: {len(errors)}  Success: {success}')
+        else:
+            print(f'Failed: {len(fails)}  Error: {len(errors)}  Success: {success}')
     else:
         print(f'{len(test_exprs)} test(s) finished successfully.')
 
