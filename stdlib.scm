@@ -23,19 +23,19 @@
 
 ;; type predicates
 
-(define (null? x) (eq? 'nil (type x)))
+(define (null? x) (eq? 'nil (#$type x)))
 
 (define (atom? v)
   ;; everything besides cons (3) is an atom
-  (if (eq? (type v) 'pair) #f #t))
+  (if (eq? (#$type v) 'pair) #f #t))
 
-(define (symbol? v) (eq? (type v) 'symbol))
-(define (pair? v) (eq? (type v) 'pair))
-(define (integer? v) (eq? (type v) 'int))
-(define (string? v) (eq? (type v) 'string))
-(define (char? v) (eq? (type v) 'char))
-(define (procedure? v) (eq? (type v) 'procedure))
-(define (boolean? v) (eq? (type v) 'bool))
+(define (symbol? v) (eq? (#$type v) 'symbol))
+(define (pair? v) (eq? (#$type v) 'pair))
+(define (integer? v) (eq? (#$type v) 'int))
+(define (string? v) (eq? (#$type v) 'string))
+(define (char? v) (eq? (#$type v) 'char))
+(define (procedure? v) (eq? (#$type v) 'procedure))
+(define (boolean? v) (eq? (#$type v) 'bool))
 (define (list? v)
   (if (null? v)
       #t
@@ -43,7 +43,7 @@
           (list? (cdr v))
           #f)))
 (define (vector? v)
-  (eq? (type v) 'vector))
+  (eq? (#$type v) 'vector))
 
 ;; booleans
 
@@ -225,7 +225,7 @@
          #t)
         ((eq? x y)
          #t)
-        ((not (eq? (type x) (type y)))
+        ((not (eq? (#$type x) (#$type y)))
          #f)
         ((null? x) #t)
         ((vector? x)
@@ -1200,15 +1200,15 @@
   (define get-field-accessors
     (case-lambda
      ((i field-name getter) `((define (,getter rec)
-                                (vector-ref (unwrap rec) ,i))))
+                                (vector-ref (#$unwrap rec) ,i))))
      ((i field-name getter setter) `((define (,getter rec)
-                                       (vector-ref (unwrap rec) ,i))
+                                       (vector-ref (#$unwrap rec) ,i))
                                      (define (,setter rec val)
-                                       (vector-set! (unwrap rec) ,i val))))))
+                                       (vector-set! (#$unwrap rec) ,i val))))))
   (let ((type-id (gensym (symbol->string name))))
     `(begin
-       (define (,pred x) (eq? (type x) ',type-id))
-       (define ,constructor (wrap (vector ,@(cdr constructor)) ',type-id))
+       (define (,pred x) (eq? (#$type x) ',type-id))
+       (define ,constructor (#$wrap (vector ,@(cdr constructor)) ',type-id))
        ,@(let loop ((fields fields)
                     (i 0)
                     (results '()))
@@ -1249,7 +1249,7 @@
 ;; whenever a system exception happens, this function is called in the dynamic
 ;; environment in which the exception happened. we convert the passed arguments
 ;; into an error object and raise that.
-(set-system-exception-handler
+(#$set-system-exception-handler
  (lambda (msg continuation)
    (error msg
           'context 'system
@@ -1282,10 +1282,10 @@
 
   (if (error-object? e)
       (if (system-error? e)
-          (abort (error-object-message e)
-                 (plist-getq 'continuation (error-object-irritants e)))
-          (abort (error-object-message e) #f))
-      (abort e #f)))
+          (#$abort (error-object-message e)
+                   (plist-getq 'continuation (error-object-irritants e)))
+          (#$abort (error-object-message e) #f))
+      (#$abort e #f)))
 
 (define (raise e)
   (when (null? exception-handlers)

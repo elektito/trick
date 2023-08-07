@@ -329,16 +329,16 @@ and still a comment
 
 ;; type predicates
 
-(eq? 'nil (type '()))
-(eq? 'pair (type '(1 2)))
-(eq? 'int (type 42))
-(eq? 'string (type "foo"))
-(eq? 'char (type #\space))
-(eq? 'procedure (type (lambda (x) x)))
-(eq? 'bool (type #f))
-(eq? 'bool (type #t))
-(eq? 'vector (type #()))
-(eq? 'vector (type #(1)))
+(eq? 'nil (#$type '()))
+(eq? 'pair (#$type '(1 2)))
+(eq? 'int (#$type 42))
+(eq? 'string (#$type "foo"))
+(eq? 'char (#$type #\space))
+(eq? 'procedure (#$type (lambda (x) x)))
+(eq? 'bool (#$type #f))
+(eq? 'bool (#$type #t))
+(eq? 'vector (#$type #()))
+(eq? 'vector (#$type #(1)))
 
 (null? '())
 (not (null? '(1)))
@@ -1116,7 +1116,7 @@ and still a comment
 ;; https://github.com/ashinn/chibi-scheme/blob/master/tests/r5rs-tests.scm
 ;; https://github.com/ashinn/chibi-scheme/blob/master/tests/r7rs-tests.scm
 
-(eq? (call/cc type) 'procedure)
+(eq? (call/cc #$type) 'procedure)
 (eq? 30 (+ 10 (call/cc (lambda (k) (k 20)))))
 (eq? 3 (call/cc (lambda (k) (+ 2 5 (k 3)))))
 (eq? -3 (call/cc
@@ -1179,8 +1179,8 @@ and still a comment
 (procedure? #$ile)
 (apply #$ile '(1 1))
 
-(procedure? type)
-(equal? 'symbol (apply type '(x)))
+(procedure? #$type)
+(equal? 'symbol (apply #$type '(x)))
 
 (procedure? eq?)
 (apply eq? '(foo foo))

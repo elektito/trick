@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from enum import Enum
 import io
 import os
 import re
@@ -102,6 +103,28 @@ class SourceFile:
             return f'<SourceFile>'
 
 
+class SymbolKind(Enum):
+    PRIMCALL = 1
+    LOCAL = 2
+    FREE = 3
+
+
+class SymbolInfo:
+    def __init__(self, symbol: Symbol, kind: SymbolKind, *,
+                 primcall_nargs=None,
+                 primcall_code=None,
+                 local_frame_idx=None,
+                 local_var_idx=None,
+                 immutable=False):
+        self.symbol = symbol
+        self.kind = kind
+        self.primcall_nargs = primcall_nargs
+        self.primcall_code = primcall_code
+        self.local_frame_idx = local_frame_idx
+        self.local_var_idx = local_var_idx
+        self.immutable = immutable
+
+
 class EnvironmentFrame:
     def __init__(self, initial_variables=None):
         if initial_variables is None:
@@ -152,7 +175,7 @@ class Environment:
     def add_frame(self, variables):
         self.frames.insert(0, EnvironmentFrame(variables))
 
-    def locate(self, name: Symbol):
+    def locate_local(self, name: Symbol):
         for i, frame in enumerate(self.frames):
             try:
                 j = frame.variables.index(name)
@@ -184,228 +207,311 @@ class Environment:
 
         return None
 
-    def get_primcall(self, sym: Symbol) -> (None | dict):
+    def is_exported_primcall(self, name: str) -> bool:
         if not self.primcalls_enabled:
-            return None
+            return False
 
-        if sym.name in primcalls:
-            ret = primcalls[sym.name]
-            if isinstance(ret, str):
-                # primitive is a synonoym of another one. look it up again.
-                ret = primcalls[ret]
-            return ret
+        return primcalls.get(name, {}).get('exported', False)
 
+    def lookup_symbol(self, sym: Symbol) -> SymbolInfo:
         if sym.name.startswith('#$/'):
             m = re.match(r'#\$/(?P<module>\w+)/(?P<proc>\w+)', sym.name)
-            if m:
-                module = m.group('module')
-                proc = m.group('proc')
-                desc = runtime.find_proc(module, proc)
-                if desc is None:
-                    raise CompileError(
-                        f'Unknown runtime procedure: {sym.name}',
-                        form=sym)
+            if not m:
+                raise CompileError(
+                    f'Unknown runtime procedure: {sym}',    form=sym)
 
-                return {
-                    'nargs': len(desc['args']),
-                    'code': [S('trap'), S(f'{module}/{proc}')],
-                }
+            module = m.group('module')
+            proc = m.group('proc')
+            desc = runtime.find_proc(module, proc)
+            if desc is None:
+                raise CompileError(
+                    f'Unknown runtime procedure: {sym.name}',
+                    form=sym)
 
-        return None
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.PRIMCALL,
+                primcall_nargs=len(desc['args']),
+                primcall_code=[S('trap'), S(f'{module}/{proc}')],
+            )
+        elif sym.name.startswith('#$'):
+            # a symbol with a #$ prefix always refers to a primcall in any
+            # environment.
+            actual_name = sym.name[2:]
+            primcall_info = primcalls.get(actual_name)
+            if primcall_info is None:
+                raise CompileError(
+                    f'No such primitive: {actual_name}', form=sym)
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.PRIMCALL,
+                primcall_nargs=primcall_info['nargs'],
+                primcall_code=primcall_info['code'],
+                immutable=True,
+            )
+        elif self.is_exported_primcall(sym.name):
+            primcall_info = primcalls[sym.name]
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.PRIMCALL,
+                primcall_nargs=primcall_info['nargs'],
+                primcall_code=primcall_info['code'],
+                immutable=True,
+            )
+        elif local_info := self.locate_local(sym):
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.LOCAL,
+                local_frame_idx=local_info[0],
+                local_var_idx=local_info[1],
+            )
+        else:
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.FREE,
+            )
 
 
 primcalls = {
-    '#$void': {
+    'void': {
         'nargs': 0,
         'code': [S('void')],
+        'exported': False,
     },
-    '#$call/cc': {
+    'call/cc': {
         'nargs': 1,
         'code': [S('ccc')],
+        'exported': False,
     },
-    '#$values->list': {
+    'values->list': {
         'nargs': 1,
         'code': [S('m2l')],
+        'exported': False,
     },
-    '#$list->values': {
+    'list->values': {
         'nargs': 1,
         'code': [S('l2m')],
+        'exported': False,
     },
-    '#$iadd': {
+    'iadd': {
         'nargs': 2,
         'code': [S('iadd')],
+        'exported': False,
     },
-    '#$isub': {
+    'isub': {
         'nargs': 2,
         'code': [S('isub')],
+        'exported': False,
     },
-    '#$imul': {
+    'imul': {
         'nargs': 2,
         'code': [S('imul')],
+        'exported': False,
     },
-    '#$idiv': {
+    'idiv': {
         'nargs': 2,
         'code': [S('idiv')],
+        'exported': False,
     },
-    '#$irem': {
+    'irem': {
         'nargs': 2,
         'code': [S('irem')],
+        'exported': False,
     },
-    '#$ilt': {
+    'ilt': {
         'nargs': 2,
         'code': [S('ilt')],
+        'exported': False,
     },
-    '#$ile': {
+    'ile': {
         'nargs': 2,
         'code': [S('ile')],
+        'exported': False,
     },
-    '#$shr': {
+    'shr': {
         'nargs': 2,
         'code': [S('shr')],
+        'exported': False,
     },
-    '#$shl': {
+    'shl': {
         'nargs': 2,
         'code': [S('shl')],
+        'exported': False,
     },
-    '#$asr': {
+    'asr': {
         'nargs': 2,
         'code': [S('asr')],
+        'exported': False,
     },
-    '#$bnot': {
+    'bnot': {
         'nargs': 1,
         'code': [S('bnot')],
+        'exported': False,
     },
-    '#$band': {
+    'band': {
         'nargs': 2,
         'code': [S('band')],
+        'exported': False,
     },
-    '#$bor': {
+    'bor': {
         'nargs': 2,
         'code': [S('bor')],
+        'exported': False,
     },
-    '#$bxor': {
+    'bxor': {
         'nargs': 2,
         'code': [S('bxor')],
+        'exported': False,
     },
     'cons': {
         'nargs': 2,
         'code': [S('cons')],
+        'exported': True,
     },
     'car': {
         'nargs': 1,
         'code': [S('car')],
+        'exported': True,
     },
     'cdr': {
         'nargs': 1,
         'code': [S('cdr')],
+        'exported': True,
     },
     'set-car!': {
         'nargs': 2,
         'code': [S('setcar'), S('void')],
+        'exported': True,
     },
     'set-cdr!': {
         'nargs': 2,
         'code': [S('setcdr'), S('void')],
+        'exported': True,
     },
     'type': {
         'nargs': 1,
         'code': [S('type')],
+        'exported': False,
     },
     'eq?': {
         'nargs': 2,
         'code': [S('eq')],
+        'exported': True,
     },
-    '#$gensym': {
+    'gensym': {
         'nargs': 1,
         'code': [S('gensym')],
+        'exported': False,
     },
     'char->integer': {
         'nargs': 1,
         'code': [S('ch2i')],
+        'exported': True,
     },
     'integer->char': {
         'nargs': 1,
         'code': [S('i2ch')],
+        'exported': True,
     },
     'char-general-category': {
         'nargs': 1,
         'code': [S('ugcat')],
+        'exported': True,
     },
     'char-upcase': {
         'nargs': 1,
         'code': [S('chup')],
+        'exported': True,
     },
     'char-downcase': {
         'nargs': 1,
         'code': [S('chdn')],
+        'exported': True,
     },
     'char-foldcase': {
         'nargs': 1,
         'code': [S('chfd')],
+        'exported': True,
     },
     'digit-value': {
         'nargs': 1,
         'code': [S('chdv')],
+        'exported': True,
     },
-    '#$make-string': {
+    'make-string': {
         'nargs': 2,
         'code': [S('mkstr')],
+        'exported': False,
     },
     'string-ref': {
         'nargs': 2,
         'code': [S('strref')],
+        'exported': True,
     },
     'string-set!': {
         'nargs': 3,
         'code': [S('strset'), S('void')],
+        'exported': True,
     },
     'string-length': {
         'nargs': 1,
         'code': [S('strlen')],
+        'exported': True,
     },
     'symbol->string': {
         'nargs': 1,
         'code': [S('sym2str')],
+        'exported': True,
     },
     'string->symbol': {
         'nargs': 1,
         'code': [S('str2sym')],
+        'exported': True,
     },
-    '#$make-vector': {
+    'make-vector': {
         'nargs': 2,
         'code': [S('mkvec')],
+        'exported': False,
     },
     'vector-ref': {
         'nargs': 2,
         'code': [S('vecref')],
+        'exported': True,
     },
-    '#$vector-set!': {
+    'vector-set!': {
         'nargs': 3,
         'code': [S('vecset'), S('void')],
+        'exported': False,
     },
     'vector-length': {
         'nargs': 1,
         'code': [S('veclen')],
+        'exported': True,
     },
     'wrap': {
         'nargs': 2,
         'code': [S('wrap')],
+        'exported': False,
     },
     'unwrap': {
         'nargs': 1,
         'code': [S('unwrap')],
+        'exported': False,
     },
     'set-system-exception-handler': {
         'nargs': 1,
         'code': [S('seh'), S('void')],
+        'exported': False,
     },
     'abort': {
         'nargs': 2,
         'code': [S('abort')],
+        'exported': False,
     },
     'features': {
         'nargs': 0,
         'code': asm_code_for_features(),
+        'exported': True,
     },
 }
 
@@ -464,9 +570,9 @@ class Compiler:
             form=e.form,
             source=e.source)
 
-    def get_primcall(self, sym: Symbol, env: Environment) -> (None | dict):
+    def lookup_symbol(self, sym: Symbol, env: Environment) -> SymbolInfo:
         try:
-            return env.get_primcall(sym)
+            return env.lookup_symbol(sym)
         except CompileError as e:
             raise self._rebuild_compile_error(e)
 
@@ -734,7 +840,7 @@ class Compiler:
             name, value = self.parse_define_form(define_form, define_type)
             if define_type == 'define':
                 code += self.compile_form(value, env)
-                code += [S('st'), env.locate(name)]
+                code += [S('st'), env.locate_local(name)]
             elif define_type == 'define-macro':
                 # compile the macro as a global define under its unique name in
                 # the macros fasl.
@@ -820,8 +926,13 @@ class Compiler:
         return code
 
     def compile_symbol(self, sym: Symbol, env):
-        prim = self.get_primcall(sym, env)
-        if prim:
+        if self.is_macro(sym, env):
+            raise self._compile_error(
+                f'Invalid use of macro name: {sym}',
+                form=sym)
+
+        info = self.lookup_symbol(sym, env)
+        if info.kind == SymbolKind.PRIMCALL:
             # using a primitive like "car" or "cons" as a symbol. this should
             # return a function that performs those primitives. what we do is
             # emit an ldf instruction which loads its arguments onto the stack,
@@ -829,23 +940,18 @@ class Compiler:
             # arguments, then performs the same instructions the primitive
             # itself would perform, and then returns of course.
             func_code = []
-            for i in range(prim['nargs'] - 1, -1, -1):
+            for i in range(info.primcall_nargs - 1, -1, -1):
                 func_code += [S('ld'), [Integer(0), Integer(i)]]
-            func_code += prim['code']
+            func_code += info.primcall_code
             func_code += [S('ret')]
-            return [S('ldf'), Integer(prim['nargs']), func_code]
-
-        if self.is_macro(sym, env):
-            raise self._compile_error(
-                f'Invalid use of macro name: {sym}',
-                form=sym)
-
-        local_var_spec = env.locate(sym)
-        if local_var_spec is None:
+            return [S('ldf'), Integer(info.primcall_nargs), func_code]
+        elif info.kind == SymbolKind.LOCAL:
+            return [S('ld'), [info.local_frame_idx, info.local_var_idx]]
+        elif info.kind == SymbolKind.FREE:
             self.read_symbols.add((sym, self.current_source))
             return [S('get'), sym]
         else:
-            return [S('ld'), local_var_spec]
+            assert False, 'unhandled symbol kind'
 
     def compile_string(self, s: String, env):
         return [S('ldstr'), s]
@@ -1051,12 +1157,19 @@ class Compiler:
         value = expr[2]
         code = self.compile_form(value, env)
 
-        local_var_spec = env.locate(name)
-        if local_var_spec is None:
+        info = self.lookup_symbol(name, env)
+        if info.immutable:
+            raise self._compile_error(
+                f'Attempting to assign immutable variable: {name}',
+                form=name)
+
+        if info.kind == SymbolKind.LOCAL:
+            code += [S('st'), [info.local_frame_idx, info.local_var_idx]]
+        elif info.kind == SymbolKind.FREE:
             code += [S('set'), name]
             self.set_symbols.add((name, self.current_source))
         else:
-            code += [S('st'), local_var_spec]
+            assert False, 'unhandled symbol kind'
 
         code += [S('void')]
 
@@ -1151,18 +1264,17 @@ class Compiler:
 
         return self.compile_literal(expr[1], env)
 
-    def compile_primcall(self, expr, env, desc):
-        nargs = desc['nargs']
-        if len(expr) != nargs + 1:
+    def compile_primcall(self, expr, env, info: SymbolInfo):
+        if len(expr) != info.primcall_nargs + 1:
             raise self._compile_error(
                 f'Invalid number of arguments for "{expr[0]}" '
-                f'(expected: {nargs}, got {len(expr)-1})')
+                f'(expected: {info.primcall_nargs}, got {len(expr)-1})')
 
         code = []
-        for i in range(nargs - 1, -1, -1):
+        for i in range(info.primcall_nargs - 1, -1, -1):
             code += self.compile_form(expr[i + 1], env)
 
-        code += desc['code']
+        code += info.primcall_code
         return code
 
     def compile_begin(self, expr, env):
@@ -1339,10 +1451,12 @@ class Compiler:
             if name in special_forms:
                 compile_func = special_forms[name]
                 return compile_func(expr, env)
-            elif desc := self.get_primcall(sym, env):
-                return self.compile_primcall(expr, env, desc)
             else:
-                return self.compile_func_call(expr, env)
+                info = self.lookup_symbol(sym, env)
+                if info.kind == SymbolKind.PRIMCALL:
+                    return self.compile_primcall(expr, env, info)
+                else:
+                    return self.compile_func_call(expr, env)
         else:
             return self.compile_func_call(expr, env)
 
