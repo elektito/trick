@@ -273,6 +273,11 @@ class Environment:
 
 
 primcalls = {
+    'apply': {
+        'nargs': 2,
+        'code': [S('ap')],
+        'exported': False,
+    },
     'void': {
         'nargs': 0,
         'code': [S('void')],
@@ -1130,20 +1135,6 @@ class Compiler:
         secd_code += [S('ap')]
         return secd_code
 
-    def compile_apply(self, expr, env):
-        if len(expr) != 3:
-            raise self._compile_error(
-                'Invalid number of arguments for #$apply')
-
-        # compile second argument which should be a list
-        secd_code = self.compile_form(expr[2], env)
-
-        # compile first argument which should be a function
-        secd_code += self.compile_form(expr[1], env)
-
-        secd_code += [S('ap')]
-        return secd_code
-
     def compile_set(self, expr, env):
         if len(expr) != 3:
             raise self._compile_error(
@@ -1441,7 +1432,6 @@ class Compiler:
                 'let': self.compile_let,
                 'letrec': self.compile_letrec,
                 'quote': self.compile_quote,
-                '#$apply': self.compile_apply,
                 'include': self.compile_include_local,
                 'include-ci': self.compile_include_ci_local,
                 'cond-expand': self.compile_cond_expand_local,
