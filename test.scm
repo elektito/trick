@@ -71,7 +71,6 @@ and still a comment
 
 (eq? 1 1)
 (eq? 'foo 'foo)
-(eq? :foo :foo)
 
 (eq? #f '#f)
 (eq? #t '#t)
@@ -158,7 +157,6 @@ and still a comment
 (eq? 200 (if #f 100 200))
 (eq? 100 (if 0 100 200))
 (eq? 100 (if 1 100 200))
-(eq? 100 (if :foo 100 200))
 (eq? 100 (if "foo" 100 200))
 (eq? 100 (if (lambda (x) x) 100 200))
 (eq? 100 (if #() 100 200))
@@ -332,7 +330,6 @@ and still a comment
 ;; type predicates
 
 (eq? 'nil (type '()))
-(eq? 'symbol (type :foo))
 (eq? 'pair (type '(1 2)))
 (eq? 'int (type 42))
 (eq? 'string (type "foo"))
@@ -374,7 +371,6 @@ and still a comment
 (not (list? #(1)))
 
 (symbol? 'foo)
-(symbol? :foo)
 (not (symbol? '()))
 (not (symbol? 1))
 (not (symbol? "foo"))

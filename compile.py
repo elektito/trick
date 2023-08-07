@@ -835,9 +835,6 @@ class Compiler:
             func_code += [S('ret')]
             return [S('ldf'), Integer(prim['nargs']), func_code]
 
-        if sym.name.startswith(':'):
-            return [S('ldsym'), sym]
-
         if self.is_macro(sym, env):
             raise self._compile_error(
                 f'Invalid use of macro name: {sym}',
