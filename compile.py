@@ -824,7 +824,7 @@ class Compiler:
         if prim:
             # using a primitive like "car" or "cons" as a symbol. this should
             # return a function that performs those primitives. what we do is
-            # emit an ldf instruction which loads its arguments into the stack,
+            # emit an ldf instruction which loads its arguments onto the stack,
             # in the same order as the call to the primitive itself pushes its
             # arguments, then performs the same instructions the primitive
             # itself would perform, and then returns of course.
