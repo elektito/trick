@@ -137,10 +137,11 @@ class EnvironmentFrame:
 
 
 class Environment:
-    def __init__(self):
+    def __init__(self, *, primcalls_enabled=True):
         self.frames: list[EnvironmentFrame] = []
         self.defined_symbols: dict[Symbol, DefineInfo] = {}
         self.toplevel_macros = []
+        self.primcalls_enabled = primcalls_enabled
 
     def copy(self):
         copy = Environment()
@@ -180,6 +181,35 @@ class Environment:
             unique_name = frame.find_macro(name)
             if unique_name is not None:
                 return unique_name
+
+        return None
+
+    def get_primcall(self, sym: Symbol) -> (None | dict):
+        if not self.primcalls_enabled:
+            return None
+
+        if sym.name in primcalls:
+            ret = primcalls[sym.name]
+            if isinstance(ret, str):
+                # primitive is a synonoym of another one. look it up again.
+                ret = primcalls[ret]
+            return ret
+
+        if sym.name.startswith('#$/'):
+            m = re.match(r'#\$/(?P<module>\w+)/(?P<proc>\w+)', sym.name)
+            if m:
+                module = m.group('module')
+                proc = m.group('proc')
+                desc = runtime.find_proc(module, proc)
+                if desc is None:
+                    raise CompileError(
+                        f'Unknown runtime procedure: {sym.name}',
+                        form=sym)
+
+                return {
+                    'nargs': len(desc['args']),
+                    'code': [S('trap'), S(f'{module}/{proc}')],
+                }
 
         return None
 
@@ -426,31 +456,19 @@ class Compiler:
         source = source or self.current_source
         return CompileError(msg, form=form, source=source)
 
-    def get_primcall(self, sym: Symbol):
-        if sym.name in primcalls:
-            ret = primcalls[sym.name]
-            if isinstance(ret, str):
-                # primitive is a synonoym of another one. look it up again.
-                ret = primcalls[ret]
-            return ret
+    def _rebuild_compile_error(self, e: CompileError) -> CompileError:
+        # re-create a CompileError exception, possibly adding current debug info
+        # ("form" and "source") to it, if they're missing.
+        return self._compile_error(
+            msg=str(e),
+            form=e.form,
+            source=e.source)
 
-        if sym.name.startswith('#$/'):
-            m = re.match(r'#\$/(?P<module>\w+)/(?P<proc>\w+)', sym.name)
-            if m:
-                module = m.group('module')
-                proc = m.group('proc')
-                desc = runtime.find_proc(module, proc)
-                if desc is None:
-                    raise self._compile_error(
-                        f'Unknown runtime procedure: {sym.name}',
-                        form=sym)
-
-                return {
-                    'nargs': len(desc['args']),
-                    'code': [S('trap'), S(f'{module}/{proc}')],
-                }
-
-        return None
+    def get_primcall(self, sym: Symbol, env: Environment) -> (None | dict):
+        try:
+            return env.get_primcall(sym)
+        except CompileError as e:
+            raise self._rebuild_compile_error(e)
 
     def is_macro(self, name: Symbol, env: Environment):
         if env.find_macro(name):
@@ -617,7 +635,7 @@ class Compiler:
             env.add_macro(name)
         except CompileError as e:
             # re-raise compile error with appropriate debug info attached
-            raise self._compile_error(str(e))
+            self._rebuild_compile_error(e)
 
         code = self.compile_form(lambda_form, env)
         code += [S('set'), name, S('void')]
@@ -706,7 +724,7 @@ class Compiler:
                     env.frames[0].add_macro(name)
                 except CompileError as e:
                     # re-raise compile error with appropriate debug info attached
-                    raise self._compile_error(str(e))
+                    raise self._rebuild_compile_error(e)
             else:
                 assert False, 'Unhandled define type'
 
@@ -802,7 +820,7 @@ class Compiler:
         return code
 
     def compile_symbol(self, sym: Symbol, env):
-        prim = self.get_primcall(sym)
+        prim = self.get_primcall(sym, env)
         if prim:
             # using a primitive like "car" or "cons" as a symbol. this should
             # return a function that performs those primitives. what we do is
@@ -1330,7 +1348,7 @@ class Compiler:
             if name in special_forms:
                 compile_func = special_forms[name]
                 return compile_func(expr, env)
-            elif desc := self.get_primcall(sym):
+            elif desc := self.get_primcall(sym, env):
                 return self.compile_primcall(expr, env, desc)
             else:
                 return self.compile_func_call(expr, env)
