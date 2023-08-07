@@ -31,15 +31,22 @@ def write_history():
     readline.write_history_file(HISTORY_FILE)
 
 
-def completer(text: str, state: int, *, libs: list[Fasl]):
-    syms = set()
-    for lib in libs:
-        syms |= set(s for s in lib.defines.keys() if s.name.startswith(text))
-    syms = list(sorted(syms, key=lambda s: s.name))
-    try:
-        return syms[state].name
-    except IndexError:
-        return None
+
+class Completer:
+    def __init__(self, libs):
+        self.libs = libs
+
+    def __call__(self, text: str, state: int):
+        if state == 0:
+            syms = set()
+            for lib in self.libs:
+                syms |= set(s for s in lib.defines.keys() if s.name.startswith(text))
+            self.syms = list(sorted(syms, key=lambda s: s.name))
+
+        try:
+            return self.syms[state].name
+        except IndexError:
+            return None
 
 
 def main(args):
@@ -57,7 +64,7 @@ def main(args):
 
     readline.parse_and_bind("tab: complete")
     readline.set_completer_delims('()[] \'"|')
-    readline.set_completer(lambda text, state: completer(text, state, libs=libs))
+    readline.set_completer(Completer(libs))
 
     machine = Secd()
     machine.load_fasls(libs)
