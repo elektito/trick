@@ -328,7 +328,10 @@ class Procedure(TrickType):
             return n >= self.nparams
 
     def __repr__(self):
-        return '#<procedure>'
+        if self.rest_param:
+            return f'#<procedure args={self.nparams}+rest>'
+        else:
+            return f'#<procedure args={self.nparams}>'
 
 
 class Continuation(Procedure):
