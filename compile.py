@@ -1541,6 +1541,13 @@ class Compiler:
                 form_code = []
         elif form[0] == S('define'):
             name_sym, value = self.parse_define_form(form, 'define')
+
+            info = env.lookup_symbol(name_sym)
+            if info.immutable:
+                raise self._compile_error(
+                    f'Attempting to assign immutable variable: {name_sym}',
+                    form=name_sym)
+
             env.defined_symbols[name_sym] = DefineInfo(is_macro=False)
             form_code = self.compile_form(value, env)
             form_code += [S('set'), name_sym, S('void')]
