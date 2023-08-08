@@ -104,9 +104,23 @@ class SourceFile:
 
 
 class SymbolKind(Enum):
-    PRIMCALL = 1
-    LOCAL = 2
-    FREE = 3
+    SPECIAL = 1
+    PRIMCALL = 2
+    LOCAL = 3
+    FREE = 4
+
+
+class SpecialForms(Enum):
+    BEGIN = 'begin'
+    SET = 'set!'
+    IF = 'if'
+    LAMBDA = 'lambda'
+    LET = 'let'
+    LETREC = 'letrec'
+    QUOTE = 'quote'
+    INCLUDE = 'include'
+    INCLUDE_CI = 'include_ci'
+    COND_EXPAND = 'cond-expand'
 
 
 class SymbolInfo:
@@ -115,6 +129,7 @@ class SymbolInfo:
                  primcall_code=None,
                  local_frame_idx=None,
                  local_var_idx=None,
+                 special_type=None,
                  immutable=False):
         self.symbol = symbol
         self.kind = kind
@@ -122,6 +137,7 @@ class SymbolInfo:
         self.primcall_code = primcall_code
         self.local_frame_idx = local_frame_idx
         self.local_var_idx = local_var_idx
+        self.special_type = special_type
         self.immutable = immutable
 
 
@@ -265,6 +281,13 @@ class Environment:
                 kind=SymbolKind.LOCAL,
                 local_frame_idx=local_info[0],
                 local_var_idx=local_info[1],
+            )
+        elif any(sym.name == i.value for i in SpecialForms):
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.SPECIAL,
+                special_type=SpecialForms(sym.name),
+                immutable=True,
             )
         else:
             return SymbolInfo(
@@ -1413,7 +1436,7 @@ class Compiler:
     def compile_cond_expand_local(self, expr, env):
         return self._compile_cond_expand(expr, env, toplevel=False)
 
-    def compile_list(self, expr, env):
+    def compile_list(self, expr, env: Environment):
         if expr == Nil():
             raise self._compile_error(
                 'Empty list is not a valid form')
@@ -1423,27 +1446,24 @@ class Compiler:
                 f'Cannot compile improper list: {expr}')
 
         if isinstance(expr.car, Symbol):
-            sym = expr.car
-            name = sym.name
+            info =  env.lookup_symbol(expr.car)
             special_forms = {
-                'begin': self.compile_begin,
-                'set!': self.compile_set,
-                'if': self.compile_if,
-                'lambda': self.compile_lambda,
-                'let': self.compile_let,
-                'letrec': self.compile_letrec,
-                'quote': self.compile_quote,
-                'include': self.compile_include_local,
-                'include-ci': self.compile_include_ci_local,
-                'cond-expand': self.compile_cond_expand_local,
+                SpecialForms.BEGIN: self.compile_begin,
+                SpecialForms.SET: self.compile_set,
+                SpecialForms.IF: self.compile_if,
+                SpecialForms.LAMBDA: self.compile_lambda,
+                SpecialForms.LET: self.compile_let,
+                SpecialForms.LETREC: self.compile_letrec,
+                SpecialForms.QUOTE: self.compile_quote,
+                SpecialForms.INCLUDE: self.compile_include_local,
+                SpecialForms.INCLUDE_CI: self.compile_include_ci_local,
+                SpecialForms.COND_EXPAND: self.compile_cond_expand_local,
             }
 
-            compile_func = special_forms.get(name)
-            if name in special_forms:
-                compile_func = special_forms[name]
+            if info.kind == SymbolKind.SPECIAL:
+                compile_func = special_forms[info.special_type]
                 return compile_func(expr, env)
             else:
-                info = self.lookup_symbol(sym, env)
                 if info.kind == SymbolKind.PRIMCALL:
                     return self.compile_primcall(expr, env, info)
                 else:
