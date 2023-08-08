@@ -233,6 +233,7 @@ class Environment:
                 kind=SymbolKind.PRIMCALL,
                 primcall_nargs=len(desc['args']),
                 primcall_code=[S('trap'), S(f'{module}/{proc}')],
+                immutable=True,
             )
         elif sym.name.startswith('#$'):
             # a symbol with a #$ prefix always refers to a primcall in any
