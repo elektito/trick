@@ -185,7 +185,9 @@ class Environment:
     def copy(self):
         copy = Environment()
         copy.frames = [f.copy() for f in self.frames]
+        copy.defined_symbols = {k: v for k, v in self.defined_symbols.items()}
         copy.toplevel_macros = [m for m in self.toplevel_macros]
+        copy.primcalls_enabled = self.primcalls_enabled
         return copy
 
     def add_frame(self, variables):
