@@ -82,6 +82,7 @@ class SymbolKind(Enum):
 class SpecialForms(Enum):
     DEFINE = 'define'
     DEFINE_MACRO = 'define-macro'
+    DEFINE_LIBRARY = 'define-library'
     BEGIN = 'begin'
     SET = 'set!'
     IF = 'if'
@@ -326,6 +327,7 @@ class Environment:
         self.toplevel_macros = []
         self.primcalls_enabled = primcalls_enabled
         self.import_sets = []
+        self.exports = []
 
     def copy(self):
         copy = Environment()
@@ -334,6 +336,7 @@ class Environment:
         copy.toplevel_macros = [m for m in self.toplevel_macros]
         copy.primcalls_enabled = self.primcalls_enabled
         copy.import_sets = self.import_sets
+        copy.exports = [i for i in self.exports]
         return copy
 
     def add_frame(self, variables):
@@ -398,6 +401,12 @@ class Environment:
             symbol=sym,
             kind=SymbolKind.FREE,
         )
+
+    def add_export(self, sym: Symbol):
+        self.exports.append(sym)
+
+    def add_renamed_export(self, renamed_from: Symbol, renamed_to: Symbol):
+        self.exports.append((renamed_from, renamed_to))
 
 
 primcalls = {
@@ -1431,7 +1440,7 @@ class Compiler:
 
         return None
 
-    def _compile_include(self, expr, env, *, toplevel: bool, casefold: bool):
+    def _compile_include(self, expr, env, *, context: str, casefold: bool):
         if len(expr) < 2:
             raise self._compile_error(
                 'Missing filenames in include directive')
@@ -1464,13 +1473,23 @@ class Compiler:
             exprs = List.from_list(exprs)
             begin_form = Pair(S('begin'), exprs)
 
-            if toplevel:
+            if context == 'toplevel':
                 old_source = self.current_source
                 self.current_source = SourceFile(filename=full_path)
                 include_code = self.compile_toplevel_form(begin_form, env)
                 self.current_source = old_source
-            else:
+            elif context == 'local':
                 include_code = self.compile_form(begin_form, env)
+            elif context == 'library':
+                include_code = []
+                for expr in exprs:
+                    include_code += self.compile_toplevel_form(expr, env)
+            elif context == 'library-declarations':
+                include_code = []
+                for expr in exprs:
+                    include_code += self.compile_library_declaration(expr, env)
+            else:
+                assert False, 'unhandled context'
 
             if self.debug_info:
                 include_code = [S(':filename-start'), String(filename)] + include_code
@@ -1483,28 +1502,28 @@ class Compiler:
     def compile_include_toplevel(self, expr, env):
         return self._compile_include(
             expr, env,
-            toplevel=True,
+            context='toplevel',
             casefold=False)
 
     def compile_include_ci_toplevel(self, expr, env):
         return self._compile_include(
             expr, env,
-            toplevel=True,
+            context='toplevel',
             casefold=True)
 
     def compile_include_local(self, expr, env):
         return self._compile_include(
             expr, env,
-            toplevel=True,
+            context='local',
             casefold=False)
 
     def compile_include_ci_local(self, expr, env):
         return self._compile_include(
             expr, env,
-            toplevel=False,
+            context='local',
             casefold=True)
 
-    def _compile_cond_expand(self, expr, env, *, toplevel: bool):
+    def _compile_cond_expand(self, expr, env, *, context: str):
         if len(expr) < 2:
             raise self._compile_error(
                 'Invalid number of arguments for cond-expand')
@@ -1538,18 +1557,23 @@ class Compiler:
                 begin_form = Pair(S('begin'), expressions)
                 begin_form.src_start = clause.src_start
                 begin_form.src_end = clause.src_end
-                if toplevel:
+                if context == 'toplevel':
                     code += self.compile_toplevel_form(begin_form, env)
-                else:
+                elif context == 'local':
                     code += self.compile_form(begin_form, env)
+                elif context == 'library':
+                    for expr in expressions:
+                        code += self.compile_library_declaration(expr, env)
+                else:
+                    assert False, 'unhandled context'
 
         return code
 
     def compile_cond_expand_toplevel(self, expr, env):
-        return self._compile_cond_expand(expr, env, toplevel=True)
+        return self._compile_cond_expand(expr, env, context='toplevel')
 
     def compile_cond_expand_local(self, expr, env):
-        return self._compile_cond_expand(expr, env, toplevel=False)
+        return self._compile_cond_expand(expr, env, context='local')
 
     def compile_list(self, expr, env: Environment):
         if expr == Nil():
@@ -1651,6 +1675,83 @@ class Compiler:
             if not isinstance(cur, List):
                 return False
 
+    def compile_library_declaration(self, declaration, env: Environment):
+        code = []
+        if not isinstance(declaration, Pair):
+            raise self._compile_error(
+                f'Library declaration is not a list: {declaration}',
+                form=declaration)
+        if declaration.car == S('import'):
+            self.process_import(declaration, env)
+        elif declaration.car == S('export'):
+            for export_spec in declaration.cdr:
+                if isinstance(export_spec, Symbol):
+                    env.add_export(export_spec)
+                elif isinstance(export_spec, Pair):
+                    if len(export_spec) != 3 or \
+                       export_spec[0] != S('rename') or \
+                       not isinstance(export_spec[1], Symbol) or \
+                       not isinstance(export_spec[2], Symbol):
+                        raise self._compile_error(
+                            f'Bad export spec: {export_spec}',
+                            form=export_spec)
+                    env.add_renamed_export(export_spec[1], export_spec[2])
+                else:
+                    raise self._compile_error(
+                        f'Bad export spec: {export_spec}',
+                        form=export_spec)
+        elif declaration.car == S('include'):
+            self._compile_include(
+                declaration, env, context='library', casefold=False)
+        elif declaration.car == S('include-ci'):
+            self._compile_include(
+                declaration, env, context='library', casefold=True)
+        elif declaration.car == S('include-library-declarations'):
+            self._compile_include(
+                declaration, env, context='library-declarations', casefold=False)
+        elif declaration.car == S('cond-expand'):
+            code += self._compile_cond_expand(declaration, env, context='library')
+        elif declaration.car == S('begin'):
+            for form in declaration.cdr:
+                code += self.compile_toplevel_form(form, env)
+        else:
+            raise self._compile_error(
+                f'Invalid library declaration: {declaration}',
+                form=declaration)
+
+        return code
+
+    def compile_define_library(self, form: Pair) -> list:
+        if len(form) < 2:
+            raise self._compile_error(
+                f'Library name not specified: {form}', form=form)
+
+        name = form[1]
+        if not isinstance(name, Pair):
+            raise self._compile_error(
+                f'Library name not a list: {name}', form=name)
+
+        code = []
+        lib_env = Environment()
+        for declaration in form.cddr():
+            code += self.compile_library_declaration(declaration, lib_env)
+
+        # check exports
+        for export_spec in lib_env.exports:
+            if isinstance(export_spec, Symbol):
+                if export_spec not in lib_env.defined_symbols:
+                    raise self._compile_error(
+                        f'No such identifier to export: {export_spec}',
+                        form=export_spec)
+            else:
+                from_name, to_name = export_spec
+                if from_name not in lib_env.defined_symbols:
+                    raise self._compile_error(
+                        f'No such identifier to export: {from_name}',
+                        form=from_name)
+
+        return code
+
     def _compile_toplevel_form(self, form, env):
         if isinstance(form, Nil):
             raise self._compile_error(
@@ -1714,6 +1815,8 @@ class Compiler:
             form_code = self.compile_include_ci_toplevel(form, env)
         elif info.is_special(SpecialForms.COND_EXPAND):
             form_code = self.compile_cond_expand_toplevel(form, env)
+        elif info.is_special(SpecialForms.DEFINE_LIBRARY):
+            form_code = self.compile_define_library(form)
         else:
             form_code = self.compile_form(form, env)
 
