@@ -1255,10 +1255,22 @@ class Compiler:
 
     def compile_func_call(self, expr, env):
         secd_code = [S('nil')]
+
+        # compile function before arguments, even though we need it later, so
+        # that if there's an undefined error here, it's raised before any
+        # undefined symbol errors for arguments. this is particularly useful if
+        # the actual error is that, maybe due to a missing import, we're
+        # compiling a syntax name as a function.
+        #
+        # this still won't work on errors other than undefined symbol, because
+        # those are raised immediately, while undefined symbol errors are raised
+        # at the end of compilation.
+        func_code = self.compile_form(expr[0], env)
+
         for arg in reversed(expr.to_list()[1:]):
             secd_code += self.compile_form(arg, env)
             secd_code += [S('cons')]
-        secd_code += self.compile_form(expr[0], env)
+        secd_code += func_code
         secd_code += [S('ap')]
         return secd_code
 
