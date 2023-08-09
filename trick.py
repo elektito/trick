@@ -101,8 +101,10 @@ def main():
     elif args.compile_expr:
         lib_fasls = load_fasl_files(args.lib)
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
+        env = compile.Environment()
+        env.add_import(compile.CoreImportSet())
         try:
-            asm = compiler.compile_program(args.compile_expr)
+            asm = compiler.compile_program(args.compile_expr, env)
         except compile.CompileError as e:
             print('Compile error:', e)
             sys.exit(1)

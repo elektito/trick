@@ -3,7 +3,7 @@ import atexit
 import argparse
 import readline
 from assemble import Assembler
-from compile import CompileError, primcalls
+from compile import CompileError, CoreImportSet, Environment, primcalls
 from fasl import Fasl
 from machinetypes import Void
 from read import ReadError, read_expr
@@ -75,6 +75,9 @@ def main(args):
     machine = Secd()
     machine.load_fasls(libs)
 
+    env = Environment()
+    env.add_import(CoreImportSet())
+
     while True:
         try:
             text = input('> ')
@@ -92,7 +95,7 @@ def main(args):
             continue
 
         try:
-            expr_fasl = compile_expr_to_fasl(expr, libs)
+            expr_fasl = compile_expr_to_fasl(expr, libs, env)
         except CompileError as e:
             print(f'Compile error: {e}')
             continue

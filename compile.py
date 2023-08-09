@@ -72,6 +72,184 @@ def asm_code_for_features():
     return code
 
 
+class SymbolKind(Enum):
+    SPECIAL = 1
+    PRIMCALL = 2
+    LOCAL = 3
+    FREE = 4
+
+
+class SpecialForms(Enum):
+    DEFINE = 'define'
+    DEFINE_MACRO = 'define-macro'
+    BEGIN = 'begin'
+    SET = 'set!'
+    IF = 'if'
+    LAMBDA = 'lambda'
+    LET = 'let'
+    LETREC = 'letrec'
+    QUOTE = 'quote'
+    INCLUDE = 'include'
+    INCLUDE_CI = 'include_ci'
+    COND_EXPAND = 'cond-expand'
+
+
+class SymbolInfo:
+    def __init__(self, symbol: Symbol, kind: SymbolKind, *,
+                 primcall_nargs=None,
+                 primcall_code=None,
+                 local_frame_idx=None,
+                 local_var_idx=None,
+                 special_type=None,
+                 immutable=False):
+        self.symbol = symbol
+        self.kind = kind
+        self.primcall_nargs = primcall_nargs
+        self.primcall_code = primcall_code
+        self.local_frame_idx = local_frame_idx
+        self.local_var_idx = local_var_idx
+        self.special_type = special_type
+        self.immutable = immutable
+
+
+class ImportSet:
+    def lookup(self, sym: Symbol) -> (SymbolInfo | None):
+        raise NotImplementedError
+
+
+class CoreImportSet(ImportSet):
+    def lookup(self, sym: Symbol) -> (SymbolInfo | None):
+        m = re.match(r'#\$/(?P<module>\w+)/(?P<proc>\w+)', sym.name)
+        if m:
+            module = m.group('module')
+            proc = m.group('proc')
+            desc = runtime.find_proc(module, proc)
+            if desc is None:
+                raise CompileError(
+                    f'Unknown runtime procedure: {sym.name}',
+                    form=sym)
+
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.PRIMCALL,
+                primcall_nargs=len(desc['args']),
+                primcall_code=[S('trap'), S(f'{module}/{proc}')],
+                immutable=True,
+            )
+
+        if sym.name.startswith('#$'):
+            desc = primcalls.get(sym.name[2:])
+            found = bool(desc)
+        else:
+            desc = primcalls.get(sym.name)
+            found = desc and desc['exported']
+        if found:
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.PRIMCALL,
+                primcall_nargs=desc['nargs'],
+                primcall_code=desc['code'],
+                immutable=True,
+            )
+
+        if any(sym.name == i.value for i in SpecialForms):
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.SPECIAL,
+                special_type=SpecialForms(sym.name),
+                immutable=True,
+            )
+        return None
+
+    def __str__(self):
+        return '<CoreImportSet>'
+
+    def __repr__(self):
+        return str(self)
+
+
+class OnlyImportSet(ImportSet):
+    def __init__(self, base_import_set: ImportSet, identifiers: list[Symbol]):
+        self.base_import_set = base_import_set
+        self.identifiers = identifiers
+
+    def lookup(self, sym: Symbol):
+        if sym not in self.identifiers:
+            return None
+
+        return self.base_import_set.lookup(sym)
+
+    def __str__(self):
+        return f'<OnlyImportSet base={self.base_import_set} only={self.identifiers}>'
+
+    def __repr__(self):
+        return str(self)
+
+
+class ExceptImportSet(ImportSet):
+    def __init__(self, base_import_set: ImportSet, identifiers: list[Symbol]):
+        self.base_import_set = base_import_set
+        self.identifiers = identifiers
+
+    def lookup(self, sym: Symbol):
+        if sym in self.identifiers:
+            return None
+
+        return self.base_import_set.lookup(sym)
+
+    def __str__(self):
+        return f'<ExceptImportSet base={self.base_import_set} except={self.identifiers}>'
+
+    def __repr__(self):
+        return str(self)
+
+
+class PrefixImportSet(ImportSet):
+    def __init__(self, base_import_set: ImportSet, prefix: Symbol):
+        self.base_import_set = base_import_set
+        self.prefix = prefix.name
+
+    def lookup(self, sym: Symbol):
+        if not sym.name.startswith(self.prefix):
+            return None
+
+        no_prefix_name = S(sym.name[len(self.prefix):])
+        result = self.base_import_set.lookup(no_prefix_name)
+        if result is None:
+            return None
+        result.symbol = no_prefix_name
+        return result
+
+    def __str__(self):
+        return f'<PrefixImportSet base={self.base_import_set} prefix="{self.prefix}">'
+
+    def __repr__(self):
+        return str(self)
+
+class RenameImportSet(ImportSet):
+    def __init__(self, base_import_set: ImportSet, renames: list[Pair]):
+        self.base_import_set = base_import_set
+        self.renames = renames
+
+    def lookup(self, sym: Symbol):
+        for rename in self.renames:
+            from_name = rename[0]
+            to_name = rename[1]
+            if sym == to_name:
+                result =  self.base_import_set.lookup(from_name)
+                result.symbol = to_name
+                return result
+        return self.base_import_set.lookup(sym)
+
+    def __str__(self):
+        renames = [f'"{f}"=>"{t}"' for f, t in self.renames]
+        renames = ' '.join(renames)
+        return f'<RenameImportSet base={self.base_import_set} renames=({renames})>'
+
+    def __repr__(self):
+        return str(self)
+
+
 class SourceFile:
     """ The purpose of this class is to unify the cases where we have source as
     text or as a filename. """
@@ -101,44 +279,6 @@ class SourceFile:
             return f'<SourceFile {self._filename}>'
         else:
             return f'<SourceFile>'
-
-
-class SymbolKind(Enum):
-    SPECIAL = 1
-    PRIMCALL = 2
-    LOCAL = 3
-    FREE = 4
-
-
-class SpecialForms(Enum):
-    BEGIN = 'begin'
-    SET = 'set!'
-    IF = 'if'
-    LAMBDA = 'lambda'
-    LET = 'let'
-    LETREC = 'letrec'
-    QUOTE = 'quote'
-    INCLUDE = 'include'
-    INCLUDE_CI = 'include_ci'
-    COND_EXPAND = 'cond-expand'
-
-
-class SymbolInfo:
-    def __init__(self, symbol: Symbol, kind: SymbolKind, *,
-                 primcall_nargs=None,
-                 primcall_code=None,
-                 local_frame_idx=None,
-                 local_var_idx=None,
-                 special_type=None,
-                 immutable=False):
-        self.symbol = symbol
-        self.kind = kind
-        self.primcall_nargs = primcall_nargs
-        self.primcall_code = primcall_code
-        self.local_frame_idx = local_frame_idx
-        self.local_var_idx = local_var_idx
-        self.special_type = special_type
-        self.immutable = immutable
 
 
 class EnvironmentFrame:
@@ -181,6 +321,7 @@ class Environment:
         self.defined_symbols: dict[Symbol, DefineInfo] = {}
         self.toplevel_macros = []
         self.primcalls_enabled = primcalls_enabled
+        self.import_sets = []
 
     def copy(self):
         copy = Environment()
@@ -188,6 +329,7 @@ class Environment:
         copy.defined_symbols = {k: v for k, v in self.defined_symbols.items()}
         copy.toplevel_macros = [m for m in self.toplevel_macros]
         copy.primcalls_enabled = self.primcalls_enabled
+        copy.import_sets = self.import_sets
         return copy
 
     def add_frame(self, variables):
@@ -231,71 +373,27 @@ class Environment:
 
         return primcalls.get(name, {}).get('exported', False)
 
-    def lookup_symbol(self, sym: Symbol) -> SymbolInfo:
-        if sym.name.startswith('#$/'):
-            m = re.match(r'#\$/(?P<module>\w+)/(?P<proc>\w+)', sym.name)
-            if not m:
-                raise CompileError(
-                    f'Unknown runtime procedure: {sym}',    form=sym)
+    def add_import(self, import_set: ImportSet):
+        self.import_sets.append(import_set)
 
-            module = m.group('module')
-            proc = m.group('proc')
-            desc = runtime.find_proc(module, proc)
-            if desc is None:
-                raise CompileError(
-                    f'Unknown runtime procedure: {sym.name}',
-                    form=sym)
-
-            return SymbolInfo(
-                symbol=sym,
-                kind=SymbolKind.PRIMCALL,
-                primcall_nargs=len(desc['args']),
-                primcall_code=[S('trap'), S(f'{module}/{proc}')],
-                immutable=True,
-            )
-        elif sym.name.startswith('#$'):
-            # a symbol with a #$ prefix always refers to a primcall in any
-            # environment.
-            actual_name = sym.name[2:]
-            primcall_info = primcalls.get(actual_name)
-            if primcall_info is None:
-                raise CompileError(
-                    f'No such primitive: {actual_name}', form=sym)
-            return SymbolInfo(
-                symbol=sym,
-                kind=SymbolKind.PRIMCALL,
-                primcall_nargs=primcall_info['nargs'],
-                primcall_code=primcall_info['code'],
-                immutable=True,
-            )
-        elif self.is_exported_primcall(sym.name):
-            primcall_info = primcalls[sym.name]
-            return SymbolInfo(
-                symbol=sym,
-                kind=SymbolKind.PRIMCALL,
-                primcall_nargs=primcall_info['nargs'],
-                primcall_code=primcall_info['code'],
-                immutable=True,
-            )
-        elif local_info := self.locate_local(sym):
+    def lookup_symbol(self, sym: Symbol, *, at_head=False) -> SymbolInfo:
+        local = self.locate_local(sym)
+        if local:
             return SymbolInfo(
                 symbol=sym,
                 kind=SymbolKind.LOCAL,
-                local_frame_idx=local_info[0],
-                local_var_idx=local_info[1],
+                local_frame_idx=local[0],
+                local_var_idx=local[1],
             )
-        elif any(sym.name == i.value for i in SpecialForms):
-            return SymbolInfo(
-                symbol=sym,
-                kind=SymbolKind.SPECIAL,
-                special_type=SpecialForms(sym.name),
-                immutable=True,
-            )
-        else:
-            return SymbolInfo(
-                symbol=sym,
-                kind=SymbolKind.FREE,
-            )
+        for import_set in self.import_sets:
+            result = import_set.lookup(sym)
+            if result is not None:
+                if result.kind != SymbolKind.SPECIAL or at_head:
+                    return result
+        return SymbolInfo(
+            symbol=sym,
+            kind=SymbolKind.FREE,
+        )
 
 
 primcalls = {
@@ -600,9 +698,9 @@ class Compiler:
             form=e.form,
             source=e.source)
 
-    def lookup_symbol(self, sym: Symbol, env: Environment) -> SymbolInfo:
+    def lookup_symbol(self, sym: Symbol, env: Environment, *, at_head=False) -> SymbolInfo:
         try:
-            return env.lookup_symbol(sym)
+            return env.lookup_symbol(sym, at_head=at_head)
         except CompileError as e:
             raise self._rebuild_compile_error(e)
 
@@ -1447,7 +1545,7 @@ class Compiler:
                 f'Cannot compile improper list: {expr}')
 
         if isinstance(expr.car, Symbol):
-            info =  env.lookup_symbol(expr.car)
+            info =  env.lookup_symbol(expr.car, at_head=True)
             special_forms = {
                 SpecialForms.BEGIN: self.compile_begin,
                 SpecialForms.SET: self.compile_set,
@@ -1538,6 +1636,10 @@ class Compiler:
                 return False
 
     def _compile_toplevel_form(self, form, env):
+        if isinstance(form, Nil):
+            raise self._compile_error(
+                'Empty list is not a valid form', form=form)
+
         if isinstance(form, Pair) and not form.is_proper():
             raise self._compile_error(
                 f'Cannot compile improper list: {form}')
@@ -1546,7 +1648,8 @@ class Compiler:
         if not isinstance(form, Pair):
             return self.compile_form(form, env)
 
-        if form[0] == S('define-macro'):
+        info = self.lookup_symbol(form.car, env, at_head=True)
+        if info.kind == SymbolKind.SPECIAL and info.special_type == SpecialForms.DEFINE_MACRO:
             form_code = self.process_define_macro(form, env)
             if isinstance(form[1], Symbol):
                 defined_sym = form[1]     # (define-macro foo value)
@@ -1560,7 +1663,7 @@ class Compiler:
             # code in the output.
             if not self.compiling_library:
                 form_code = []
-        elif form[0] == S('define'):
+        elif info.kind == SymbolKind.SPECIAL and info.special_type == SpecialForms.DEFINE:
             name_sym, value = self.parse_define_form(form, 'define')
 
             info = env.lookup_symbol(name_sym)
@@ -1581,7 +1684,7 @@ class Compiler:
                         [S(':define-end'), Integer(form.src_end)]
             self.macros_fasl.add_define(name_sym, is_macro=False)
             self.assembler.assemble(form_code, self.macros_fasl)
-        elif form[0] == S('begin'):
+        elif info.kind == SymbolKind.SPECIAL and info.special_type == SpecialForms.BEGIN:
             form_code = []
             for i, expr in enumerate(form.cdr):
                 form_code += self.compile_toplevel_form(expr, env)
@@ -1589,11 +1692,11 @@ class Compiler:
                     form_code += [S('drop')]
             if form_code == []:
                 form_code = [S('void')]
-        elif form[0] == S('include'):
+        elif info.kind == SymbolKind.SPECIAL and info.special_type == SpecialForms.INCLUDE:
             form_code = self.compile_include_toplevel(form, env)
-        elif form[0] == S('include-ci'):
+        elif info.kind == SymbolKind.SPECIAL and info.special_type == SpecialForms.INCLUDE_CI:
             form_code = self.compile_include_ci_toplevel(form, env)
-        elif form[0] == S('cond-expand'):
+        elif info.kind == SymbolKind.SPECIAL and info.special_type == SpecialForms.COND_EXPAND:
             form_code = self.compile_cond_expand_toplevel(form, env)
         else:
             form_code = self.compile_form(form, env)
@@ -1607,6 +1710,91 @@ class Compiler:
             return self._compile_toplevel_form(form, env)
         finally:
             self.current_form = old_current_form
+
+    def get_library_import_set(self, name: Pair):
+        if name.to_list() != [S("trick"), S("core")]:
+            raise self._compile_error(
+                f'Unknown library: {name}', form=name)
+
+        return CoreImportSet()
+
+    def process_import_set(self, import_set: Pair) -> ImportSet:
+        if import_set.car == S('only'):
+            if not isinstance(import_set[1], Pair):
+                raise self._compile_error(
+                    f'Invalid "only" import set: {import_set[1]}',
+                    form=import_set[1])
+            base_set = self.process_import_set(import_set[1])
+            identifiers = import_set.cddr()
+            for identifier in identifiers:
+                if base_set.lookup(identifier) is None:
+                    raise self._compile_error(
+                        f'Identifier {identifier} not exported by import set: {import_set[1]}',
+                        form=identifier)
+            return OnlyImportSet(base_set, identifiers)
+        elif import_set.car == S('except'):
+            if not isinstance(import_set[1], Pair):
+                raise self._compile_error(
+                    f'Invalid "except" import set: {import_set[1]}',
+                    form=import_set[1])
+            base_set = self.process_import_set(import_set[1])
+            identifiers = import_set.cddr()
+            for identifier in identifiers:
+                if base_set.lookup(identifier) is None:
+                    raise self._compile_error(
+                        f'Identifier {identifier} not exported by import set: {import_set[1]}',
+                        form=identifier)
+            return ExceptImportSet(base_set, identifiers)
+        elif import_set.car == S('prefix'):
+            if len(import_set) != 3 or \
+               not isinstance(import_set[1], Pair):
+                raise self._compile_error(
+                    f'Invalid "prefix" import set: {import_set[1]}',
+                    form=import_set[1])
+            base_set = self.process_import_set(import_set[1])
+            prefix = import_set[2]
+            if not isinstance(prefix, Symbol):
+                raise self._compile_error(
+                    f'Prefix for import set not a symbol: {prefix}',
+                    form=prefix)
+            return PrefixImportSet(base_set, prefix)
+        elif import_set.car == S('rename'):
+            if not isinstance(import_set[1], Pair):
+                raise self._compile_error(
+                    f'Invalid "rename" import set: {import_set[1]}',
+                    form=import_set[1])
+            base_set = self.process_import_set(import_set[1])
+            renames = import_set.cddr()
+            for rename in renames:
+                if not isinstance(rename, Pair) or \
+                   len(rename) != 2 or \
+                   not isinstance(rename[0], Symbol) or \
+                   not isinstance(rename[1], Symbol):
+                    raise self._compile_error(
+                        f'Invalid import rename: {rename}',
+                        form=rename)
+                if base_set.lookup(rename[0]) is None:
+                    raise self._compile_error(
+                        f'Renamed identifier "{rename[0]}" not exported by: {import_set[1]}',
+                        form=rename[0])
+            return RenameImportSet(base_set, renames)
+        else:
+            return self.get_library_import_set(import_set)
+
+    def process_import(self, form: Pair, env: Environment):
+        if not isinstance(form.cdr, Pair):
+            raise self._compile_error(
+                f'Invaid import declaration: {form}', form=form)
+
+        sets = []
+        for import_set in form.cdr:
+            if not isinstance(import_set, Pair):
+                raise self._compile_error(
+                    f'Invaid import set: {form}', form=import_set)
+            sets.append(self.process_import_set(import_set))
+
+        for import_set in sets:
+            env.add_import(import_set)
 
     def compile_program(self, text, env=None, *, filename=None):
         if env is None:
@@ -1630,6 +1818,13 @@ class Compiler:
             if isinstance(form, Pair) and not form.is_proper():
                 raise self._compile_error(
                     f'Cannot compile improper list: {form}', form=form)
+
+            if isinstance(form, Pair) and form.car == S('import'):
+                self.process_import(form, env)
+                continue
+
+            if len(env.import_sets) == 0:
+                raise self._compile_error('No imports found')
 
             form_code = self.compile_toplevel_form(form, env)
 
