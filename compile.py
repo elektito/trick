@@ -76,7 +76,8 @@ class SymbolKind(Enum):
     SPECIAL = 1
     PRIMCALL = 2
     LOCAL = 3
-    FREE = 4
+    LIBRARY = 4
+    FREE = 5
 
 
 class SpecialForms(Enum):
@@ -102,6 +103,7 @@ class SymbolInfo:
                  local_frame_idx=None,
                  local_var_idx=None,
                  special_type=None,
+                 library_name=None,
                  immutable=False):
         self.symbol = symbol
         self.kind = kind
@@ -110,6 +112,7 @@ class SymbolInfo:
         self.local_frame_idx = local_frame_idx
         self.local_var_idx = local_var_idx
         self.special_type = special_type
+        self.library_name = library_name
         self.immutable = immutable
 
     def is_special(self, special_type: SpecialForms) -> bool:
@@ -168,6 +171,40 @@ class CoreImportSet(ImportSet):
 
     def __str__(self):
         return '<CoreImportSet>'
+
+    def __repr__(self):
+        return str(self)
+
+
+class LibraryImportSet(ImportSet):
+    def __init__(self, lib_name: Pair, exports: list):
+        self.lib_name = lib_name
+        self.exports = exports
+
+    def lookup(self, sym: Symbol) -> (SymbolInfo | None):
+        for export in self.exports:
+            if isinstance(export, Symbol):
+                if sym == export:
+                    return SymbolInfo(
+                        symbol=sym,
+                        kind=SymbolKind.LIBRARY,
+                        library_name=self.lib_name,
+                        immutable=True,
+                    )
+            else:
+                renamed_from, renamed_to = export
+                if sym == renamed_to:
+                    return SymbolInfo(
+                        symbol=renamed_from,
+                        kind=SymbolKind.LIBRARY,
+                        library_name=self.lib_name,
+                        immutable=True,
+                    )
+
+        return None
+
+    def __str__(self):
+        return f'<LibraryImportSet {self.lib_name}>'
 
     def __repr__(self):
         return str(self)
@@ -691,6 +728,7 @@ class Compiler:
         self.libs = libs
         self.debug_info = debug_info
         self.include_paths = []
+        self.available_libs = []
 
         self.current_source = None
         self.current_form = None
@@ -1088,9 +1126,11 @@ class Compiler:
             return [S('ldf'), Integer(info.primcall_nargs), func_code]
         elif info.kind == SymbolKind.LOCAL:
             return [S('ld'), [info.local_frame_idx, info.local_var_idx]]
+        elif info.kind == SymbolKind.LIBRARY:
+            return [S('getx'), info.library_name, info.symbol]
         elif info.kind == SymbolKind.FREE:
             self.read_symbols.add((sym, self.current_source))
-            return [S('get'), sym]
+            return [S('get'), info.symbol]
         else:
             assert False, 'unhandled symbol kind'
 
@@ -1307,6 +1347,10 @@ class Compiler:
         elif info.kind == SymbolKind.FREE:
             code += [S('set'), name]
             self.set_symbols.add((name, self.current_source))
+        elif info.kind == SymbolKind.LIBRARY:
+            # this should not normally be used, since library imports are
+            # immutable, but maybe we'll find a use for it later.
+            code += [S('setx'), info.library_name, info.symbol]
         else:
             assert False, 'unhandled symbol kind'
 
@@ -1750,6 +1794,10 @@ class Compiler:
                         f'No such identifier to export: {from_name}',
                         form=from_name)
 
+        # add library to available_libs so that it becomes immediately available
+        # to libraries defined later
+        self.available_libs.append((name, lib_env.exports))
+
         return code
 
     def _compile_toplevel_form(self, form, env):
@@ -1831,11 +1879,16 @@ class Compiler:
             self.current_form = old_current_form
 
     def get_library_import_set(self, name: Pair):
-        if name.to_list() != [S("trick"), S("core")]:
-            raise self._compile_error(
-                f'Unknown library: {name}', form=name)
+        name_ls = name.to_list()
+        if name_ls == [S("trick"), S("core")]:
+            return CoreImportSet()
+        else:
+            for lib_name, lib_exports in self.available_libs:
+                if lib_name.to_list() == name_ls:
+                    return LibraryImportSet(lib_name, lib_exports)
 
-        return CoreImportSet()
+        raise self._compile_error(
+            f'Unknown library: {name}', form=name)
 
     def process_import_set(self, import_set: Pair) -> ImportSet:
         if import_set.car == S('only'):
