@@ -860,7 +860,7 @@ class Compiler:
         expanded = machine.s.top()
         return expanded
 
-    def parse_define_form(self, expr, form_name):
+    def parse_define_form(self, expr, form_name) -> tuple[Symbol, Pair]:
         if len(expr) < 2:
             raise self._compile_error(f'Invalid number of arguments for {form_name}.')
 
