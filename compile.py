@@ -1905,7 +1905,7 @@ def main(args):
         sys.exit(1)
     except CompileError as e:
         print(f'Compile error: {e}', file=sys.stderr)
-        e.print_snippet(filename=args.input)
+        e.print_snippet()
         sys.exit(1)
 
     secd_code = List.from_list_recursive(secd_code)
