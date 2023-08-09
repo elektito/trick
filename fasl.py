@@ -7,6 +7,7 @@ from snippet import show_snippet
 
 
 FASL_MAGIC = b'TRCKFASL'
+FASL_VERSION = 1
 
 
 class FaslError(Exception):
@@ -326,9 +327,10 @@ class Fasl:
 
     def dump(self, output):
         # write fasl header
-        output.write(b'TRCKFASL')  # magic
+        output.write(FASL_MAGIC)
         output.write(struct.pack(
-            '<IIIII',
+            '<BIIIII',
+            FASL_VERSION,              # version
             len(self.strtab),          # number of string ltierals
             len(self.symtab),          # number of symbols
             len(self.defines),         # number of globally defined symbols
@@ -369,9 +371,12 @@ class Fasl:
         if magic != FASL_MAGIC:
             raise FaslError('Bad magic')
 
-        headers = input.read(20)
-        nstrs, nsyms, ndefines, csize, nsecs = struct.unpack(
-            '<IIIII', headers)
+        headers = input.read(21)
+        version, nstrs, nsyms, ndefines, csize, nsecs = struct.unpack(
+            '<BIIIII', headers)
+
+        if version != FASL_VERSION:
+            raise FaslError(f'Unsupported version: {version}')
 
         for i in range(nstrs):
             size, = struct.unpack('<I', input.read(4))
