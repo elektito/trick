@@ -111,6 +111,10 @@ class SymbolInfo:
         self.special_type = special_type
         self.immutable = immutable
 
+    def is_special(self, special_type: SpecialForms) -> bool:
+        return self.kind == SymbolKind.SPECIAL and \
+            self.special_type == special_type
+
 
 class ImportSet:
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
@@ -1649,7 +1653,7 @@ class Compiler:
             return self.compile_form(form, env)
 
         info = self.lookup_symbol(form.car, env, at_head=True)
-        if info.kind == SymbolKind.SPECIAL and info.special_type == SpecialForms.DEFINE_MACRO:
+        if info.is_special(SpecialForms.DEFINE_MACRO):
             form_code = self.process_define_macro(form, env)
             if isinstance(form[1], Symbol):
                 defined_sym = form[1]     # (define-macro foo value)
@@ -1663,7 +1667,7 @@ class Compiler:
             # code in the output.
             if not self.compiling_library:
                 form_code = []
-        elif info.kind == SymbolKind.SPECIAL and info.special_type == SpecialForms.DEFINE:
+        elif info.is_special(SpecialForms.DEFINE):
             name_sym, value = self.parse_define_form(form, 'define')
 
             info = env.lookup_symbol(name_sym)
@@ -1684,7 +1688,7 @@ class Compiler:
                         [S(':define-end'), Integer(form.src_end)]
             self.macros_fasl.add_define(name_sym, is_macro=False)
             self.assembler.assemble(form_code, self.macros_fasl)
-        elif info.kind == SymbolKind.SPECIAL and info.special_type == SpecialForms.BEGIN:
+        elif info.is_special(SpecialForms.BEGIN):
             form_code = []
             for i, expr in enumerate(form.cdr):
                 form_code += self.compile_toplevel_form(expr, env)
@@ -1692,11 +1696,11 @@ class Compiler:
                     form_code += [S('drop')]
             if form_code == []:
                 form_code = [S('void')]
-        elif info.kind == SymbolKind.SPECIAL and info.special_type == SpecialForms.INCLUDE:
+        elif info.is_special(SpecialForms.INCLUDE):
             form_code = self.compile_include_toplevel(form, env)
-        elif info.kind == SymbolKind.SPECIAL and info.special_type == SpecialForms.INCLUDE_CI:
+        elif info.is_special(SpecialForms.INCLUDE_CI):
             form_code = self.compile_include_ci_toplevel(form, env)
-        elif info.kind == SymbolKind.SPECIAL and info.special_type == SpecialForms.COND_EXPAND:
+        elif info.is_special(SpecialForms.COND_EXPAND):
             form_code = self.compile_cond_expand_toplevel(form, env)
         else:
             form_code = self.compile_form(form, env)
