@@ -281,7 +281,7 @@ class Assembler:
 
         return code
 
-    def assemble(self, code: (Pair | list), fasl: Fasl, dbg_info=False):
+    def assemble(self, code: (Pair | list), fasl: Fasl, *, dbg_info=False):
         if not isinstance(code, (Pair, list)):
             raise AssembleError(f'Cannot assemble: {code}')
 
