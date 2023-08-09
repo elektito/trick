@@ -8,13 +8,13 @@ class TestReader(unittest.TestCase):
     def _test_toplevel_error(self, source, error=None):
         c = Compiler([])
         with self.assertRaises(CompileError) as e:
-            c.compile_toplevel(source)
+            c.compile_program(source)
         if error:
             self.assertIn(error, str(e.exception))
 
     def _test_toplevel_noerror(self, source):
         c = Compiler([])
-        c.compile_toplevel(source)
+        c.compile_program(source)
 
     def _test_expr_error(self, source, error=None):
         c = Compiler([])

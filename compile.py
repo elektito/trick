@@ -1609,7 +1609,7 @@ class Compiler:
         finally:
             self.current_form = old_current_form
 
-    def compile_toplevel(self, text, env=None, *, filename=None):
+    def compile_program(self, text, env=None, *, filename=None):
         if env is None:
             env = Environment()
 
@@ -1701,7 +1701,7 @@ def main(args):
             text = f.read()
 
     try:
-        secd_code = compiler.compile_toplevel(text, filename=source_filename)
+        secd_code = compiler.compile_program(text, filename=source_filename)
     except ReadError as e:
         print(f'Read error: {e}', file=sys.stderr)
         sys.exit(1)

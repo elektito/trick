@@ -30,7 +30,7 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
 
     fasl = Fasl()
     env = Environment()
-    asm_code = compiler.compile_toplevel(text, env, filename=input_filename)
+    asm_code = compiler.compile_program(text, env, filename=input_filename)
     fasl.defines = env.defined_symbols
 
     assembler = Assembler()
