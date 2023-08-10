@@ -576,7 +576,6 @@ class Compiler:
         self.assembler = Assembler()
         self.set_symbols = set()
         self.read_symbols = set()
-        self.defines_fasl = Fasl()
         self.macros_fasl = Fasl()
         self.libs = libs
         self.debug_info = debug_info
@@ -685,7 +684,7 @@ class Compiler:
         try:
             # since we want to push arguments on the stack, load the libraries
             # first to make sure they won't interfere with what we push.
-            machine.load_fasls(self.libs + [self.defines_fasl, self.macros_fasl])
+            machine.load_fasls(self.libs + [self.macros_fasl])
         except RunError as e:
             raise self._compile_error(
                 f'Run error when loading libs for macro expansion of '
@@ -1580,8 +1579,8 @@ class Compiler:
                         [S(':define-start'), String(name_sym.name), Integer(form.src_start)] + \
                         form_code + \
                         [S(':define-end'), Integer(form.src_end)]
-            self.defines_fasl.add_define(name_sym, is_macro=False)
-            self.assembler.assemble(form_code, self.defines_fasl)
+            self.macros_fasl.add_define(name_sym, is_macro=False)
+            self.assembler.assemble(form_code, self.macros_fasl)
         elif form[0] == S('begin'):
             form_code = []
             for i, expr in enumerate(form.cdr):
