@@ -1653,6 +1653,12 @@ class Compiler:
                 else:
                     return self.compile_func_call(expr, env)
         else:
+            # if it's something that's obviously not a procedure, let's catch it
+            # here at compile time.
+            if not isinstance(expr.car, (Symbol, Pair)):
+                raise self._compile_error(
+                    f'Invalid procedure: {expr.car}',
+                    form=expr.car)
             return self.compile_func_call(expr, env)
 
     def _compile_form(self, expr, env):
