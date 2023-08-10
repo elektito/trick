@@ -1645,7 +1645,15 @@ class Compiler:
             }
 
             if info.kind == SymbolKind.SPECIAL:
-                compile_func = special_forms[info.special_type]
+                compile_func = special_forms.get(info.special_type)
+
+                if not compile_func:
+                    # for example, define-library at non-top-level
+                    # positions
+                    raise self._compile_error(
+                        f'Form not allowed at this position: {expr}',
+                        form=expr)
+
                 return compile_func(expr, env)
             else:
                 if info.kind == SymbolKind.PRIMCALL:
