@@ -1781,8 +1781,7 @@ class Compiler:
         elif declaration.car == S('cond-expand'):
             code += self._compile_cond_expand(declaration, env, context='library')
         elif declaration.car == S('begin'):
-            for form in declaration.cdr:
-                code += self.compile_toplevel_form(form, env)
+            code += self.compile_toplevel_begin(declaration, env)
         else:
             raise self._compile_error(
                 f'Invalid library declaration: {declaration}',
@@ -1824,6 +1823,17 @@ class Compiler:
         self.available_libs.append((name, lib_env.exports))
 
         return code
+
+    def compile_toplevel_begin(self, form: Pair, env: Environment):
+        form_code = []
+        for expr in form.cdr:
+            sub_code = self.compile_toplevel_form(expr, env)
+            if form_code != []:
+                form_code += [S('drop')]
+            form_code += sub_code
+        if form_code == []:
+            form_code = [S('void')]
+        return form_code
 
     def _compile_toplevel_form(self, form, env):
         if isinstance(form, Nil):
@@ -1878,13 +1888,7 @@ class Compiler:
             self.macros_fasl.add_define(name_sym, is_macro=False)
             self.assembler.assemble(form_code, self.macros_fasl)
         elif info and info.is_special(SpecialForms.BEGIN):
-            form_code = []
-            for i, expr in enumerate(form.cdr):
-                form_code += self.compile_toplevel_form(expr, env)
-                if i > 0:
-                    form_code += [S('drop')]
-            if form_code == []:
-                form_code = [S('void')]
+            form_code = self.compile_toplevel_begin(form, env)
         elif info and info.is_special(SpecialForms.INCLUDE):
             form_code = self.compile_include_toplevel(form, env)
         elif info and info.is_special(SpecialForms.INCLUDE_CI):
