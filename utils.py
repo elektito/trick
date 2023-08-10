@@ -34,10 +34,7 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
     fasl.defines = env.defined_symbols
 
     assembler = Assembler()
-    assembler.assemble(asm_code, fasl)
-
-    if dbg_info:
-        assembler.add_dbg_info_to_fasl(fasl)
+    assembler.assemble(asm_code, fasl, dbg_info=dbg_info)
 
     with open(output_filename, 'wb') as f:
         fasl.dump(f)

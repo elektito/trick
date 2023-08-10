@@ -15,15 +15,14 @@ class AssembleError(Exception):
 
 
 class Assembler:
-    def __init__(self):
-        self.dbg_info = []
-        self.dbg_expr_start_stack = []
-        self.dbg_define_start_stack = []
-        self.dbg_filename_start_stack = []
-
-    def _assemble(self, expr, fasl: Fasl, offset: int) -> bytes:
+    def _assemble(self, expr, fasl: Fasl, offset: int,
+                  dbg_records: list) -> bytes:
         if not isinstance(expr, list):
             raise AssembleError('Input not a list')
+
+        dbg_expr_start_stack = []
+        dbg_define_start_stack = []
+        dbg_filename_start_stack = []
 
         i = 0
         code = b''
@@ -35,16 +34,16 @@ class Assembler:
                 src_start = expr[i]
                 i += 1
                 asm_start = offset + len(code)
-                self.dbg_expr_start_stack.append((src_start, asm_start))
+                dbg_expr_start_stack.append((src_start, asm_start))
                 continue
             elif instr.name == ':expr-end':
                 src_end = expr[i]
                 i += 1
-                src_start, asm_start = self.dbg_expr_start_stack.pop()
+                src_start, asm_start = dbg_expr_start_stack.pop()
                 if src_start is None or src_end is None:
                     continue
                 asm_end = offset + len(code)
-                self.dbg_info.append(
+                dbg_records.append(
                     DbgInfoExprRecord(
                         src_start,
                         src_end,
@@ -57,16 +56,16 @@ class Assembler:
                 src_start = expr[i]
                 i += 1
                 asm_start = offset + len(code)
-                self.dbg_define_start_stack.append((defined_sym, src_start, asm_start))
+                dbg_define_start_stack.append((defined_sym, src_start, asm_start))
                 continue
             elif instr.name == ':define-end':
                 src_end = expr[i]
                 i += 1
-                defined_sym, src_start, asm_start = self.dbg_define_start_stack.pop()
+                defined_sym, src_start, asm_start = dbg_define_start_stack.pop()
                 asm_end = offset + len(code)
                 if src_start is None or src_end is None:
                     continue
-                self.dbg_info.append(
+                dbg_records.append(
                     DbgInfoDefineRecord(
                         defined_sym,
                         src_start,
@@ -78,12 +77,12 @@ class Assembler:
                 filename = expr[i]
                 i += 1
                 asm_start = offset + len(code)
-                self.dbg_filename_start_stack.append((filename, asm_start))
+                dbg_filename_start_stack.append((filename, asm_start))
                 continue
             elif instr.name == ':filename-end':
-                filename, asm_start = self.dbg_filename_start_stack.pop()
+                filename, asm_start = dbg_filename_start_stack.pop()
                 asm_end = offset + len(code)
-                self.dbg_info.append(
+                dbg_records.append(
                     DbgInfoSourceFileRecord(
                         filename,
                         asm_start,
@@ -187,8 +186,12 @@ class Assembler:
 
                 code += bytes([0x42])
 
-                true_body = self._assemble(expr[i], fasl, offset + len(code) + 8)
-                false_body = self._assemble(expr[i + 1], fasl, offset + len(code) + 8 + len(true_body))
+                true_body = self._assemble(
+                    expr[i], fasl, offset + len(code) + 8, dbg_records)
+                false_body = self._assemble(
+                    expr[i + 1], fasl,
+                    offset + len(code) + 8 + len(true_body),
+                    dbg_records)
 
                 code += len(true_body).to_bytes(length=4, byteorder='little', signed=False)
                 code += len(false_body).to_bytes(length=4, byteorder='little', signed=False)
@@ -206,7 +209,8 @@ class Assembler:
                 i += 2
                 code += bytes([0x43])
                 code += nargs.to_bytes(length=4, byteorder='little', signed=True)
-                body_code = self._assemble(body, fasl, offset + len(code) + 4)
+                body_code = self._assemble(
+                    body, fasl, offset + len(code) + 4, dbg_records)
                 code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
                 code += body_code
             elif instr == 'st':
@@ -277,24 +281,26 @@ class Assembler:
 
         return code
 
-    def assemble(self, code: (Pair | list), fasl: Fasl):
+    def assemble(self, code: (Pair | list), fasl: Fasl, dbg_info=False):
         if not isinstance(code, (Pair, list)):
             raise AssembleError(f'Cannot assemble: {code}')
 
         if isinstance(code, Pair):
             code = code.to_list_recursive()
 
-        self.dbg_info = []
-        assembled = self._assemble(code, fasl, 0)
+        dbg_records = []
+        assembled = self._assemble(code, fasl, len(fasl.code), dbg_records)
         fasl.code += assembled
 
-        return assembled
+        if dbg_info:
+            section = fasl.get_extra_section('dbginfo')
+            if section is None:
+                section = FaslDbgInfoSection()
+                fasl.add_extra_section(section)
+            for r in dbg_records:
+                section.add_record(r)
 
-    def add_dbg_info_to_fasl(self, fasl):
-        section = FaslDbgInfoSection()
-        for r in self.dbg_info:
-            section.add_record(r)
-        fasl.add_extra_section(section)
+        return assembled
 
 
 def configure_argparse(parser: argparse.ArgumentParser):
