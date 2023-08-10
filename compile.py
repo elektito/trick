@@ -1648,11 +1648,21 @@ class Compiler:
                 compile_func = special_forms.get(info.special_type)
 
                 if not compile_func:
-                    # for example, define-library at non-top-level
-                    # positions
-                    raise self._compile_error(
-                        f'Form not allowed at this position: {expr}',
-                        form=expr)
+                    # let's try to give a more specific error first
+                    if info.is_special(SpecialForms.DEFINE):
+                        raise self._compile_error(
+                            f'define is only allowed at the top-level or beginning of the body',
+                            form=expr)
+                    elif info.is_special(SpecialForms.DEFINE_MACRO):
+                        raise self._compile_error(
+                            f'define-macro is only allowed at the top-level or beginning of the body',
+                            form=expr)
+                    else:
+                        # for example, define-library at non-top-level
+                        # positions
+                        raise self._compile_error(
+                            f'Form not allowed at this position: {expr}',
+                            form=expr)
 
                 return compile_func(expr, env)
             else:
