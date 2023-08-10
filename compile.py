@@ -1820,8 +1820,11 @@ class Compiler:
         if not isinstance(form, Pair):
             return self.compile_form(form, env)
 
-        info = self.lookup_symbol(form.car, env, at_head=True)
-        if info.is_special(SpecialForms.DEFINE_MACRO):
+        info = None
+        if isinstance(form.car, Symbol):
+            info = self.lookup_symbol(form.car, env, at_head=True)
+
+        if info and info.is_special(SpecialForms.DEFINE_MACRO):
             form_code = self.process_define_macro(form, env)
             if isinstance(form[1], Symbol):
                 defined_sym = form[1]     # (define-macro foo value)
@@ -1835,7 +1838,7 @@ class Compiler:
             # code in the output.
             if not self.compiling_library:
                 form_code = []
-        elif info.is_special(SpecialForms.DEFINE):
+        elif info and info.is_special(SpecialForms.DEFINE):
             name_sym, value = self.parse_define_form(form, 'define')
 
             info = env.lookup_symbol(name_sym)
@@ -1856,7 +1859,7 @@ class Compiler:
                         [S(':define-end'), Integer(form.src_end)]
             self.macros_fasl.add_define(name_sym, is_macro=False)
             self.assembler.assemble(form_code, self.macros_fasl)
-        elif info.is_special(SpecialForms.BEGIN):
+        elif info and info.is_special(SpecialForms.BEGIN):
             form_code = []
             for i, expr in enumerate(form.cdr):
                 form_code += self.compile_toplevel_form(expr, env)
@@ -1864,13 +1867,13 @@ class Compiler:
                     form_code += [S('drop')]
             if form_code == []:
                 form_code = [S('void')]
-        elif info.is_special(SpecialForms.INCLUDE):
+        elif info and info.is_special(SpecialForms.INCLUDE):
             form_code = self.compile_include_toplevel(form, env)
-        elif info.is_special(SpecialForms.INCLUDE_CI):
+        elif info and info.is_special(SpecialForms.INCLUDE_CI):
             form_code = self.compile_include_ci_toplevel(form, env)
-        elif info.is_special(SpecialForms.COND_EXPAND):
+        elif info and info.is_special(SpecialForms.COND_EXPAND):
             form_code = self.compile_cond_expand_toplevel(form, env)
-        elif info.is_special(SpecialForms.DEFINE_LIBRARY):
+        elif info and info.is_special(SpecialForms.DEFINE_LIBRARY):
             form_code = self.compile_define_library(form)
         else:
             form_code = self.compile_form(form, env)
