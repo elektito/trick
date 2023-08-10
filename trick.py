@@ -104,12 +104,11 @@ def main():
         env = compile.Environment()
         env.add_import(compile.CoreImportSet())
         try:
-            asm = compiler.compile_program(args.compile_expr, env)
+            program = compiler.compile_program(args.compile_expr, env)
         except compile.CompileError as e:
             print('Compile error:', e)
             sys.exit(1)
-        asm = List.from_list_recursive(asm)
-        print(asm)
+        print(program.code)
     elif args.macro_expr:
         try:
             form = read_expr(args.macro_expr)

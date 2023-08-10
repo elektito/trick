@@ -3,6 +3,7 @@
 import io
 import sys
 import argparse
+from program import Program
 
 import runtime
 from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, DbgInfoSourceFileRecord, Fasl, FaslDbgInfoSection
@@ -301,6 +302,12 @@ class Assembler:
                 section.add_record(r)
 
         return assembled
+
+    def assemble_program(self, program: Program) -> Fasl:
+        fasl = Fasl()
+        self.assemble(program.code, fasl, dbg_info=program.debug_info_enabled)
+        fasl.defines = program.defines
+        return fasl
 
 
 def configure_argparse(parser: argparse.ArgumentParser):

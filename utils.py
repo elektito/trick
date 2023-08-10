@@ -28,13 +28,9 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
     with open(input_filename) as f:
         text = f.read()
 
-    fasl = Fasl()
-    env = Environment()
-    asm_code = compiler.compile_program(text, env, filename=input_filename)
-    fasl.defines = env.defined_symbols
-
+    program = compiler.compile_program(text, filename=input_filename)
     assembler = Assembler()
-    assembler.assemble(asm_code, fasl, dbg_info=dbg_info)
+    fasl = assembler.assemble_program(program)
 
     with open(output_filename, 'wb') as f:
         fasl.dump(f)

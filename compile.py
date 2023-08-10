@@ -7,6 +7,7 @@ import re
 import platform
 import sys
 import argparse
+from program import Program
 
 import runtime
 from fasl import DefineInfo, Fasl
@@ -2028,7 +2029,13 @@ class Compiler:
                     f'Symbol {sym} is read at some point but never defined',
                     form=sym, source=filename)
 
-        return code
+        program = Program(
+            code=code,
+            defines=env.defined_symbols,
+            debug_info_enabled=self.debug_info,
+        )
+
+        return program
 
 
 def configure_argparse(parser: argparse.ArgumentParser):
@@ -2067,7 +2074,7 @@ def main(args):
             text = f.read()
 
     try:
-        secd_code = compiler.compile_program(text, filename=source_filename)
+        program = compiler.compile_program(text, filename=source_filename)
     except ReadError as e:
         print(f'Read error: {e}', file=sys.stderr)
         sys.exit(1)
@@ -2076,5 +2083,4 @@ def main(args):
         e.print_snippet()
         sys.exit(1)
 
-    secd_code = List.from_list_recursive(secd_code)
-    print(secd_code)
+    print(program.code)
