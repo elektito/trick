@@ -31,6 +31,9 @@ class Assembler:
             instr = expr[i]
             i += 1
 
+            if not isinstance(instr, Symbol):
+                raise AssembleError(f'Instruction not a symbol: {instr}')
+
             if instr.name == ':expr-start':
                 src_start = expr[i]
                 i += 1
@@ -89,9 +92,6 @@ class Assembler:
                         asm_start,
                         asm_end))
                 continue
-
-            if not isinstance(instr, Symbol):
-                raise AssembleError(f'Instruction not a symbol: {instr}')
 
             instr = instr.name
             single_byte_instrs = {
