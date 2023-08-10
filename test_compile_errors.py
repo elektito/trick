@@ -1,20 +1,24 @@
 import io
 import unittest
 
-from compile import CompileError, Compiler
+from compile import CompileError, Compiler, CoreImportSet, Environment
 from read import Reader
 
-class TestReader(unittest.TestCase):
+class TestCompiler(unittest.TestCase):
+    def setUp(self):
+        self.env = Environment()
+        self.env.add_import(CoreImportSet())
+
     def _test_toplevel_error(self, source, error=None):
         c = Compiler([])
         with self.assertRaises(CompileError) as e:
-            c.compile_program(source)
+            c.compile_program(source, env=self.env)
         if error:
             self.assertIn(error, str(e.exception))
 
     def _test_toplevel_noerror(self, source):
         c = Compiler([])
-        c.compile_program(source)
+        c.compile_program(source, env=self.env)
 
     def _test_expr_error(self, source, error=None):
         c = Compiler([])
@@ -22,7 +26,7 @@ class TestReader(unittest.TestCase):
         r = Reader(file)
         expr = r.read()
         with self.assertRaises(CompileError) as e:
-            c.compile_form(expr, [])
+            c.compile_form(expr, self.env)
         if error:
             self.assertIn(error, str(e.exception))
 
@@ -31,7 +35,7 @@ class TestReader(unittest.TestCase):
         file = io.StringIO(source)
         r = Reader(file)
         expr = r.read()
-        c.compile_form(expr, [])
+        c.compile_form(expr, self.env)
 
     def test_empty_toplevel_begin(self):
         self._test_toplevel_noerror('(begin)')
@@ -56,7 +60,7 @@ class TestReader(unittest.TestCase):
             (display "foo"))
           (define w 400)
           (list x y z w))
-        ''', error='Ill-placed define')
+        ''', error='define is only allowed at')
 
     def test_duplicate_var_in_let(self):
         self._test_toplevel_error('''
