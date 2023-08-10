@@ -2,7 +2,7 @@
 
 import argparse
 import sys
-from compile import CompileError
+from compile import CompileError, CoreImportSet, Environment
 from fasl import Fasl
 from read import ReadError, Reader
 from secd import RunError, Secd
@@ -97,6 +97,9 @@ def main():
 
     machine = Secd(libs)
 
+    env = Environment()
+    env.add_import(CoreImportSet())
+
     errors = []
     fails = []
     success = 0
@@ -110,7 +113,7 @@ def main():
             print(f'[{i}] Running: {expr} ', end='', flush=True)
 
         try:
-            expr_fasl = compile_expr_to_fasl(expr, libs)
+            expr_fasl = compile_expr_to_fasl(expr, libs, env=env)
         except CompileError as e:
             errors.append((i, expr, e))
             if args.verbose:
