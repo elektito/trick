@@ -112,6 +112,7 @@ and still a comment
 (string=? "\t\t" (symbol->string '|\t\x09;|))
 (string=? "hello" (symbol->string '|h\x65;llo|))
 (string=? "a\nb" (symbol->string '|a\nb|))
+(string=? "|99|" (symbol->string '|99|))
 (eq? '|two words| '|two\x20;words|)
 (symbol? 'lambda)
 (string=? "!$%&*+-./:<=>?@^_~" (symbol->string '!$%&*+-./:<=>?@^_~))

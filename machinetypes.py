@@ -130,6 +130,12 @@ class Symbol(TrickType):
         return hash(self.name)
 
     def __str__(self):
+        try:
+            n = int(self.name)
+            return f'|{n}|'
+        except ValueError:
+            pass
+
         s = ''
         need_delimeters = False
         separators = '[]()\'"` '
