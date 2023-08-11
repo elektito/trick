@@ -214,3 +214,6 @@ class TestReader(unittest.TestCase):
     def test_cramped2(self):
         expected = List.from_list_recursive([Integer(1), [Integer(2), [Symbol('quote'), Integer(3)]]])
         self._test("(1(2'3))", expected)
+
+    def test_numeric_symbol(self):
+        self._test('|99|', Symbol('99'))

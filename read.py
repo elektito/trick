@@ -121,6 +121,8 @@ class Reader:
                 except ValueError:
                     if self._fold_case:
                         token = token.casefold()
+                    if token.startswith('|') and token.endswith('|'):
+                        token = token[1:-1]
                     value = Symbol(token)
 
         if value is not None:
@@ -298,7 +300,7 @@ class Reader:
     def _read_token(self, start_char, eof_error=None):
         if start_char == '|':
             string = self._read_string(delim='|')
-            return string.value
+            return '|' + string.value + '|'
 
         token = start_char
         cur_char = start_char
