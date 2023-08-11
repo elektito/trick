@@ -281,8 +281,11 @@ class Secd:
     def call_runtime_proc(self, module_opcode, proc_opcode):
         self.runtime_procs[module_opcode, proc_opcode]()
 
-    def find_expr(self, fasl, c):
+    def find_expr(self, fasl: Fasl, c):
         dbginfo = fasl.get_extra_section('dbginfo')
+        if dbginfo is None:
+            return None
+
         matches = []
         for r in dbginfo.records:
             if not isinstance(r, DbgInfoExprRecord):
