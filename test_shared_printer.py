@@ -162,3 +162,6 @@ class TestSharedPrinter(unittest.TestCase):
             ls = Pair(i1, ls)
         expected = '(' + ' '.join('1' for _ in range(n)) + ')'
         self._test(ls, expected)
+
+    def test_numeric_symbol(self):
+        self._test(Symbol('99'), '|99|')
