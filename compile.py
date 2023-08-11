@@ -82,9 +82,9 @@ def mangle_name(name: Symbol, lib_name):
 def mangle_name_part(part: (Symbol | Integer)):
     if isinstance(part, Symbol):
         if len(part.name) < 10:
-            return f'{len(part.name)}{part}'
+            return f'{len(part.name)}{part.name}'
         else:
-            return f'[{len(part.name)}]{part}'
+            return f'[{len(part.name)}]{part.name}'
     elif isinstance(part, Integer):
         return f'i{part}'
     else:
