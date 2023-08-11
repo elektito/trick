@@ -280,7 +280,7 @@ class Fasl:
         self.symtab = []
         self.defines = {}
         self.code = b''
-        self.extra_sections = []
+        self.sections = []
 
     def __repr__(self):
         if self.filename:
@@ -288,11 +288,11 @@ class Fasl:
         else:
             return '<Fasl>'
 
-    def add_extra_section(self, section: FaslSection):
-        self.extra_sections.append(section)
+    def add_section(self, section: FaslSection):
+        self.sections.append(section)
 
-    def get_extra_section(self, name):
-        for section in self.extra_sections:
+    def get_section(self, name):
+        for section in self.sections:
             if section.name == name:
                 return section
 
@@ -335,7 +335,7 @@ class Fasl:
             len(self.symtab),          # number of symbols
             len(self.defines),         # number of globally defined symbols
             len(self.code),            # code sizes
-            len(self.extra_sections),  # number of sections
+            len(self.sections),  # number of sections
         ))
 
         # write string literals
@@ -360,7 +360,7 @@ class Fasl:
         output.write(self.code)
 
         # write sections
-        for section in self.extra_sections:
+        for section in self.sections:
             section.dump(output)
 
     @staticmethod
@@ -399,7 +399,7 @@ class Fasl:
         for i in range(nsecs):
             section = FaslSection.load(input)
             if section:
-                fasl.extra_sections.append(section)
+                fasl.sections.append(section)
 
         return fasl
 
@@ -434,7 +434,7 @@ def configure_argparse(parser: argparse.ArgumentParser):
     parser.set_defaults(func=main)
 
 
-def print_dbg_records(fasl):
+def print_dbg_records(fasl: Fasl):
     sources = {}
     def get_source(asm_offset):
         """Return source text for the given asm offset, if an appropriate source
@@ -456,7 +456,7 @@ def print_dbg_records(fasl):
 
         return text
 
-    dbginfo = fasl.get_extra_section('dbginfo')
+    dbginfo = fasl.get_section('dbginfo')
     if dbginfo is None:
         print('No debug info.')
         return

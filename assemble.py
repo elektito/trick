@@ -294,10 +294,10 @@ class Assembler:
         fasl.code += assembled
 
         if dbg_info:
-            section = fasl.get_extra_section('dbginfo')
+            section = fasl.get_section('dbginfo')
             if section is None:
                 section = FaslDbgInfoSection()
-                fasl.add_extra_section(section)
+                fasl.add_section(section)
             for r in dbg_records:
                 section.add_record(r)
 

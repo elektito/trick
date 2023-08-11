@@ -282,7 +282,7 @@ class Secd:
         self.runtime_procs[module_opcode, proc_opcode]()
 
     def find_expr(self, fasl: Fasl, c):
-        dbginfo = fasl.get_extra_section('dbginfo')
+        dbginfo = fasl.get_section('dbginfo')
         if dbginfo is None:
             return None
 
@@ -304,8 +304,11 @@ class Secd:
 
         return best
 
-    def find_define(self, fasl, c):
-        dbginfo = fasl.get_extra_section('dbginfo')
+    def find_define(self, fasl: Fasl, c):
+        dbginfo = fasl.get_section('dbginfo')
+        if dbginfo is None:
+            return None
+
         matches = []
         for r in dbginfo.records:
             if not isinstance(r, DbgInfoDefineRecord):
@@ -324,9 +327,9 @@ class Secd:
 
         return best
 
-    def print_stack_frame(self, i, fasl, c):
+    def print_stack_frame(self, i, fasl: Fasl, c):
         prefix = f'=[{i}]= '
-        dbginfo = fasl.get_extra_section('dbginfo')
+        dbginfo = fasl.get_section('dbginfo')
         if not dbginfo:
             if fasl.filename:
                 print(f'{prefix}<no debug info in fasl "{fasl.filename}">')
