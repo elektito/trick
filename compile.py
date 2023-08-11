@@ -73,6 +73,24 @@ def asm_code_for_features():
     return code
 
 
+def mangle_name(name: Symbol, lib_name):
+    nparts = len(lib_name)
+    mangled_parts = [mangle_name_part(i) for i in lib_name]
+    return Symbol(f'##{nparts}-' + '-'.join(mangled_parts) + '-' + name.name)
+
+
+def mangle_name_part(part: (Symbol | Integer)):
+    if isinstance(part, Symbol):
+        if len(part.name) < 10:
+            return f'{len(part.name)}{part}'
+        else:
+            return f'[{len(part.name)}]{part}'
+    elif isinstance(part, Integer):
+        return f'i{part}'
+    else:
+        assert False, 'unhandled name part type'
+
+
 class SymbolKind(Enum):
     SPECIAL = 1
     PRIMCALL = 2
@@ -187,7 +205,7 @@ class LibraryImportSet(ImportSet):
             if isinstance(export, Symbol):
                 if sym == export:
                     return SymbolInfo(
-                        symbol=sym,
+                        symbol=mangle_name(sym, self.lib_name),
                         kind=SymbolKind.LIBRARY,
                         library_name=self.lib_name,
                         immutable=True,
@@ -196,7 +214,7 @@ class LibraryImportSet(ImportSet):
                 renamed_from, renamed_to = export
                 if sym == renamed_to:
                     return SymbolInfo(
-                        symbol=renamed_from,
+                        symbol=mangle_name(renamed_from, self.lib_name),
                         kind=SymbolKind.LIBRARY,
                         library_name=self.lib_name,
                         immutable=True,
@@ -359,18 +377,17 @@ class EnvironmentFrame:
 
 
 class Environment:
-    def __init__(self, *, primcalls_enabled=True):
+    def __init__(self, *, primcalls_enabled=True, lib_name=None):
         self.frames: list[EnvironmentFrame] = []
-        self.defined_symbols: dict[Symbol, DefineInfo] = {}
         self.toplevel_macros = []
         self.primcalls_enabled = primcalls_enabled
         self.import_sets = []
         self.exports = []
+        self.lib_name = lib_name
 
     def copy(self):
         copy = Environment()
         copy.frames = [f.copy() for f in self.frames]
-        copy.defined_symbols = {k: v for k, v in self.defined_symbols.items()}
         copy.toplevel_macros = [m for m in self.toplevel_macros]
         copy.primcalls_enabled = self.primcalls_enabled
         copy.import_sets = self.import_sets
@@ -392,7 +409,6 @@ class Environment:
 
     def add_macro(self, name: Symbol):
         self.toplevel_macros.append(name)
-        self.defined_symbols[name] = DefineInfo(is_macro=True)
 
     def find_macro(self, name: Symbol):
         """
@@ -435,16 +451,28 @@ class Environment:
             if result is not None:
                 if result.kind != SymbolKind.SPECIAL or at_head:
                     return result
-        return SymbolInfo(
-            symbol=sym,
-            kind=SymbolKind.FREE,
-        )
+        if self.lib_name:
+            return SymbolInfo(
+                symbol=mangle_name(sym, self.lib_name),
+                kind=SymbolKind.FREE,
+            )
+        else:
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.FREE,
+            )
 
     def add_export(self, sym: Symbol):
-        self.exports.append(sym)
+        if self.lib_name:
+            self.exports.append(mangle_name(sym, self.lib_name))
+        else:
+            self.exports.append(sym)
 
     def add_renamed_export(self, renamed_from: Symbol, renamed_to: Symbol):
-        self.exports.append((renamed_from, renamed_to))
+        if self.lib_name:
+            self.exports.append((mangle_name(renamed_from, self.lib_name), renamed_to))
+        else:
+            self.exports.append((renamed_from, renamed_to))
 
 
 primcalls = {
@@ -730,6 +758,7 @@ class Compiler:
         self.debug_info = debug_info
         self.include_paths = []
         self.available_libs = []
+        self.defined_symbols = {}
 
         self.current_source = None
         self.current_form = None
@@ -907,8 +936,8 @@ class Compiler:
 
     def process_define_macro(self, expr, env):
         # we'll be compiling the macro almost exactly the same as we compile a
-        # regular top-level define. we only set the define type as a macro in
-        # env.defined_symbols.
+        # regular top-level define. we only set the define type as a macro to
+        # env.
 
         name, lambda_form = self.parse_define_form(expr, 'define-macro')
         if len(expr) < 3:
@@ -917,16 +946,20 @@ class Compiler:
         if env.find_macro(name):
             raise self._compile_error(
                 f'Duplicate macro definition: {name}')
-        try:
-            env.add_macro(name)
-        except CompileError as e:
-            # re-raise compile error with appropriate debug info attached
-            self._rebuild_compile_error(e)
+
+        info = env.lookup_symbol(name)
+        self.defined_symbols[info.symbol] = DefineInfo(is_macro=True)
+        if info.immutable:
+            raise self._compile_error(
+                f'Attempting to assign immutable variable: {name}',
+                form=name)
 
         code = self.compile_form(lambda_form, env)
-        code += [S('set'), name, S('void')]
+        code += [S('set'), info.symbol, S('void')]
 
-        return code
+        env.add_macro(name)
+
+        return code, name
 
     def compile_int(self, expr, env):
         return [S('ldc'), Integer(expr)]
@@ -1130,7 +1163,7 @@ class Compiler:
         elif info.kind == SymbolKind.LIBRARY:
             return [S('getx'), info.library_name, info.symbol]
         elif info.kind == SymbolKind.FREE:
-            self.read_symbols.add((sym, self.current_source))
+            self.read_symbols.add((info.symbol, sym, self.current_source))
             return [S('get'), info.symbol]
         else:
             assert False, 'unhandled symbol kind'
@@ -1346,8 +1379,8 @@ class Compiler:
         if info.kind == SymbolKind.LOCAL:
             code += [S('st'), [info.local_frame_idx, info.local_var_idx]]
         elif info.kind == SymbolKind.FREE:
-            code += [S('set'), name]
-            self.set_symbols.add((name, self.current_source))
+            code += [S('set'), info.symbol]
+            self.set_symbols.add((info.symbol, name, self.current_source))
         elif info.kind == SymbolKind.LIBRARY:
             # this should not normally be used, since library imports are
             # immutable, but maybe we'll find a use for it later.
@@ -1800,20 +1833,20 @@ class Compiler:
                 f'Library name not a list: {name}', form=name)
 
         code = []
-        lib_env = Environment()
+        lib_env = Environment(lib_name=name)
         for declaration in form.cddr():
             code += self.compile_library_declaration(declaration, lib_env)
 
         # check exports
         for export_spec in lib_env.exports:
             if isinstance(export_spec, Symbol):
-                if export_spec not in lib_env.defined_symbols:
+                if export_spec not in self.defined_symbols:
                     raise self._compile_error(
                         f'No such identifier to export: {export_spec}',
                         form=export_spec)
             else:
                 from_name, to_name = export_spec
-                if from_name not in lib_env.defined_symbols:
+                if from_name not in self.defined_symbols:
                     raise self._compile_error(
                         f'No such identifier to export: {from_name}',
                         form=from_name)
@@ -1853,13 +1886,9 @@ class Compiler:
             info = self.lookup_symbol(form.car, env, at_head=True)
 
         if info and info.is_special(SpecialForms.DEFINE_MACRO):
-            form_code = self.process_define_macro(form, env)
-            if isinstance(form[1], Symbol):
-                defined_sym = form[1]     # (define-macro foo value)
-            else:
-                defined_sym = form[1][0]  # (define-macro (foo . formals) . body)
+            form_code, name = self.process_define_macro(form, env)
 
-            self.macros_fasl.add_define(defined_sym, is_macro=True)
+            self.macros_fasl.add_define(name, is_macro=True)
             self.assembler.assemble(form_code, self.macros_fasl)
 
             # if we're not compiling a library, do not include the macro
@@ -1875,10 +1904,10 @@ class Compiler:
                     f'Attempting to assign immutable variable: {name_sym}',
                     form=name_sym)
 
-            env.defined_symbols[name_sym] = DefineInfo(is_macro=False)
+            self.defined_symbols[info.symbol] = DefineInfo(is_macro=False)
             form_code = self.compile_form(value, env)
-            form_code += [S('set'), name_sym, S('void')]
 
+            form_code += [S('set'), info.symbol, S('void')]
             if self.debug_info:
                 if form.src_start is not None and form.src_end is not None:
                     form_code = \
@@ -2044,25 +2073,25 @@ class Compiler:
             code = [S(':filename-start'), String(filename)] + code
             code += [S(':filename-end')]
 
-        all_defines = set(env.defined_symbols.keys())
+        all_defines = set(self.defined_symbols.keys())
         for lib in self.libs:
             all_defines |= set(lib.defines)
 
-        for sym, filename in self.set_symbols:
-            if sym not in all_defines:
+        for unique_sym, sym, filename in self.set_symbols:
+            if unique_sym not in all_defines:
                 raise self._compile_error(
                     f'Symbol {sym} is set at some point but never defined',
                     form=sym, source=filename)
 
-        for sym, filename in self.read_symbols:
-            if sym not in all_defines:
+        for unique_sym, sym, filename in self.read_symbols:
+            if unique_sym not in all_defines:
                 raise self._compile_error(
                     f'Symbol {sym} is read at some point but never defined',
                     form=sym, source=filename)
 
         program = Program(
             code=code,
-            defines=env.defined_symbols,
+            defines=self.defined_symbols,
             debug_info_enabled=self.debug_info,
         )
 
