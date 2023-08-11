@@ -198,27 +198,25 @@ class CoreImportSet(ImportSet):
 class LibraryImportSet(ImportSet):
     def __init__(self, lib_name: Pair, exports: list):
         self.lib_name = lib_name
-        self.exports = exports
+
+        self.exports = []
+        for e in exports:
+            if isinstance(e, Symbol):
+                mangled = mangle_name(e, lib_name)
+                self.exports.append((e, mangled))
+            else:
+                internal, external = e
+                self.exports.append((mangle_name(internal, lib_name), external))
 
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
-        for export in self.exports:
-            if isinstance(export, Symbol):
-                if sym == export:
-                    return SymbolInfo(
-                        symbol=mangle_name(sym, self.lib_name),
-                        kind=SymbolKind.LIBRARY,
-                        library_name=self.lib_name,
-                        immutable=True,
-                    )
-            else:
-                renamed_from, renamed_to = export
-                if sym == renamed_to:
-                    return SymbolInfo(
-                        symbol=mangle_name(renamed_from, self.lib_name),
-                        kind=SymbolKind.LIBRARY,
-                        library_name=self.lib_name,
-                        immutable=True,
-                    )
+        for internal, external in self.exports:
+            if sym == external:
+                return SymbolInfo(
+                    symbol=internal,
+                    kind=SymbolKind.LIBRARY,
+                    library_name=self.lib_name,
+                    immutable=True,
+                )
 
         return None
 
@@ -463,16 +461,10 @@ class Environment:
             )
 
     def add_export(self, sym: Symbol):
-        if self.lib_name:
-            self.exports.append(mangle_name(sym, self.lib_name))
-        else:
-            self.exports.append(sym)
+        self.exports.append(sym)
 
     def add_renamed_export(self, renamed_from: Symbol, renamed_to: Symbol):
-        if self.lib_name:
-            self.exports.append((mangle_name(renamed_from, self.lib_name), renamed_to))
-        else:
-            self.exports.append((renamed_from, renamed_to))
+        self.exports.append((renamed_from, renamed_to))
 
 
 primcalls = {
@@ -1161,7 +1153,7 @@ class Compiler:
         elif info.kind == SymbolKind.LOCAL:
             return [S('ld'), [info.local_frame_idx, info.local_var_idx]]
         elif info.kind == SymbolKind.LIBRARY:
-            return [S('getx'), info.library_name, info.symbol]
+            return [S('get'), info.symbol]
         elif info.kind == SymbolKind.FREE:
             self.read_symbols.add((info.symbol, sym, self.current_source))
             return [S('get'), info.symbol]
@@ -1384,7 +1376,7 @@ class Compiler:
         elif info.kind == SymbolKind.LIBRARY:
             # this should not normally be used, since library imports are
             # immutable, but maybe we'll find a use for it later.
-            code += [S('setx'), info.library_name, info.symbol]
+            code += [S('set'), info.symbol]
         else:
             assert False, 'unhandled symbol kind'
 
@@ -1840,13 +1832,13 @@ class Compiler:
         # check exports
         for export_spec in lib_env.exports:
             if isinstance(export_spec, Symbol):
-                if export_spec not in self.defined_symbols:
+                if mangle_name(export_spec, name) not in self.defined_symbols:
                     raise self._compile_error(
                         f'No such identifier to export: {export_spec}',
                         form=export_spec)
             else:
                 from_name, to_name = export_spec
-                if from_name not in self.defined_symbols:
+                if mangle_name(from_name, name) not in self.defined_symbols:
                     raise self._compile_error(
                         f'No such identifier to export: {from_name}',
                         form=from_name)
@@ -2085,9 +2077,13 @@ class Compiler:
 
         for unique_sym, sym, filename in self.read_symbols:
             if unique_sym not in all_defines:
-                raise self._compile_error(
-                    f'Symbol {sym} is read at some point but never defined',
-                    form=sym, source=filename)
+                for impset in env.import_sets:
+                    if impset.lookup(sym) is not None:
+                        break
+                else:
+                    raise self._compile_error(
+                        f'Symbol {sym} is read at some point but never defined',
+                        form=sym, source=filename)
 
         program = Program(
             code=code,
