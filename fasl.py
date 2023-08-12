@@ -258,51 +258,55 @@ class FaslDbgInfoSection(FaslSection):
 class FaslLibInfoSection(FaslSection):
     section_id = 2
 
-    def __init__(self,
-                 lib_names: list[LibraryName],
-                 exports: list[tuple[Symbol, Symbol]]):
-        self.lib_names = lib_names
-        self.exports = exports
+    def __init__(self):
+        self.libs: dict[LibraryName, list[tuple[Symbol, Symbol]]] = {}
 
     @property
     def name(self):
         return 'libinfo'
+
+    def add_library(self,
+                    name: LibraryName,
+                    exports: list[tuple[Symbol, Symbol]]):
+        """exports is a list of tuples mapping an internal name (mangled) to an
+        external name (unmangled).
+        """
+        self.libs[name] = exports
 
     def __repr__(self):
         return f'<FaslLibInfoSection>'
 
     def _serialize(self) -> bytes:
         s = b''
-        s += struct.pack('<I', len(self.lib_names))
-        for name in self.lib_names:
+        s += struct.pack('<I', len(self.libs))
+        for name, exports in self.libs.items():
             s += serialize_string(name.mangle())
-
-        s += struct.pack('<I', len(self.exports))
-        for internal, external in self.exports:
-            s += serialize_string(internal.name)
-            s += serialize_string(external.name)
+            s += struct.pack('<I', len(exports))
+            for internal, external in exports:
+                s += serialize_string(internal.name)
+                s += serialize_string(external.name)
 
         return s
 
     @staticmethod
     def _deserialize(s):
-        names = []
-        n, = struct.unpack('<I', s[:4])
+        nlibs, = struct.unpack('<I', s[:4])
         offset = 4
-        for _ in range(n):
+        section = FaslLibInfoSection()
+        for _ in range(nlibs):
             mangled_name, offset = deserialize_string(s, offset)
             lib_name = LibraryName.unmangle(mangled_name)
-            names.append(lib_name)
 
-        exports = []
-        n, = struct.unpack('<I', s[offset:offset+4])
-        offset += 4
-        for _ in range(n):
-            internal, offset = deserialize_string(s, offset)
-            external, offset = deserialize_string(s, offset)
-            exports.append((internal, external))
+            exports = []
+            nexports, = struct.unpack('<I', s[offset:offset+4])
+            offset += 4
+            for _ in range(nexports):
+                internal, offset = deserialize_string(s, offset)
+                external, offset = deserialize_string(s, offset)
+                exports.append((internal, external))
+            section.add_library(lib_name, exports)
 
-        return FaslLibInfoSection(names, exports)
+        return section
 
 
 class DefineInfo:
@@ -585,23 +589,14 @@ def print_general_info(fasl: Fasl):
     lib_info = fasl.get_section('libinfo')
     if lib_info:
         print()
-        print(f'{len(lib_info.lib_names)} libraries available: ', end='')
-        print(', '.join(str(n) for n in lib_info.lib_names))
+        print(f'{len(lib_info.libs)} libraries available: ', end='')
+        print(', '.join(str(n) for n in lib_info.libs.keys()))
 
-        lib_to_exports = defaultdict(list)
-        for mangled_internal, external in lib_info.exports:
-            lib_name, internal = LibraryName.unmangle_symbol(mangled_internal)
-            lib_to_exports[lib_name].append((internal, external))
-
-        for lib_name, exports in lib_to_exports.items():
+        for lib_name, exports in lib_info.libs.items():
             exports.sort(key=lambda r: r[1])
             print(f'   {lib_name} has {len(exports)} export(s):')
             for internal, external in exports:
                 print(f'      exported={external}  internal={internal}')
-
-        for lib_name in lib_info.lib_names:
-            if lib_name not in lib_to_exports:
-                print(f'   {lib_name} has 0 exports.')
 
 
 def main(args):
