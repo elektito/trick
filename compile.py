@@ -733,7 +733,7 @@ class Compiler:
         self.libs = libs
         self.debug_info = debug_info
         self.include_paths = []
-        self.available_libs = []
+        self.defined_libs = []
         self.defined_symbols = {}
 
         self.current_source = None
@@ -1831,7 +1831,7 @@ class Compiler:
 
         # add library to available_libs so that it becomes immediately available
         # to libraries defined later
-        self.available_libs.append((lib_name, lib_env.exports))
+        self.defined_libs.append((lib_name, lib_env.exports))
 
         return code
 
@@ -1921,7 +1921,7 @@ class Compiler:
         if name.parts == [S("trick"), S("core")]:
             return CoreImportSet()
         else:
-            for lib_name, lib_exports in self.available_libs:
+            for lib_name, lib_exports in self.defined_libs:
                 if lib_name == name:
                     return LibraryImportSet(lib_name, lib_exports)
 
@@ -2070,9 +2070,18 @@ class Compiler:
                         f'Symbol {sym} is read at some point but never defined',
                         form=sym, source=filename)
 
+        all_libs = []
+        all_exports = []
+        for lib_name, lib_exports in self.defined_libs:
+            all_libs.append(lib_name)
+            for internal, external in lib_exports:
+                all_exports.append((lib_name.mangle_symbol(internal), external))
+
         program = Program(
             code=code,
             defines=self.defined_symbols,
+            defined_libs=all_libs,
+            exports=all_exports,
             debug_info_enabled=self.debug_info,
         )
 

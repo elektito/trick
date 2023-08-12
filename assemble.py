@@ -6,7 +6,7 @@ import argparse
 from program import Program
 
 import runtime
-from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, DbgInfoSourceFileRecord, Fasl, FaslDbgInfoSection
+from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, DbgInfoSourceFileRecord, Fasl, FaslDbgInfoSection, FaslLibInfoSection
 from read import Reader, ReadError
 from machinetypes import List, Pair, String, Symbol
 
@@ -307,6 +307,11 @@ class Assembler:
         fasl = Fasl()
         self.assemble(program.code, fasl, dbg_info=program.debug_info_enabled)
         fasl.defines = program.defines
+
+        if program.defined_libs:
+            libs_section = FaslLibInfoSection(program.defined_libs, program.exports)
+            fasl.add_section(libs_section)
+
         return fasl
 
 
