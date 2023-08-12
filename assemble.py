@@ -282,11 +282,11 @@ class Assembler:
 
         return code
 
-    def assemble(self, code: (Pair | list), fasl: Fasl, *, dbg_info=False):
-        if not isinstance(code, (Pair, list)):
+    def assemble(self, code: (List | list), fasl: Fasl, *, dbg_info=False):
+        if not isinstance(code, (List, list)):
             raise AssembleError(f'Cannot assemble: {code}')
 
-        if isinstance(code, Pair):
+        if isinstance(code, List):
             code = code.to_list_recursive()
 
         dbg_records = []

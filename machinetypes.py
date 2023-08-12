@@ -378,6 +378,12 @@ class List(TrickType):
         else:
             return Pair.from_list_recursive(ls)
 
+    def to_list(self):
+        raise NotImplementedError
+
+    def to_list_recursive(self):
+        raise NotImplementedError
+
 
 class Nil(List):
     _instance = None
@@ -415,6 +421,9 @@ class Nil(List):
         return True
 
     def to_list(self):
+        return []
+
+    def to_list_recursive(self):
         return []
 
 
