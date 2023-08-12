@@ -7,6 +7,7 @@ import re
 import platform
 import sys
 import argparse
+from library import LibraryName
 from program import Program
 
 import runtime
@@ -71,24 +72,6 @@ def asm_code_for_features():
         code += [S('ldsym'), S(feature), S('cons')]
 
     return code
-
-
-def mangle_name(name: Symbol, lib_name):
-    nparts = len(lib_name)
-    mangled_parts = [mangle_name_part(i) for i in lib_name]
-    return Symbol(f'##{nparts}-' + '-'.join(mangled_parts) + '-' + name.name)
-
-
-def mangle_name_part(part: (Symbol | Integer)):
-    if isinstance(part, Symbol):
-        if len(part.name) < 10:
-            return f'{len(part.name)}{part.name}'
-        else:
-            return f'[{len(part.name)}]{part.name}'
-    elif isinstance(part, Integer):
-        return f'i{part}'
-    else:
-        assert False, 'unhandled name part type'
 
 
 class SymbolKind(Enum):
@@ -196,17 +179,17 @@ class CoreImportSet(ImportSet):
 
 
 class LibraryImportSet(ImportSet):
-    def __init__(self, lib_name: Pair, exports: list):
+    def __init__(self, lib_name: LibraryName, exports: list):
         self.lib_name = lib_name
 
         self.exports = []
         for e in exports:
             if isinstance(e, Symbol):
-                mangled = mangle_name(e, lib_name)
+                mangled = lib_name.mangle_symbol(e)
                 self.exports.append((e, mangled))
             else:
                 internal, external = e
-                self.exports.append((mangle_name(internal, lib_name), external))
+                self.exports.append((lib_name.mangle_symbol(internal), external))
 
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
         for internal, external in self.exports:
@@ -390,6 +373,7 @@ class Environment:
         copy.primcalls_enabled = self.primcalls_enabled
         copy.import_sets = self.import_sets
         copy.exports = [i for i in self.exports]
+        copy.lib_name = self.lib_name
         return copy
 
     def add_frame(self, variables):
@@ -451,7 +435,7 @@ class Environment:
                     return result
         if self.lib_name:
             return SymbolInfo(
-                symbol=mangle_name(sym, self.lib_name),
+                symbol=self.lib_name.mangle_symbol(sym),
                 kind=SymbolKind.FREE,
             )
         else:
@@ -1819,33 +1803,35 @@ class Compiler:
             raise self._compile_error(
                 f'Library name not specified: {form}', form=form)
 
-        name = form[1]
-        if not isinstance(name, Pair):
+        lib_name = form[1]
+        try:
+            lib_name = LibraryName(lib_name.to_list())
+        except ValueError:
             raise self._compile_error(
-                f'Library name not a list: {name}', form=name)
+                f'Inavlid library name: {lib_name}', form=lib_name)
 
         code = []
-        lib_env = Environment(lib_name=name)
+        lib_env = Environment(lib_name=lib_name)
         for declaration in form.cddr():
             code += self.compile_library_declaration(declaration, lib_env)
 
         # check exports
         for export_spec in lib_env.exports:
             if isinstance(export_spec, Symbol):
-                if mangle_name(export_spec, name) not in self.defined_symbols:
+                if lib_name.mangle_symbol(export_spec) not in self.defined_symbols:
                     raise self._compile_error(
                         f'No such identifier to export: {export_spec}',
                         form=export_spec)
             else:
                 from_name, to_name = export_spec
-                if mangle_name(from_name, name) not in self.defined_symbols:
+                if lib_name.mangle_symbol(from_name) not in self.defined_symbols:
                     raise self._compile_error(
                         f'No such identifier to export: {from_name}',
                         form=from_name)
 
         # add library to available_libs so that it becomes immediately available
         # to libraries defined later
-        self.available_libs.append((name, lib_env.exports))
+        self.available_libs.append((lib_name, lib_env.exports))
 
         return code
 
@@ -1931,13 +1917,12 @@ class Compiler:
         finally:
             self.current_form = old_current_form
 
-    def get_library_import_set(self, name: Pair):
-        name_ls = name.to_list()
-        if name_ls == [S("trick"), S("core")]:
+    def get_library_import_set(self, name: LibraryName):
+        if name.parts == [S("trick"), S("core")]:
             return CoreImportSet()
         else:
             for lib_name, lib_exports in self.available_libs:
-                if lib_name.to_list() == name_ls:
+                if lib_name == name:
                     return LibraryImportSet(lib_name, lib_exports)
 
         raise self._compile_error(
@@ -2004,7 +1989,7 @@ class Compiler:
                         form=rename[0])
             return RenameImportSet(base_set, renames)
         else:
-            return self.get_library_import_set(import_set)
+            return self.get_library_import_set(LibraryName(import_set.to_list()))
 
     def process_import(self, form: Pair, env: Environment):
         if not isinstance(form.cdr, Pair):
