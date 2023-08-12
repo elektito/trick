@@ -130,6 +130,9 @@ class Symbol(TrickType):
         return hash(self.name)
 
     def __str__(self):
+        if self.name == '':
+            return '||'
+
         try:
             n = int(self.name)
             return f'|{n}|'
