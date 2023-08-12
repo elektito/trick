@@ -3,6 +3,7 @@
 from enum import Enum
 import io
 import os
+from pathlib import Path
 import re
 import platform
 import sys
@@ -735,6 +736,7 @@ class Compiler:
         self.include_paths = []
         self.defined_libs = []
         self.defined_symbols = {}
+        self.cur_file_path: (Path | None) = None
 
         self.current_source = None
         self.current_form = None
@@ -1484,13 +1486,26 @@ class Compiler:
         return code
 
     def find_include_file(self, filename: str):
+        path = Path(filename)
+
+        # return absolute names as-is
+        if path.is_absolute():
+            return filename
+
+        # first search in the same directory as the only we're currently
+        # compiling.
+        if self.cur_file_path and (self.cur_file_path.parent / filename).exists():
+            return str(self.cur_file_path.parent / filename)
+
+        # then search current working directory
         if os.path.exists(filename):
             return filename
-        else:
-            for path in self.include_paths:
-                full_path = os.path.join(path, filename)
-                if os.path.exists(full_path):
-                    return str(full_path)
+
+        # otherwise search any user specified search paths
+        for path in self.include_paths:
+            full_path = os.path.join(path, filename)
+            if os.path.exists(full_path):
+                return str(full_path)
 
         return None
 
@@ -1527,6 +1542,8 @@ class Compiler:
             exprs = List.from_list(exprs)
             begin_form = Pair(S('begin'), exprs)
 
+            old_cur_file_path = self.cur_file_path
+
             if context == 'toplevel':
                 old_source = self.current_source
                 self.current_source = SourceFile(filename=full_path)
@@ -1550,6 +1567,8 @@ class Compiler:
                 include_code += [S(':filename-end')]
 
             code += include_code
+
+            self.cur_file_path = old_cur_file_path
 
         return code
 
@@ -2021,6 +2040,9 @@ class Compiler:
     def compile_program(self, text, env=None, *, filename=None):
         if env is None:
             env = Environment()
+
+        if filename:
+            self.cur_file_path = Path(filename)
 
         code = []
         self.current_source = SourceFile(text=text, filename=filename)
