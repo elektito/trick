@@ -303,6 +303,8 @@ class FaslLibInfoSection(FaslSection):
             for _ in range(nexports):
                 internal, offset = deserialize_string(s, offset)
                 external, offset = deserialize_string(s, offset)
+                internal = Symbol(internal)
+                external = Symbol(external)
                 exports.append((internal, external))
             section.add_library(lib_name, exports)
 

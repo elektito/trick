@@ -1929,8 +1929,9 @@ class Compiler:
                 lib_info = fasl.get_section('libinfo')
                 if not lib_info:
                     continue
-                if name == lib_info:
-                    return LibraryImportSet(name, lib_info.exports)
+                for lib_name, exports in lib_info.libs.items():
+                    if name == lib_name:
+                        return LibraryImportSet(name, exports)
 
         return None
 
