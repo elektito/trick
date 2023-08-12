@@ -81,6 +81,7 @@ class SymbolKind(Enum):
     LOCAL = 3
     LIBRARY = 4
     FREE = 5
+    MACRO = 6
 
 
 class SpecialForms(Enum):
@@ -434,15 +435,17 @@ class Environment:
             if result is not None:
                 if result.kind != SymbolKind.SPECIAL or at_head:
                     return result
+
+        is_macro = self.find_macro(sym) is not None
         if self.lib_name:
             return SymbolInfo(
                 symbol=self.lib_name.mangle_symbol(sym),
-                kind=SymbolKind.FREE,
+                kind=SymbolKind.MACRO if is_macro else SymbolKind.FREE,
             )
         else:
             return SymbolInfo(
                 symbol=sym,
-                kind=SymbolKind.FREE,
+                kind=SymbolKind.MACRO if is_macro else SymbolKind.FREE,
             )
 
     def add_export(self, sym: Symbol):
@@ -778,14 +781,15 @@ class Compiler:
               len(form) > 0 and \
               isinstance(form[0], Symbol):
             name_sym = form[0]
-            if not self.is_macro(name_sym, env):
+            info = self.lookup_symbol(name_sym, env)
+            if info.kind != SymbolKind.MACRO:
                 break
 
             src_start = form.src_start
             src_end = form.src_end
 
             args = form.cdr
-            form = self.expand_single_macro(name_sym, args, env, form)
+            form = self.expand_single_macro(name_sym, info, args, env, form)
             if isinstance(form, Pair) and not form.is_proper():
                 raise self._compile_error(
                     f'Macro {name_sym} returned an improper list: {form}')
@@ -825,14 +829,9 @@ class Compiler:
 
         return form
 
-    def expand_single_macro(self, name_sym, args, env, form):
-        unique_name = env.find_macro(name_sym)
-        if unique_name is None:
-            # must be a library macro, which should be under its own name
-            unique_name = name_sym
-
+    def expand_single_macro(self, name_sym, syminfo: SymbolInfo, args, env, form):
         fasl = Fasl()
-        func_call_code = [S('get'), unique_name, S('ap')]
+        func_call_code = [S('get'), syminfo.symbol, S('ap')]
         self.assembler.assemble(func_call_code, fasl)
 
         machine = Secd()
