@@ -82,6 +82,16 @@ class SymbolKind(Enum):
     LIBRARY = 4
     FREE = 5
     MACRO = 6
+    AUX = 7
+
+
+class AuxKeywords(Enum):
+    UNQUOTE = 'unquote'
+    UNQUOTE_SPLICING = 'unquote-splicing'
+    ELSE = 'else'
+    ARROW = '=>'
+    UNDERSCORE = '_'
+    ELLIPSIS = '...'
 
 
 class SpecialForms(Enum):
@@ -107,6 +117,7 @@ class SymbolInfo:
                  local_frame_idx=None,
                  local_var_idx=None,
                  special_type=None,
+                 aux_type=None,
                  library_name=None,
                  immutable=False):
         self.symbol = symbol
@@ -116,12 +127,17 @@ class SymbolInfo:
         self.local_frame_idx = local_frame_idx
         self.local_var_idx = local_var_idx
         self.special_type = special_type
+        self.aux_type = aux_type
         self.library_name = library_name
         self.immutable = immutable
 
     def is_special(self, special_type: SpecialForms) -> bool:
         return self.kind == SymbolKind.SPECIAL and \
             self.special_type == special_type
+
+    def is_aux(self, aux_type: AuxKeywords) -> bool:
+        return self.kind == SymbolKind.AUX and \
+            self.aux_type == aux_type
 
 
 class ImportSet:
@@ -171,6 +187,15 @@ class CoreImportSet(ImportSet):
                 special_type=SpecialForms(sym.name),
                 immutable=True,
             )
+
+        if any(sym.name == i.value for i in AuxKeywords):
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.AUX,
+                aux_type=AuxKeywords(sym.name),
+                immutable=True,
+            )
+
         return None
 
     def __str__(self):
@@ -1119,7 +1144,11 @@ class Compiler:
                 form=sym)
 
         info = self.lookup_symbol(sym, env)
-        if info.kind == SymbolKind.PRIMCALL:
+        if info.kind == SymbolKind.AUX:
+            raise self._compile_error(
+                f'Invalid use of aux keyword: {sym}',
+                form=sym)
+        elif info.kind == SymbolKind.PRIMCALL:
             # using a primitive like "car" or "cons" as a symbol. this should
             # return a function that performs those primitives. what we do is
             # emit an ldf instruction which loads its arguments onto the stack,
@@ -1658,6 +1687,11 @@ class Compiler:
 
         if isinstance(expr.car, Symbol):
             info =  env.lookup_symbol(expr.car, at_head=True)
+            if info.kind == SymbolKind.AUX:
+                raise self._compile_error(
+                    f'Invalid use of aux keyword "{expr.car}"',
+                    form=expr.car)
+
             special_forms = {
                 SpecialForms.BEGIN: self.compile_begin,
                 SpecialForms.SET: self.compile_set,
@@ -1879,7 +1913,11 @@ class Compiler:
         if isinstance(form.car, Symbol):
             info = self.lookup_symbol(form.car, env, at_head=True)
 
-        if info and info.is_special(SpecialForms.DEFINE_MACRO):
+        if info and info.kind == SymbolKind.AUX:
+            raise self._compile_error(
+                f'Invavlid use of aux keyword: {form.car}',
+                form=form.car)
+        elif info and info.is_special(SpecialForms.DEFINE_MACRO):
             form_code, name = self.process_define_macro(form, env)
 
             self.macros_fasl.add_define(name, is_macro=True)
