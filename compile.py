@@ -1925,8 +1925,14 @@ class Compiler:
                 if lib_name == name:
                     return LibraryImportSet(lib_name, lib_exports)
 
-        raise self._compile_error(
-            f'Unknown library: {name}', form=name)
+            for fasl in self.lib_fasls:
+                lib_info = fasl.get_section('libinfo')
+                if not lib_info:
+                    continue
+                if name == lib_info:
+                    return LibraryImportSet(name, lib_info.exports)
+
+        return None
 
     def process_import_set(self, import_set: Pair) -> ImportSet:
         if import_set.car == S('only'):
@@ -1989,7 +1995,12 @@ class Compiler:
                         form=rename[0])
             return RenameImportSet(base_set, renames)
         else:
-            return self.get_library_import_set(LibraryName(import_set.to_list()))
+            result = self.get_library_import_set(
+                LibraryName(import_set.to_list()))
+            if result is None:
+                raise self._compile_error(
+                    f'Unknown library: {import_set}', form=import_set)
+            return result
 
     def process_import(self, form: Pair, env: Environment):
         if not isinstance(form.cdr, Pair):
