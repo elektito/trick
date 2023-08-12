@@ -185,13 +185,8 @@ class LibraryImportSet(ImportSet):
         self.lib_name = lib_name
 
         self.exports = []
-        for e in exports:
-            if isinstance(e, Symbol):
-                mangled = lib_name.mangle_symbol(e)
-                self.exports.append((e, mangled))
-            else:
-                internal, external = e
-                self.exports.append((lib_name.mangle_symbol(internal), external))
+        for internal, external in exports:
+            self.exports.append((lib_name.mangle_symbol(internal), external))
 
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
         for internal, external in self.exports:
@@ -448,11 +443,14 @@ class Environment:
                 kind=SymbolKind.MACRO if is_macro else SymbolKind.FREE,
             )
 
-    def add_export(self, sym: Symbol):
-        self.exports.append(sym)
+    def add_export(self, sym: Symbol, source_file: (SourceFile | None)):
+        self.exports.append((sym, sym, source_file))
 
-    def add_renamed_export(self, renamed_from: Symbol, renamed_to: Symbol):
-        self.exports.append((renamed_from, renamed_to))
+    def add_renamed_export(self,
+                           renamed_from: Symbol,
+                           renamed_to: Symbol,
+                           source_file: (SourceFile | None)):
+        self.exports.append((renamed_from, renamed_to, source_file))
 
 
 primcalls = {
@@ -1784,7 +1782,7 @@ class Compiler:
         elif declaration.car == S('export'):
             for export_spec in declaration.cdr:
                 if isinstance(export_spec, Symbol):
-                    env.add_export(export_spec)
+                    env.add_export(export_spec, self.current_source)
                 elif isinstance(export_spec, Pair):
                     if len(export_spec) != 3 or \
                        export_spec[0] != S('rename') or \
@@ -1793,7 +1791,7 @@ class Compiler:
                         raise self._compile_error(
                             f'Bad export spec: {export_spec}',
                             form=export_spec)
-                    env.add_renamed_export(export_spec[1], export_spec[2])
+                    env.add_renamed_export(export_spec[1], export_spec[2], self.current_source)
                 else:
                     raise self._compile_error(
                         f'Bad export spec: {export_spec}',
@@ -1836,18 +1834,16 @@ class Compiler:
             code += self.compile_library_declaration(declaration, lib_env)
 
         # check exports
-        for export_spec in lib_env.exports:
-            if isinstance(export_spec, Symbol):
-                if lib_name.mangle_symbol(export_spec) not in self.defined_symbols:
-                    raise self._compile_error(
-                        f'No such identifier to export: {export_spec}',
-                        form=export_spec)
-            else:
-                from_name, to_name = export_spec
-                if lib_name.mangle_symbol(from_name) not in self.defined_symbols:
-                    raise self._compile_error(
-                        f'No such identifier to export: {from_name}',
-                        form=from_name)
+        for internal, external, source_file in lib_env.exports:
+            # set at_head to true to make sure specials are also matched
+            info = lib_env.lookup_symbol(internal, at_head=True)
+            if info.kind != SymbolKind.FREE:
+                continue
+            if lib_name.mangle_symbol(internal) not in self.defined_symbols:
+                raise self._compile_error(
+                    f'No such identifier to export: {internal}',
+                    form=internal,
+                    source=source_file)
 
         # add library to available_libs so that it becomes immediately available
         # to libraries defined later
@@ -1943,6 +1939,10 @@ class Compiler:
         else:
             for lib_name, lib_exports in self.defined_libs:
                 if lib_name == name:
+                    lib_exports = [
+                        (internal, external)
+                        for internal, external in lib_exports
+                    ]
                     return LibraryImportSet(lib_name, lib_exports)
 
             for fasl in self.lib_fasls:
@@ -2105,7 +2105,10 @@ class Compiler:
         program = Program(
             code=code,
             defines=self.defined_symbols,
-            defined_libs=self.defined_libs,
+            defined_libs={
+                k: (internal, external)
+                for k, (internal, external, _) in self.defined_libs.items()
+            },
             debug_info_enabled=self.debug_info,
         )
 
