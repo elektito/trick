@@ -95,7 +95,7 @@ class SpecialForms(Enum):
     LETREC = 'letrec'
     QUOTE = 'quote'
     INCLUDE = 'include'
-    INCLUDE_CI = 'include_ci'
+    INCLUDE_CI = 'include-ci'
     COND_EXPAND = 'cond-expand'
 
 
