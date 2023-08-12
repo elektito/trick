@@ -95,7 +95,10 @@ def main():
                 include_paths=args.include_path,
                 dbg_info=args.dbg_info)
         except compile.CompileError as e:
-            print('Compile error:', e)
+            if e.source and e.source.filename:
+                print(f'Compile error in {e.source.filename}: {e}')
+            else:
+                print(f'Compile error: {e}')
             e.print_snippet()
             sys.exit(1)
     elif args.compile_expr:
