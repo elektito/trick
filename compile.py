@@ -1499,6 +1499,10 @@ class Compiler:
             if relative_file.exists():
                 return str(relative_file)
 
+        if filename.startswith('./') or filename.startswith('../'):
+            # when the file is relative to . or .., don't look anywhere else.
+            return None
+
         # then search current working directory
         if os.path.exists(filename):
             return filename
