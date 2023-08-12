@@ -1527,11 +1527,11 @@ class Compiler:
                     f'Filename in include directive not a string '
                     f'literal: {filename}')
 
-            filename = filename.value
-            full_path = self.find_include_file(filename)
+            full_path = self.find_include_file(filename.value)
             if full_path is None:
                 raise self._compile_error(
-                    f'Included file not found: {filename}')
+                    f'Included file not found: {filename}',
+                    form=filename)
 
             with open(full_path) as f:
                 try:
