@@ -170,9 +170,9 @@ class Symbol(TrickType):
 
     def __repr__(self):
         if self.short_name != self.name:
-            return f'<Symbol {self.short_name} (full={self.name})>'
+            return f'<Symbol {self} (full={self.name})>'
         else:
-            return f'<Symbol {self.name}>'
+            return f'<Symbol {self}>'
 
     @staticmethod
     def gensym(short_name=None):
