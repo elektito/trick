@@ -736,7 +736,6 @@ class Compiler:
         self.include_paths = []
         self.defined_libs = []
         self.defined_symbols = {}
-        self.cur_file_path: (Path | None) = None
 
         self.current_source = None
         self.current_form = None
@@ -1494,8 +1493,11 @@ class Compiler:
 
         # first search in the same directory as the only we're currently
         # compiling.
-        if self.cur_file_path and (self.cur_file_path.parent / filename).exists():
-            return str(self.cur_file_path.parent / filename)
+        if self.current_source and self.current_source.filename:
+            cur_file_path = Path(self.current_source.filename)
+            relative_file = cur_file_path.parent / filename
+            if relative_file.exists():
+                return str(relative_file)
 
         # then search current working directory
         if os.path.exists(filename):
@@ -1542,13 +1544,10 @@ class Compiler:
             exprs = List.from_list(exprs)
             begin_form = Pair(S('begin'), exprs)
 
-            old_cur_file_path = self.cur_file_path
-
+            old_source = self.current_source
+            self.current_source = SourceFile(filename=full_path)
             if context == 'toplevel':
-                old_source = self.current_source
-                self.current_source = SourceFile(filename=full_path)
                 include_code = self.compile_toplevel_form(begin_form, env)
-                self.current_source = old_source
             elif context == 'local':
                 include_code = self.compile_form(begin_form, env)
             elif context == 'library':
@@ -1567,8 +1566,7 @@ class Compiler:
                 include_code += [S(':filename-end')]
 
             code += include_code
-
-            self.cur_file_path = old_cur_file_path
+            self.current_source = old_source
 
         return code
 
@@ -2040,9 +2038,6 @@ class Compiler:
     def compile_program(self, text, env=None, *, filename=None):
         if env is None:
             env = Environment()
-
-        if filename:
-            self.cur_file_path = Path(filename)
 
         code = []
         self.current_source = SourceFile(text=text, filename=filename)
