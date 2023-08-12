@@ -730,7 +730,7 @@ class Compiler:
         self.set_symbols = set()
         self.read_symbols = set()
         self.macros_fasl = Fasl()
-        self.libs = libs
+        self.lib_fasls = libs
         self.debug_info = debug_info
         self.include_paths = []
         self.defined_libs = []
@@ -765,7 +765,7 @@ class Compiler:
         if env.find_macro(name):
             return True
 
-        for lib in self.libs:
+        for lib in self.lib_fasls:
             for sym, info in lib.defines.items():
                 if sym == name and info.is_macro:
                     return True
@@ -839,7 +839,7 @@ class Compiler:
         try:
             # since we want to push arguments on the stack, load the libraries
             # first to make sure they won't interfere with what we push.
-            machine.load_fasls(self.libs + [self.macros_fasl])
+            machine.load_fasls(self.lib_fasls + [self.macros_fasl])
         except RunError as e:
             raise self._compile_error(
                 f'Run error when loading libs for macro expansion of '
@@ -2051,7 +2051,7 @@ class Compiler:
             code += [S(':filename-end')]
 
         all_defines = set(self.defined_symbols.keys())
-        for lib in self.libs:
+        for lib in self.lib_fasls:
             all_defines |= set(lib.defines)
 
         for unique_sym, sym, filename in self.set_symbols:
