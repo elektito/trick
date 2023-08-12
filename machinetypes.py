@@ -311,6 +311,9 @@ class String(TrickType):
                 s += c
         return f'"{s}"'
 
+    def __repr__(self):
+        return f'<String {self}>'
+
     def encode(self, encoding=DEFAULT_ENCODING):
         return self.value.encode(encoding)
 
