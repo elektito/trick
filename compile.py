@@ -139,6 +139,9 @@ class SymbolInfo:
         return self.kind == SymbolKind.AUX and \
             self.aux_type == aux_type
 
+    def __repr__(self):
+        return f'<SymbolInfo {self.symbol} kind={self.kind.name}>'
+
 
 class ImportSet:
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
