@@ -1376,15 +1376,3 @@ and still a comment
 (= 200 (with-exception-handler
         (lambda (e) 100)
         (lambda () 200)))
-
-;; local macros
-
-(let ((x 10))
-  (define-macro (foo a)
-    `(list '<< ',a x '>>))
-  (define bar (foo abc))
-  (let ((x 20))
-    (define-macro (foo a)
-      `(list '<< ',a x '>>))
-    (and (equal? '(<< xyz 20 >>) (foo xyz))
-         (equal? '(<< abc 10 >>) bar))))

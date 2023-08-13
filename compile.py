@@ -383,15 +383,9 @@ class EnvironmentFrame:
         else:
             self.variables = initial_variables
 
-        self.macros = {}
-
     def copy(self):
         copy = EnvironmentFrame()
         copy.variables = [s for s in self.variables]
-        copy.macros = {
-            name: unique_name
-            for name, unique_name in self.macros.items()
-        }
         return copy
 
     def contains(self, name: Symbol):
@@ -400,20 +394,11 @@ class EnvironmentFrame:
     def add_variable(self, name: Symbol):
         self.variables.append(name)
 
-    def add_macro(self, name: Symbol):
-        if name in self.macros:
-            raise CompileError(
-                f'Duplicate macro definition: {name}')
-        self.macros[name] = Symbol.gensym()
-
-    def find_macro(self, name: Symbol):
-        return self.macros.get(name, None)
-
 
 class Environment:
     def __init__(self, *, primcalls_enabled=True, lib_name=None):
         self.frames: list[EnvironmentFrame] = []
-        self.toplevel_macros = []
+        self.macros = []
         self.primcalls_enabled = primcalls_enabled
         self.import_sets = []
         self.exports = []
@@ -422,7 +407,7 @@ class Environment:
     def copy(self):
         copy = Environment()
         copy.frames = [f.copy() for f in self.frames]
-        copy.toplevel_macros = [m for m in self.toplevel_macros]
+        copy.macros = [m for m in self.macros]
         copy.primcalls_enabled = self.primcalls_enabled
         copy.import_sets = self.import_sets
         copy.exports = [i for i in self.exports]
@@ -443,7 +428,7 @@ class Environment:
         return None
 
     def add_macro(self, name: Symbol):
-        self.toplevel_macros.append(name)
+        self.macros.append(name)
 
     def find_macro(self, name: Symbol):
         """
@@ -453,13 +438,8 @@ class Environment:
         returned.
         """
 
-        if name in self.toplevel_macros:
+        if name in self.macros:
             return name
-
-        for frame in self.frames:
-            unique_name = frame.find_macro(name)
-            if unique_name is not None:
-                return unique_name
 
         return None
 
@@ -1073,11 +1053,9 @@ class Compiler:
                     env.frames[0].add_variable(name)
                     code += [S('xp')]
             elif define_type == 'define-macro':
-                try:
-                    env.frames[0].add_macro(name)
-                except CompileError as e:
-                    # re-raise compile error with appropriate debug info attached
-                    raise self._rebuild_compile_error(e)
+                raise self._compile_error(
+                    f'define-macro only allowed at the top-level',
+                    form=define_form)
             else:
                 assert False, 'Unhandled define type'
 
@@ -1089,12 +1067,7 @@ class Compiler:
                 code += self.compile_form(value, env)
                 code += [S('st'), env.locate_local(name)]
             elif define_type == 'define-macro':
-                # compile the macro as a global define under its unique name in
-                # the macros fasl.
-                unique_name = env.find_macro(name)
-                macro_code = self.compile_form(value, env)
-                macro_code += [S('set'), unique_name]
-                self.assembler.assemble(macro_code, self.macros_fasl)
+                assert False, 'define-macro in body'
             else:
                 assert False, 'Unhandled define type'
 
