@@ -801,17 +801,6 @@ class Compiler:
         except CompileError as e:
             raise self._rebuild_compile_error(e)
 
-    def is_macro(self, name: Symbol, env: Environment):
-        if name in env.macros:
-            return True
-
-        for lib in self.lib_fasls:
-            for sym, info in lib.defines.items():
-                if sym == name and info.is_macro:
-                    return True
-
-        return False
-
     def macro_expand(self, form, env):
         while isinstance(form, Pair) and \
               len(form) > 0 and \
@@ -847,12 +836,12 @@ class Compiler:
             name_sym = form[0]
             if name_sym.name == 'quote':
                 return form
-
-            if not self.is_macro(name_sym, env):
+            info = self.lookup_symbol(name_sym, env)
+            if info.kind != SymbolKind.MACRO:
                 break
 
             args = form.cdr
-            form = self.expand_single_macro(name_sym, args, env, form)
+            form = self.expand_single_macro(name_sym, info, args, env, form)
 
         if not isinstance(form, Pair):
             return form
@@ -1144,11 +1133,6 @@ class Compiler:
         return code
 
     def compile_symbol(self, sym: Symbol, env):
-        if self.is_macro(sym, env):
-            raise self._compile_error(
-                f'Invalid use of macro name: {sym}',
-                form=sym)
-
         info = self.lookup_symbol(sym, env)
         if info.kind == SymbolKind.AUX:
             raise self._compile_error(
