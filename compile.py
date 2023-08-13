@@ -472,7 +472,8 @@ class Environment:
     def add_export(self, sym: Symbol, source_file: (SourceFile | None)):
         self.exports.append(
             LibraryExportedSymbol(
-                sym, sym, export_source_file=source_file))
+                sym, sym,
+                export_source_file=source_file))
 
     def add_renamed_export(self,
                            internal: Symbol,
@@ -480,7 +481,8 @@ class Environment:
                            source_file: (SourceFile | None)):
         self.exports.append(
             LibraryExportedSymbol(
-                internal, external, export_source_file=source_file))
+                internal, external,
+                export_source_file=source_file))
 
     def get_all_names(self):
         names = []
