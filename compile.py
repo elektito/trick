@@ -1605,7 +1605,7 @@ class Compiler:
                 assert False, 'unhandled context'
 
             if self.debug_info:
-                include_code = [S(':filename-start'), String(filename)] + include_code
+                include_code = [S(':filename-start'), filename] + include_code
                 include_code += [S(':filename-end')]
 
             code += include_code
