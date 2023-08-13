@@ -24,11 +24,23 @@
   (include-library-declarations "scheme-write-exports.scm")
 
   ;; trick specific exports
-  (export all?
+  (export 1-
+          1+
+          all?
           any?
-          define-macro
           atom?
-          type))
+          define-macro
+          gensym
+          iota
+          last
+          list*
+          pairwise
+          print
+          proper-length
+          range
+          reduce
+          type
+          with-gensyms))
 
 (define-library (scheme base)
   (import (trick))
