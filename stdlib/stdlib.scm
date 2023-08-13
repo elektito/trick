@@ -1,5 +1,3 @@
-(import (trick core))
-
 ;; comparison
 
 (define (eqv? x y)
