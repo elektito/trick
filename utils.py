@@ -2,6 +2,28 @@ import os
 from os.path import isabs
 
 
+class OrderedSet:
+    def __init__(self):
+        # since python 3.7+ dictionaries retain order, we'll be using the
+        # dictionary keys as our set.
+        self.set = {}
+
+    def add(self, value):
+        self.set[value] = True
+
+    def __contains__(self, value):
+        return value in self.set
+
+    def __str__(self):
+        return f'{{{", ".join(str(i) for i in self.set)}}}'
+
+    def __repr__(self):
+        return f'OrderedSet({str(self)})'
+
+    def __iter__(self):
+        return iter(self.set.keys())
+
+
 def assoc(item, alist):
     for i in range(0, len(alist), 2):
         if alist[i] == item:

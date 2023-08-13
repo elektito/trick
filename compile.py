@@ -18,7 +18,7 @@ from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String, V
 from assemble import Assembler
 from secd import RunError, Secd
 from snippet import show_snippet
-from utils import find_shared
+from utils import OrderedSet, find_shared
 from version import __version__
 
 
@@ -762,8 +762,8 @@ class CompileError(Exception):
 class Compiler:
     def __init__(self, libs: list[Fasl], debug_info=False):
         self.assembler = Assembler()
-        self.set_symbols = set()
-        self.read_symbols = set()
+        self.set_symbols = OrderedSet()
+        self.read_symbols = OrderedSet()
         self.macros_fasl = Fasl()
         self.lib_fasls = libs
         self.debug_info = debug_info
