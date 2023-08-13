@@ -1890,7 +1890,7 @@ class Compiler:
                 raise self._compile_error(
                     f'No such identifier to export: {export.internal}',
                     form=export.internal,
-                    source=export.source_file)
+                    source=export.export_source_file)
 
         # add library to available_libs so that it becomes immediately available
         # to libraries defined later
