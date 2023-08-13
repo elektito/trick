@@ -344,6 +344,14 @@ class SourceFile:
         else:
             return f'<SourceFile>'
 
+    def __eq__(self, other):
+        if not isinstance(other, SourceFile):
+            return False
+        return self._text == other._text and self._filename == other._filename
+
+    def __hash__(self):
+        return hash((self._text, self._filename))
+
 
 class EnvironmentFrame:
     def __init__(self, initial_variables=None):
