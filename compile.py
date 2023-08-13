@@ -207,6 +207,13 @@ class CoreImportSet(ImportSet):
     def __repr__(self):
         return str(self)
 
+    def get_all_names(self):
+        names = []
+        names += [S(i.value) for i in SpecialForms]
+        names += [S(i.value) for i in AuxKeywords]
+        names += list(S(i) for i in primcalls.keys())
+        return names
+
 
 class LibraryImportSet(ImportSet):
     def __init__(self, lib_name: LibraryName, exports: list):
@@ -228,6 +235,9 @@ class LibraryImportSet(ImportSet):
                 )
 
         return None
+
+    def get_all_names(self):
+        return [e.external for _, e in self.exports]
 
     def __str__(self):
         return f'<LibraryImportSet {self.lib_name}>'
@@ -471,6 +481,14 @@ class Environment:
         self.exports.append(
             LibraryExportedSymbol(
                 internal, external, export_source_file=source_file))
+
+    def get_all_names(self):
+        names = []
+        for frame in self.frames:
+            names.extend(frame.variables)
+        for import_set in self.import_sets:
+            names.extend(import_set.get_all_names())
+        return names
 
 
 primcalls = {

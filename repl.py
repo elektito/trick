@@ -33,21 +33,16 @@ def write_history():
 
 
 class Completer:
-    def __init__(self, libs):
-        self.libs = libs
+    def __init__(self, env):
+        self.env = env
 
     def __call__(self, text: str, state: int):
         if state == 0:
-            syms = set()
-            for lib in self.libs:
-                syms |= set(s.name for s in lib.defines.keys() if s.name.startswith(text))
-            syms |= {
-                name
-                for name, desc in primcalls.items()
-                if name.startswith(text)
-                if desc.get('exported')
-            }
-            self.syms = list(sorted(syms))
+            self.syms = [
+                s.name
+                for s in self.env.get_all_names()
+                if s.name.startswith(text)
+            ]
 
         try:
             return self.syms[state]
@@ -63,23 +58,23 @@ def main(args):
 
     libs = [stdlib_fasl]
 
-    readline.set_auto_history(True)
-    read_history()
-    atexit.register(write_history)
-
-    readline.parse_and_bind("tab: complete")
-    readline.set_completer_delims('()[] \'"|')
-    readline.set_completer(Completer(libs))
-
-    machine = Secd()
-    machine.load_fasls(libs)
-
     env = Environment()
     env.add_import(CoreImportSet())
     env.add_import(
         LibraryImportSet.get_import_set(
             LibraryName([Symbol('trick')]),
             libs))
+
+    readline.set_auto_history(True)
+    read_history()
+    atexit.register(write_history)
+
+    readline.parse_and_bind("tab: complete")
+    readline.set_completer_delims('()[] \'"|')
+    readline.set_completer(Completer(env))
+
+    machine = Secd()
+    machine.load_fasls(libs)
 
     while True:
         try:
