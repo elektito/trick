@@ -610,7 +610,7 @@ primcalls = {
     'type': {
         'nargs': 1,
         'code': [S('type')],
-        'exported': False,
+        'exported': True,
     },
     'eq?': {
         'nargs': 2,
