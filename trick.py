@@ -7,11 +7,12 @@ import os
 import compile
 import assemble
 import fasl
-from machinetypes import List
+from library import LibraryName
+from machinetypes import List, Symbol
 from read import ReadError, read_expr
 import secd
 import repl
-from utils import compile_expr_to_fasl, compile_src_file_to_fasl, load_fasl_files
+from utils import compile_expr_to_fasl, compile_src_file_to_fasl, ensure_stdlib, load_fasl_files
 from version import __version__
 
 
@@ -103,9 +104,19 @@ def main():
             sys.exit(1)
     elif args.compile_expr:
         lib_fasls = load_fasl_files(args.lib)
+
+        ensure_stdlib('stdlib.fasl')
+        with open('stdlib.fasl', 'rb') as f:
+            stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
+        lib_fasls += [stdlib_fasl]
+
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         env = compile.Environment()
         env.add_import(compile.CoreImportSet())
+        env.add_import(
+            compile.LibraryImportSet.get_import_set(
+                LibraryName([Symbol('trick')]),
+                lib_fasls))
         try:
             program = compiler.compile_program(args.compile_expr, env)
         except compile.CompileError as e:
@@ -124,9 +135,23 @@ def main():
         except FileNotFoundError as e:
             print(e)
             sys.exit(1)
+
+
+        ensure_stdlib('stdlib.fasl')
+        with open('stdlib.fasl', 'rb') as f:
+            stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
+        lib_fasls += [stdlib_fasl]
+
+        env = compile.Environment()
+        env.add_import(compile.CoreImportSet())
+        env.add_import(
+            compile.LibraryImportSet.get_import_set(
+                LibraryName([Symbol('trick')]),
+                lib_fasls))
+
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         try:
-            expanded = compiler.macro_expand(form, compile.Environment())
+            expanded = compiler.macro_expand(form, env)
         except compile.CompileError as e:
             print('Compile error:', e)
             sys.exit(1)
@@ -140,9 +165,22 @@ def main():
             sys.exit(1)
 
         lib_fasls = load_fasl_files(args.lib)
+
+        ensure_stdlib('stdlib.fasl')
+        with open('stdlib.fasl', 'rb') as f:
+            stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
+        lib_fasls += [stdlib_fasl]
+
+        env = compile.Environment()
+        env.add_import(compile.CoreImportSet())
+        env.add_import(
+            compile.LibraryImportSet.get_import_set(
+                LibraryName([Symbol('trick')]),
+                lib_fasls))
+
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         try:
-            expanded = compiler.macro_expand_full(form, compile.Environment())
+            expanded = compiler.macro_expand_full(form, env)
         except compile.CompileError as e:
             print('Compile error:', e)
             sys.exit(1)
@@ -150,6 +188,19 @@ def main():
         print(expanded)
     elif args.eval_expr:
         lib_fasls = load_fasl_files(args.lib)
+
+        ensure_stdlib('stdlib.fasl')
+        with open('stdlib.fasl', 'rb') as f:
+            stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
+        lib_fasls += [stdlib_fasl]
+
+        env = compile.Environment()
+        env.add_import(compile.CoreImportSet())
+        env.add_import(
+            compile.LibraryImportSet.get_import_set(
+                LibraryName([Symbol('trick')]),
+                lib_fasls))
+
         try:
             expr = read_expr(args.eval_expr)
         except ReadError as e:
@@ -157,7 +208,7 @@ def main():
             sys.exit(1)
 
         try:
-            expr_fasl = compile_expr_to_fasl(expr, lib_fasls)
+            expr_fasl = compile_expr_to_fasl(expr, lib_fasls, env=env)
         except compile.CompileError as e:
             print(f'Compile error: {e}')
             sys.exit(1)
