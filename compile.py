@@ -430,19 +430,6 @@ class Environment:
     def add_macro(self, name: Symbol):
         self.macros.append(name)
 
-    def find_macro(self, name: Symbol):
-        """
-        Look up a name as a macro. If found as a local macro, its unique
-        global name is returned. If found as a top-level macro, its name is
-        returned (which is the same as the defined name). Otherwise None is
-        returned.
-        """
-
-        if name in self.macros:
-            return name
-
-        return None
-
     def is_exported_primcall(self, name: str) -> bool:
         if not self.primcalls_enabled:
             return False
@@ -467,16 +454,17 @@ class Environment:
                 if result.kind != SymbolKind.SPECIAL or at_head:
                     return result
 
-        is_macro = self.find_macro(sym) is not None
+        is_macro = sym in self.macros
+        kind = SymbolKind.MACRO if is_macro else SymbolKind.FREE
         if self.lib_name:
             return SymbolInfo(
                 symbol=self.lib_name.mangle_symbol(sym),
-                kind=SymbolKind.MACRO if is_macro else SymbolKind.FREE,
+                kind=kind,
             )
         else:
             return SymbolInfo(
                 symbol=sym,
-                kind=SymbolKind.MACRO if is_macro else SymbolKind.FREE,
+                kind=kind,
             )
 
     def add_export(self, sym: Symbol, source_file: (SourceFile | None)):
@@ -804,7 +792,7 @@ class Compiler:
             raise self._rebuild_compile_error(e)
 
     def is_macro(self, name: Symbol, env: Environment):
-        if env.find_macro(name):
+        if name in env.macros:
             return True
 
         for lib in self.lib_fasls:
@@ -957,7 +945,7 @@ class Compiler:
         if len(expr) < 3:
             raise self._compile_error('Not enough arguments for define-macro')
 
-        if env.find_macro(name):
+        if name in env.macros:
             raise self._compile_error(
                 f'Duplicate macro definition: {name}')
 
