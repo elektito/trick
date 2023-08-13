@@ -2,11 +2,13 @@
 
 import argparse
 import sys
-from compile import CompileError, CoreImportSet, Environment
+from compile import CompileError, CoreImportSet, Environment, LibraryImportSet
 from fasl import Fasl
+from library import LibraryName
+from machinetypes import Symbol
 from read import ReadError, Reader
 from secd import RunError, Secd
-from utils import compile_expr_to_fasl, ensure_fasl
+from utils import compile_expr_to_fasl, ensure_stdlib
 
 
 class TestFilter:
@@ -72,9 +74,8 @@ def main():
 
     args = parser.parse_args()
 
-    stdlib_src_filename = 'stdlib.scm'
     stdlib_fasl_filename = 'stdlib.fasl'
-    ensure_fasl(stdlib_src_filename)
+    ensure_stdlib(stdlib_fasl_filename)
     with open(stdlib_fasl_filename, 'rb') as f:
         stdlib_fasl = Fasl.load(f, stdlib_fasl_filename)
 
@@ -99,6 +100,10 @@ def main():
 
     env = Environment()
     env.add_import(CoreImportSet())
+    env.add_import(
+        LibraryImportSet.get_import_set(
+            LibraryName([Symbol('trick')]),
+            libs))
 
     errors = []
     fails = []

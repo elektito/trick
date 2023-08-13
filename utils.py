@@ -1,5 +1,5 @@
+import glob
 import os
-from os.path import isabs
 
 
 class OrderedSet:
@@ -78,19 +78,32 @@ def compile_expr_to_fasl(expr, lib_fasls=None, env=None):
     return fasl
 
 
-def ensure_fasl(filename, libs=[]):
-    name, ext = os.path.splitext(filename)
-    fasl_name = name + '.fasl'
-    if not os.path.exists(fasl_name):
-        compile_src_file_to_fasl(filename, fasl_name, libs)
+def ensure_fasl(main_src_filename,
+                all_src_filenames,
+                fasl_filename=None,
+                libs=[]):
+    if fasl_filename is None:
+        name, ext = os.path.splitext(main_src_filename)
+        fasl_filename = name + '.fasl'
+
+    if not os.path.exists(fasl_filename):
+        compile_src_file_to_fasl(main_src_filename, fasl_filename, libs)
         return
 
-    src_modify_time = os.path.getmtime(filename)
-    fasl_modify_time = os.path.getmtime(fasl_name)
-    if src_modify_time < fasl_modify_time:
+    src_modify_times = [os.path.getmtime(f) for f in all_src_filenames]
+    fasl_modify_time = os.path.getmtime(fasl_filename)
+    if all(t < fasl_modify_time for t in src_modify_times):
         return
 
-    compile_src_file_to_fasl(filename, fasl_name, libs)
+    compile_src_file_to_fasl(main_src_filename, fasl_filename, libs)
+
+
+def ensure_stdlib(fasl_filename: str):
+    stdlib_main_src_filename = 'stdlib/defs.scm'
+    stdlib_all_src_filenames = glob.glob('stdlib/*.scm')
+    ensure_fasl(stdlib_main_src_filename,
+                stdlib_all_src_filenames,
+                fasl_filename)
 
 
 def load_fasl_file(filename):

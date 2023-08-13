@@ -2,14 +2,14 @@ import os
 import atexit
 import argparse
 import readline
-from assemble import Assembler
-from compile import CompileError, CoreImportSet, Environment, primcalls
+from compile import CompileError, CoreImportSet, Environment, LibraryImportSet, primcalls
 from fasl import Fasl
-from machinetypes import Void
+from library import LibraryName
+from machinetypes import Symbol, Void
 from read import ReadError, read_expr
 from runtime import TrickExitException
 from secd import RunError, Secd
-from utils import compile_expr_to_fasl, ensure_fasl
+from utils import compile_expr_to_fasl, ensure_stdlib
 
 
 HISTORY_FILE = os.path.expanduser('~/.trick-repl-history')
@@ -56,9 +56,8 @@ class Completer:
 
 
 def main(args):
-    stdlib_src_filename = 'stdlib.scm'
     stdlib_fasl_filename = 'stdlib.fasl'
-    ensure_fasl(stdlib_src_filename)
+    ensure_stdlib(stdlib_fasl_filename)
     with open(stdlib_fasl_filename, 'rb') as f:
         stdlib_fasl = Fasl.load(f, stdlib_fasl_filename)
 
@@ -77,6 +76,10 @@ def main(args):
 
     env = Environment()
     env.add_import(CoreImportSet())
+    env.add_import(
+        LibraryImportSet.get_import_set(
+            LibraryName([Symbol('trick')]),
+            libs))
 
     while True:
         try:
