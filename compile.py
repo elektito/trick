@@ -1844,13 +1844,13 @@ class Compiler:
                         f'Bad export spec: {export_spec}',
                         form=export_spec)
         elif declaration.car == S('include'):
-            self._compile_include(
+            code += self._compile_include(
                 declaration, env, context='library', casefold=False)
         elif declaration.car == S('include-ci'):
-            self._compile_include(
+            code += self._compile_include(
                 declaration, env, context='library', casefold=True)
         elif declaration.car == S('include-library-declarations'):
-            self._compile_include(
+            code += self._compile_include(
                 declaration, env, context='library-declarations', casefold=False)
         elif declaration.car == S('cond-expand'):
             code += self._compile_cond_expand(declaration, env, context='library')
