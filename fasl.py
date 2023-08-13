@@ -268,9 +268,6 @@ class FaslLibInfoSection(FaslSection):
     def add_library(self,
                     name: LibraryName,
                     exports: list[LibraryExportedSymbol]):
-        """exports is a list of tuples mapping an internal name (mangled) to an
-        external name (unmangled).
-        """
         self.libs[name] = exports
 
     def __repr__(self):
