@@ -235,6 +235,25 @@ class LibraryImportSet(ImportSet):
     def __repr__(self):
         return str(self)
 
+    @staticmethod
+    def get_import_set(name: LibraryName, fasls: list[Fasl], *, local_libs=[]):
+        if name.parts == [S('trick'), S('core')]:
+            return CoreImportSet()
+        else:
+            for lib_name, lib_exports in local_libs:
+                if lib_name == name:
+                    return LibraryImportSet(lib_name, lib_exports)
+
+            for fasl in fasls:
+                lib_info = fasl.get_section('libinfo')
+                if not lib_info:
+                    continue
+                for lib_name, exports in lib_info.libs.items():
+                    if name == lib_name:
+                        return LibraryImportSet(name, exports)
+
+        return None
+
 
 class OnlyImportSet(ImportSet):
     def __init__(self, base_import_set: ImportSet, identifiers: list[Symbol]):
@@ -1987,24 +2006,6 @@ class Compiler:
         finally:
             self.current_form = old_current_form
 
-    def get_library_import_set(self, name: LibraryName):
-        if name.parts == [S("trick"), S("core")]:
-            return CoreImportSet()
-        else:
-            for lib_name, lib_exports in self.defined_libs:
-                if lib_name == name:
-                    return LibraryImportSet(lib_name, lib_exports)
-
-            for fasl in self.lib_fasls:
-                lib_info = fasl.get_section('libinfo')
-                if not lib_info:
-                    continue
-                for lib_name, exports in lib_info.libs.items():
-                    if name == lib_name:
-                        return LibraryImportSet(name, exports)
-
-        return None
-
     def process_import_set(self, import_set: Pair) -> ImportSet:
         if import_set.car == S('only'):
             if not isinstance(import_set[1], Pair):
@@ -2066,8 +2067,10 @@ class Compiler:
                         form=rename[0])
             return RenameImportSet(base_set, renames)
         else:
-            result = self.get_library_import_set(
-                LibraryName(import_set.to_list()))
+            result = LibraryImportSet.get_import_set(
+                LibraryName(import_set.to_list()),
+                self.lib_fasls,
+                local_libs=self.defined_libs)
             if result is None:
                 raise self._compile_error(
                     f'Unknown library: {import_set}', form=import_set)
