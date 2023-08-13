@@ -396,10 +396,9 @@ class EnvironmentFrame:
 
 
 class Environment:
-    def __init__(self, *, primcalls_enabled=True, lib_name=None):
+    def __init__(self, *, lib_name=None):
         self.frames: list[EnvironmentFrame] = []
         self.macros = []
-        self.primcalls_enabled = primcalls_enabled
         self.import_sets = []
         self.exports = []
         self.lib_name = lib_name
@@ -408,7 +407,6 @@ class Environment:
         copy = Environment()
         copy.frames = [f.copy() for f in self.frames]
         copy.macros = [m for m in self.macros]
-        copy.primcalls_enabled = self.primcalls_enabled
         copy.import_sets = self.import_sets
         copy.exports = [i for i in self.exports]
         copy.lib_name = self.lib_name
@@ -429,12 +427,6 @@ class Environment:
 
     def add_macro(self, name: Symbol):
         self.macros.append(name)
-
-    def is_exported_primcall(self, name: str) -> bool:
-        if not self.primcalls_enabled:
-            return False
-
-        return primcalls.get(name, {}).get('exported', False)
 
     def add_import(self, import_set: ImportSet):
         self.import_sets.append(import_set)
