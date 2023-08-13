@@ -2153,7 +2153,7 @@ class Compiler:
             defines=self.defined_symbols,
             defined_libs={
                 k: (internal, external)
-                for k, (internal, external, _) in self.defined_libs.items()
+                for k, (internal, external, _) in self.defined_libs
             },
             debug_info_enabled=self.debug_info,
         )
