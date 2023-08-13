@@ -1616,9 +1616,7 @@ class Compiler:
             elif context == 'local':
                 include_code = self.compile_form(begin_form, env)
             elif context == 'library':
-                include_code = []
-                for expr in exprs:
-                    include_code += self.compile_toplevel_form(expr, env)
+                include_code = self.compile_toplevel_form(begin_form, env)
             elif context == 'library-declarations':
                 include_code = []
                 for expr in exprs:
