@@ -1174,6 +1174,10 @@ class Compiler:
         elif info.kind == SymbolKind.FREE:
             self.read_symbols.add((info.symbol, sym, self.current_source))
             return [S('get'), info.symbol]
+        elif info.kind == SymbolKind.MACRO:
+            raise self._compile_error(
+                f'Invalid use of macro name: {sym}',
+                form=sym)
         else:
             assert False, 'unhandled symbol kind'
 
