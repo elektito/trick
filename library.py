@@ -102,3 +102,10 @@ class LibraryName:
             return f'i{part}'
         else:
             assert False, 'unhandled name part type'
+
+
+class LibraryExportedSymbol:
+    def __init__(self, internal, external, *, export_source_file=None):
+        self.internal = internal
+        self.external = external
+        self.export_source_file = export_source_file

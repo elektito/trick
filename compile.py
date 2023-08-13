@@ -8,7 +8,7 @@ import re
 import platform
 import sys
 import argparse
-from library import LibraryName
+from library import LibraryExportedSymbol, LibraryName
 from program import Program
 
 import runtime
@@ -210,8 +210,9 @@ class LibraryImportSet(ImportSet):
         self.lib_name = lib_name
 
         self.exports = []
-        for internal, external in exports:
-            self.exports.append((lib_name.mangle_symbol(internal), external))
+        for export in exports:
+            self.exports.append((lib_name.mangle_symbol(export.internal),
+                                 export.external))
 
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
         for internal, external in self.exports:
@@ -477,13 +478,17 @@ class Environment:
             )
 
     def add_export(self, sym: Symbol, source_file: (SourceFile | None)):
-        self.exports.append((sym, sym, source_file))
+        self.exports.append(
+            LibraryExportedSymbol(
+                sym, sym, export_source_file=source_file))
 
     def add_renamed_export(self,
-                           renamed_from: Symbol,
-                           renamed_to: Symbol,
+                           internal: Symbol,
+                           external: Symbol,
                            source_file: (SourceFile | None)):
-        self.exports.append((renamed_from, renamed_to, source_file))
+        self.exports.append(
+            LibraryExportedSymbol(
+                internal, external, export_source_file=source_file))
 
 
 primcalls = {
@@ -1876,16 +1881,16 @@ class Compiler:
             code += self.compile_library_declaration(declaration, lib_env)
 
         # check exports
-        for internal, external, source_file in lib_env.exports:
+        for export in lib_env.exports:
             # set at_head to true to make sure specials are also matched
-            info = lib_env.lookup_symbol(internal, at_head=True)
+            info = lib_env.lookup_symbol(export.internal, at_head=True)
             if info.kind != SymbolKind.FREE:
                 continue
-            if lib_name.mangle_symbol(internal) not in self.defined_symbols:
+            if lib_name.mangle_symbol(export.internal) not in self.defined_symbols:
                 raise self._compile_error(
-                    f'No such identifier to export: {internal}',
-                    form=internal,
-                    source=source_file)
+                    f'No such identifier to export: {export.internal}',
+                    form=export.internal,
+                    source=export.source_file)
 
         # add library to available_libs so that it becomes immediately available
         # to libraries defined later
@@ -1985,10 +1990,6 @@ class Compiler:
         else:
             for lib_name, lib_exports in self.defined_libs:
                 if lib_name == name:
-                    lib_exports = [
-                        (internal, external)
-                        for internal, external in lib_exports
-                    ]
                     return LibraryImportSet(lib_name, lib_exports)
 
             for fasl in self.lib_fasls:
@@ -2151,10 +2152,7 @@ class Compiler:
         program = Program(
             code=code,
             defines=self.defined_symbols,
-            defined_libs={
-                k: (internal, external)
-                for k, (internal, external, _) in self.defined_libs
-            },
+            defined_libs=self.defined_libs,
             debug_info_enabled=self.debug_info,
         )
 

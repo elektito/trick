@@ -3,7 +3,7 @@ import io
 import struct
 from collections import defaultdict
 
-from library import LibraryName
+from library import LibraryExportedSymbol, LibraryName
 from machinetypes import Integer, List, String, Symbol, DEFAULT_ENCODING
 from snippet import show_snippet
 
@@ -267,7 +267,7 @@ class FaslLibInfoSection(FaslSection):
 
     def add_library(self,
                     name: LibraryName,
-                    exports: list[tuple[Symbol, Symbol]]):
+                    exports: list[LibraryExportedSymbol]):
         """exports is a list of tuples mapping an internal name (mangled) to an
         external name (unmangled).
         """
@@ -282,9 +282,9 @@ class FaslLibInfoSection(FaslSection):
         for name, exports in self.libs.items():
             s += serialize_string(name.mangle())
             s += struct.pack('<I', len(exports))
-            for internal, external in exports:
-                s += serialize_string(internal.name)
-                s += serialize_string(external.name)
+            for export in exports:
+                s += serialize_string(export.internal.name)
+                s += serialize_string(export.external.name)
 
         return s
 
@@ -305,7 +305,7 @@ class FaslLibInfoSection(FaslSection):
                 external, offset = deserialize_string(s, offset)
                 internal = Symbol(internal)
                 external = Symbol(external)
-                exports.append((internal, external))
+                exports.append(LibraryExportedSymbol(internal, external))
             section.add_library(lib_name, exports)
 
         return section
@@ -590,15 +590,19 @@ def print_general_info(fasl: Fasl):
 
     lib_info = fasl.get_section('libinfo')
     if lib_info:
+        nlibs = len(lib_info.libs)
         print()
-        print(f'{len(lib_info.libs)} libraries available: ', end='')
+        print(f'{nlibs} librar{"ies" if nlibs != 1 else "y"} available: ', end='')
         print(', '.join(str(n) for n in lib_info.libs.keys()))
 
         for lib_name, exports in lib_info.libs.items():
-            exports.sort(key=lambda r: r[1])
+            exports.sort(key=lambda r: r.external.name)
             print(f'   {lib_name} has {len(exports)} export(s):')
-            for internal, external in exports:
-                print(f'      exported={external}  internal={internal}')
+            for ex in exports:
+                if ex.internal == ex.external:
+                    print(f'      {ex.external}')
+                else:
+                    print(f'      {ex.external} (internal: {ex.internal})')
 
 
 def main(args):
