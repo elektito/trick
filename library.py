@@ -105,7 +105,8 @@ class LibraryName:
 
 
 class LibraryExportedSymbol:
-    def __init__(self, internal, external, *, export_source_file=None):
+    def __init__(self, internal, external, *, export_source_file=None, is_macro=False):
+        self.is_macro = is_macro
         self.internal = internal
         self.external = external
         self.export_source_file = export_source_file

@@ -213,16 +213,16 @@ class LibraryImportSet(ImportSet):
         self.lib_name = lib_name
 
         self.exports = []
-        for export in exports:
-            self.exports.append((lib_name.mangle_symbol(export.internal),
-                                 export.external))
+        for export_info in exports:
+            mangled = lib_name.mangle_symbol(export_info.internal)
+            self.exports.append((mangled, export_info))
 
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
-        for internal, external in self.exports:
-            if sym == external:
+        for mangled_internal, export_info in self.exports:
+            if sym == export_info.external:
                 return SymbolInfo(
-                    symbol=internal,
-                    kind=SymbolKind.LIBRARY,
+                    symbol=mangled_internal,
+                    kind=SymbolKind.LIBRARY if not export_info.is_macro else SymbolKind.MACRO,
                     library_name=self.lib_name,
                     immutable=True,
                 )
@@ -1904,6 +1904,9 @@ class Compiler:
         for export in lib_env.exports:
             # set at_head to true to make sure specials are also matched
             info = lib_env.lookup_symbol(export.internal, at_head=True)
+            if info.kind == SymbolKind.MACRO:
+                export.is_macro = True
+                continue
             if info.kind != SymbolKind.FREE:
                 continue
             if lib_name.mangle_symbol(export.internal) not in self.defined_symbols:

@@ -285,6 +285,7 @@ class FaslLibInfoSection(FaslSection):
             for export in exports:
                 s += serialize_string(export.internal.name)
                 s += serialize_string(export.external.name)
+                s += struct.pack('B', 1 if export.is_macro else 0)
 
         return s
 
@@ -303,9 +304,11 @@ class FaslLibInfoSection(FaslSection):
             for _ in range(nexports):
                 internal, offset = deserialize_string(s, offset)
                 external, offset = deserialize_string(s, offset)
+                is_macro = bool(s[offset])
+                offset += 1
                 internal = Symbol(internal)
                 external = Symbol(external)
-                exports.append(LibraryExportedSymbol(internal, external))
+                exports.append(LibraryExportedSymbol(internal, external, is_macro=is_macro))
             section.add_library(lib_name, exports)
 
         return section
@@ -599,10 +602,13 @@ def print_general_info(fasl: Fasl):
             exports.sort(key=lambda r: r.external.name)
             print(f'   {lib_name} has {len(exports)} export(s):')
             for ex in exports:
+                is_macro = ''
+                if ex.is_macro:
+                    is_macro = ' [M]'
                 if ex.internal == ex.external:
-                    print(f'      {ex.external}')
+                    print(f'      {ex.external}' + is_macro)
                 else:
-                    print(f'      {ex.external} (internal: {ex.internal})')
+                    print(f'      {ex.external} (internal: {ex.internal})' + is_macro)
 
 
 def main(args):
