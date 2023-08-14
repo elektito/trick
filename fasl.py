@@ -543,7 +543,11 @@ def print_dbg_records(fasl: Fasl):
     else:
         print('Define records:')
     for i, r in enumerate(defines, 1):
-        print(f'[{i}] {r.symbol_name} src={r.src_start}-{r.src_end} asm={r.asm_start}-{r.asm_end}')
+        symbol_name = r.symbol_name
+        if symbol_name.startswith('##'):
+            lib_name, unmangled_name = LibraryName.unmangle_symbol(symbol_name)
+            symbol_name = f'{unmangled_name} in library {lib_name}'
+        print(f'[{i}] {symbol_name} src={r.src_start}-{r.src_end} asm={r.asm_start}-{r.asm_end}')
         text = get_source(r.asm_start)
         if text:
             print(text[r.src_start:r.src_end])

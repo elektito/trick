@@ -1962,9 +1962,10 @@ class Compiler:
             if self.debug_info:
                 if form.src_start is not None and form.src_end is not None:
                     form_code = \
-                        [S(':define-start'), String(name_sym.name), Integer(form.src_start)] + \
+                        [S(':define-start'), String(info.symbol.name), Integer(form.src_start)] + \
                         form_code + \
                         [S(':define-end'), Integer(form.src_end)]
+
             self.assembler.assemble(form_code, self.macros_fasl)
         elif info and info.is_special(SpecialForms.BEGIN):
             form_code = self.compile_toplevel_begin(form, env)
