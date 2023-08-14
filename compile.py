@@ -1604,6 +1604,14 @@ class Compiler:
             else:
                 assert False, 'unhandled context'
 
+            # we need to do this for now, because when debug info is enabled,
+            # this function's output is always non-empty, which is then
+            # interpreted as something that leaves stuff on the stack, and
+            # appended a "drop" instruction. by adding a "void" we make sure
+            # there is always something to actually drop.
+            if include_code == []:
+                include_code = [S('void')]
+
             if self.debug_info:
                 include_code = [S(':filename-start'), String(full_path)] + include_code
                 include_code += [S(':filename-end')]
