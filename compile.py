@@ -1545,7 +1545,7 @@ class Compiler:
 
         # then search current working directory
         if path.exists():
-            return path.absolute()
+            return str(path.absolute())
 
         # otherwise search any user specified search paths
         for ipath in self.include_paths:
