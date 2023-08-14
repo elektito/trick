@@ -97,7 +97,7 @@
         eqv?
         ;; eval
         ;; even?
-        ;; (inexact exact->inexact)
+        ;; (rename inexact exact->inexact)
         ;; exact?
         ;; exp
         ;; expt
@@ -107,7 +107,7 @@
         ;; gcd
         if
         ;; imag-part
-        ;; (exact inexact->exact)
+        ;; (rename exact inexact->exact)
         ;; input-port?
         integer->char
         integer?
