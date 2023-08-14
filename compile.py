@@ -203,12 +203,20 @@ class LibraryImportSet(ImportSet):
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
         for e in self.exports:
             if sym == e.external:
+                primcall_nargs = None
+                primcall_code = None
+                if e.kind == ExportKind.PRIMCALL:
+                    prim = primcalls[e.internal.name]
+                    primcall_nargs = prim['nargs']
+                    primcall_code = prim['code']
                 return SymbolInfo(
                     symbol=e.internal,
                     kind=e.kind.to_symbol_kind(),
                     library_name=self.lib_name,
                     special_type=e.special_type,
                     aux_type=e.aux_type,
+                    primcall_nargs=primcall_nargs,
+                    primcall_code=primcall_code,
                     immutable=True,
                 )
 
