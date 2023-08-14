@@ -2126,15 +2126,6 @@ class Compiler:
         except CompileError as e:
             raise self._rebuild_compile_error(e)
 
-        all_defines = set(self.defined_symbols.keys())
-        for lib in self.lib_fasls:
-            all_defines |= set(lib.defines)
-
-        try:
-            env.check_for_undefined()
-        except CompileError as e:
-            raise self._rebuild_compile_error(e)
-
         program = Program(
             code=code,
             defined_libs=self.defined_libs,
