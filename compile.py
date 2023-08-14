@@ -505,13 +505,13 @@ class Environment:
             info = self.lookup_symbol(sym)
             if info.kind == SymbolKind.FREE:
                 raise CompileError(
-                    f'Unbound variable {sym} is being read.', form=sym)
+                    f'Unbound variable is read: {sym}', form=sym)
 
         for sym in self.written_free_symbols:
             info = self.lookup_symbol(sym)
             if info.kind == SymbolKind.FREE:
                 raise CompileError(
-                    f'Unbound variable {sym} is being set.', form=sym)
+                    f'Unbound variable is set: {sym}', form=sym)
 
 
 primcalls = {
