@@ -306,7 +306,6 @@ class Assembler:
     def assemble_program(self, program: Program) -> Fasl:
         fasl = Fasl()
         self.assemble(program.code, fasl, dbg_info=program.debug_info_enabled)
-        fasl.defines = program.defines
 
         if program.defined_libs:
             libs_section = FaslLibInfoSection()

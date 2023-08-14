@@ -8,11 +8,11 @@ import re
 import platform
 import sys
 import argparse
-from library import LibraryExportedSymbol, LibraryName
+from library import AuxKeywords, ExportKind, LibraryExportedSymbol, LibraryName, SpecialForms, SymbolKind
 from program import Program
 
 import runtime
-from fasl import DefineInfo, Fasl
+from fasl import Fasl
 from read import Reader, ReadError
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String, Vector
 from assemble import Assembler
@@ -75,39 +75,18 @@ def asm_code_for_features():
     return code
 
 
-class SymbolKind(Enum):
-    SPECIAL = 1
-    PRIMCALL = 2
-    LOCAL = 3
-    LIBRARY = 4
-    FREE = 5
-    MACRO = 6
-    AUX = 7
+class DefineKind(Enum):
+    NORMAL = 1
+    MACRO = 2
 
 
-class AuxKeywords(Enum):
-    UNQUOTE = 'unquote'
-    UNQUOTE_SPLICING = 'unquote-splicing'
-    ELSE = 'else'
-    ARROW = '=>'
-    UNDERSCORE = '_'
-    ELLIPSIS = '...'
+class DefineInfo:
+    def __init__(self, name: Symbol, kind: DefineKind):
+        self.name = name
+        self.kind = kind
 
-
-class SpecialForms(Enum):
-    DEFINE = 'define'
-    DEFINE_MACRO = 'define-macro'
-    DEFINE_LIBRARY = 'define-library'
-    BEGIN = 'begin'
-    SET = 'set!'
-    IF = 'if'
-    LAMBDA = 'lambda'
-    LET = 'let'
-    LETREC = 'letrec'
-    QUOTE = 'quote'
-    INCLUDE = 'include'
-    INCLUDE_CI = 'include-ci'
-    COND_EXPAND = 'cond-expand'
+    def __repr__(self):
+        return f'<DefineInfo {self.name} ({self.kind.name})>'
 
 
 class SymbolInfo:
@@ -219,25 +198,24 @@ class LibraryImportSet(ImportSet):
     def __init__(self, lib_name: LibraryName, exports: list):
         self.lib_name = lib_name
 
-        self.exports = []
-        for export_info in exports:
-            mangled = lib_name.mangle_symbol(export_info.internal)
-            self.exports.append((mangled, export_info))
+        self.exports = exports
 
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
-        for mangled_internal, export_info in self.exports:
-            if sym == export_info.external:
+        for e in self.exports:
+            if sym == e.external:
                 return SymbolInfo(
-                    symbol=mangled_internal,
-                    kind=SymbolKind.LIBRARY if not export_info.is_macro else SymbolKind.MACRO,
+                    symbol=e.internal,
+                    kind=e.kind.to_symbol_kind(),
                     library_name=self.lib_name,
+                    special_type=e.special_type,
+                    aux_type=e.aux_type,
                     immutable=True,
                 )
 
         return None
 
     def get_all_names(self):
-        return [e.external for _, e in self.exports]
+        return [e.external for e in self.exports]
 
     def __str__(self):
         return f'<LibraryImportSet {self.lib_name}>'
@@ -408,18 +386,22 @@ class EnvironmentFrame:
 class Environment:
     def __init__(self, *, lib_name=None):
         self.frames: list[EnvironmentFrame] = []
-        self.macros = []
         self.import_sets = []
         self.exports = []
         self.lib_name = lib_name
+        self.defined_symbols = {}
+        self.written_free_symbols = []
+        self.read_free_symbols = []
 
     def copy(self):
         copy = Environment()
         copy.frames = [f.copy() for f in self.frames]
-        copy.macros = [m for m in self.macros]
         copy.import_sets = self.import_sets
         copy.exports = [i for i in self.exports]
         copy.lib_name = self.lib_name
+        copy.defined_symbols = {k: v for k, v in self.defined_symbols.items()}
+        copy.written_free_symbols = [i for i in self.written_free_symbols]
+        copy.read_free_symbols = [i for i in self.read_free_symbols]
         return copy
 
     def add_frame(self, variables):
@@ -435,9 +417,6 @@ class Environment:
                 return [Integer(i), Integer(j)]
         return None
 
-    def add_macro(self, name: Symbol):
-        self.macros.append(name)
-
     def add_import(self, import_set: ImportSet):
         self.import_sets.append(import_set)
 
@@ -450,22 +429,34 @@ class Environment:
                 local_frame_idx=local[0],
                 local_var_idx=local[1],
             )
+
+        mangled_sym = sym
+        if self.lib_name:
+            mangled_sym = self.lib_name.mangle_symbol(sym)
+        define_info = self.defined_symbols.get(mangled_sym)
+        if define_info:
+            kind = SymbolKind.DEFINED_NORMAL
+            if define_info.kind == DefineKind.MACRO:
+                kind = SymbolKind.DEFINED_MACRO
+            return SymbolInfo(
+                symbol=mangled_sym,
+                kind=kind,
+            )
+
         for import_set in self.import_sets:
             result = import_set.lookup(sym)
             if result is not None:
                 return result
 
-        is_macro = sym in self.macros
-        kind = SymbolKind.MACRO if is_macro else SymbolKind.FREE
         if self.lib_name:
             return SymbolInfo(
                 symbol=self.lib_name.mangle_symbol(sym),
-                kind=kind,
+                kind=SymbolKind.FREE,
             )
         else:
             return SymbolInfo(
                 symbol=sym,
-                kind=kind,
+                kind=SymbolKind.FREE,
             )
 
     def add_export(self, sym: Symbol, source_file: (SourceFile | None)):
@@ -489,7 +480,38 @@ class Environment:
             names.extend(frame.variables)
         for import_set in self.import_sets:
             names.extend(import_set.get_all_names())
+        names.extend(self.defined_symbols.keys())
         return names
+
+    def add_define(self, sym: Symbol, kind: DefineKind):
+        if self.lib_name:
+            sym = self.lib_name.mangle_symbol(sym)
+        self.defined_symbols[sym] = DefineInfo(sym, kind)
+
+    def add_read(self, sym: Symbol):
+        assert not sym.name.startswith('##'), \
+            'add_read is supposed to be called with external names ' \
+            'but has been passesd a mangled name instead.'
+        self.read_free_symbols.append(sym)
+
+    def add_write(self, sym: Symbol):
+        assert not sym.name.startswith('##'), \
+            'add_write is supposed to be called with external names ' \
+            'but has been passesd a mangled name instead.'
+        self.written_free_symbols.append(sym)
+
+    def check_for_undefined(self):
+        for sym in self.read_free_symbols:
+            info = self.lookup_symbol(sym)
+            if info.kind == SymbolKind.FREE:
+                raise CompileError(
+                    f'Unbound variable {sym} is being read.', form=sym)
+
+        for sym in self.written_free_symbols:
+            info = self.lookup_symbol(sym)
+            if info.kind == SymbolKind.FREE:
+                raise CompileError(
+                    f'Unbound variable {sym} is being set.', form=sym)
 
 
 primcalls = {
@@ -768,8 +790,6 @@ class CompileError(Exception):
 class Compiler:
     def __init__(self, libs: list[Fasl], debug_info=False):
         self.assembler = Assembler()
-        self.set_symbols = OrderedSet()
-        self.read_symbols = OrderedSet()
         self.macros_fasl = Fasl()
         self.lib_fasls = libs
         self.debug_info = debug_info
@@ -808,7 +828,7 @@ class Compiler:
               isinstance(form[0], Symbol):
             name_sym = form[0]
             info = self.lookup_symbol(name_sym, env)
-            if info.kind != SymbolKind.MACRO:
+            if info.kind != SymbolKind.DEFINED_MACRO:
                 break
 
             src_start = form.src_start
@@ -838,7 +858,7 @@ class Compiler:
             if name_sym.name == 'quote':
                 return form
             info = self.lookup_symbol(name_sym, env)
-            if info.kind != SymbolKind.MACRO:
+            if info.kind != SymbolKind.DEFINED_MACRO:
                 break
 
             args = form.cdr
@@ -936,7 +956,7 @@ class Compiler:
 
         return name, value
 
-    def process_define_macro(self, expr, env):
+    def process_define_macro(self, expr, env: Environment):
         # we'll be compiling the macro almost exactly the same as we compile a
         # regular top-level define. we only set the define type as a macro to
         # env.
@@ -945,21 +965,17 @@ class Compiler:
         if len(expr) < 3:
             raise self._compile_error('Not enough arguments for define-macro')
 
-        if name in env.macros:
-            raise self._compile_error(
-                f'Duplicate macro definition: {name}')
-
         info = env.lookup_symbol(name)
-        self.defined_symbols[info.symbol] = DefineInfo(is_macro=True)
         if info.immutable:
             raise self._compile_error(
                 f'Attempting to assign immutable variable: {name}',
                 form=name)
+        if info.kind != SymbolKind.FREE:
+            raise self._compile_error(f'Duplicate definition for: {name}')
+        env.add_define(name, DefineKind.MACRO)
 
         code = self.compile_form(lambda_form, env)
         code += [S('set'), info.symbol, S('void')]
-
-        env.add_macro(name)
 
         return code, name
 
@@ -1139,6 +1155,10 @@ class Compiler:
             raise self._compile_error(
                 f'Invalid use of aux keyword: {sym}',
                 form=sym)
+        elif info.kind == SymbolKind.SPECIAL:
+            raise self._compile_error(
+                f'Invalid use of special symbol: {sym}',
+                form=sym)
         elif info.kind == SymbolKind.PRIMCALL:
             # using a primitive like "car" or "cons" as a symbol. this should
             # return a function that performs those primitives. what we do is
@@ -1154,17 +1174,17 @@ class Compiler:
             return [S('ldf'), Integer(info.primcall_nargs), func_code]
         elif info.kind == SymbolKind.LOCAL:
             return [S('ld'), [info.local_frame_idx, info.local_var_idx]]
-        elif info.kind == SymbolKind.LIBRARY:
-            return [S('get'), info.symbol]
         elif info.kind == SymbolKind.FREE:
-            self.read_symbols.add((info.symbol, sym, self.current_source))
+            env.add_read(sym)
             return [S('get'), info.symbol]
-        elif info.kind == SymbolKind.MACRO:
+        elif info.kind == SymbolKind.DEFINED_NORMAL:
+            return [S('get'), info.symbol]
+        elif info.kind == SymbolKind.DEFINED_MACRO:
             raise self._compile_error(
                 f'Invalid use of macro name: {sym}',
                 form=sym)
         else:
-            assert False, 'unhandled symbol kind'
+            assert False, f'unhandled symbol kind: {info.kind}'
 
     def compile_string(self, s: String, env):
         return [S('ldstr'), s]
@@ -1373,15 +1393,14 @@ class Compiler:
             raise self._compile_error(
                 f'Attempting to assign immutable variable: {name}',
                 form=name)
+        if info.kind not in (SymbolKind.DEFINED_NORMAL,
+                             SymbolKind.LOCAL):
+            raise self._compile_error(
+                f'Cannot set: {name}')
 
         if info.kind == SymbolKind.LOCAL:
             code += [S('st'), [info.local_frame_idx, info.local_var_idx]]
-        elif info.kind == SymbolKind.FREE:
-            code += [S('set'), info.symbol]
-            self.set_symbols.add((info.symbol, name, self.current_source))
-        elif info.kind == SymbolKind.LIBRARY:
-            # this should not normally be used, since library imports are
-            # immutable, but maybe we'll find a use for it later.
+        elif info.kind == SymbolKind.DEFINED_NORMAL:
             code += [S('set'), info.symbol]
         else:
             assert False, 'unhandled symbol kind'
@@ -1860,18 +1879,25 @@ class Compiler:
         for declaration in form.cddr():
             code += self.compile_library_declaration(declaration, lib_env)
 
-        # check exports
+        # check exports add more information to them
         for export in lib_env.exports:
-            if info.kind == SymbolKind.MACRO:
-                export.is_macro = True
-                continue
-            if info.kind != SymbolKind.FREE:
-                continue
-            if lib_name.mangle_symbol(export.internal) not in self.defined_symbols:
+            info = lib_env.lookup_symbol(export.internal)
+            export.kind = ExportKind.from_symbol_kind(info.kind)
+            export.special_type = info.special_type
+            export.aux_type = info.aux_type
+            if info.kind in (SymbolKind.DEFINED_NORMAL,
+                             SymbolKind.DEFINED_MACRO):
+                export.internal = info.symbol
+            if info.kind == SymbolKind.FREE:
                 raise self._compile_error(
                     f'No such identifier to export: {export.internal}',
                     form=export.internal,
                     source=export.export_source_file)
+
+        try:
+            lib_env.check_for_undefined()
+        except CompileError as e:
+            raise self._rebuild_compile_error(e)
 
         # add library to available_libs so that it becomes immediately available
         # to libraries defined later
@@ -1914,7 +1940,6 @@ class Compiler:
         elif info and info.is_special(SpecialForms.DEFINE_MACRO):
             form_code, name = self.process_define_macro(form, env)
 
-            self.macros_fasl.add_define(name, is_macro=True)
             self.assembler.assemble(form_code, self.macros_fasl)
 
             # if we're not compiling a library, do not include the macro
@@ -1930,7 +1955,7 @@ class Compiler:
                     f'Attempting to assign immutable variable: {name_sym}',
                     form=name_sym)
 
-            self.defined_symbols[info.symbol] = DefineInfo(is_macro=False)
+            env.add_define(name_sym, DefineKind.NORMAL)
             form_code = self.compile_form(value, env)
 
             form_code += [S('set'), info.symbol, S('void')]
@@ -1940,7 +1965,6 @@ class Compiler:
                         [S(':define-start'), String(name_sym.name), Integer(form.src_start)] + \
                         form_code + \
                         [S(':define-end'), Integer(form.src_end)]
-            self.macros_fasl.add_define(name_sym, is_macro=False)
             self.assembler.assemble(form_code, self.macros_fasl)
         elif info and info.is_special(SpecialForms.BEGIN):
             form_code = self.compile_toplevel_begin(form, env)
@@ -2094,29 +2118,19 @@ class Compiler:
             code = [S(':filename-start'), String(filename)] + code
             code += [S(':filename-end')]
 
+        env.check_for_undefined()
+
         all_defines = set(self.defined_symbols.keys())
         for lib in self.lib_fasls:
             all_defines |= set(lib.defines)
 
-        for unique_sym, sym, filename in self.set_symbols:
-            if unique_sym not in all_defines:
-                raise self._compile_error(
-                    f'Symbol {sym} is set at some point but never defined',
-                    form=sym, source=filename)
-
-        for unique_sym, sym, filename in self.read_symbols:
-            if unique_sym not in all_defines:
-                for impset in env.import_sets:
-                    if impset.lookup(sym) is not None:
-                        break
-                else:
-                    raise self._compile_error(
-                        f'Symbol {sym} is read at some point but never defined',
-                        form=sym, source=filename)
+        try:
+            env.check_for_undefined()
+        except CompileError as e:
+            raise self._rebuild_compile_error(e)
 
         program = Program(
             code=code,
-            defines=self.defined_symbols,
             defined_libs=self.defined_libs,
             debug_info_enabled=self.debug_info,
         )

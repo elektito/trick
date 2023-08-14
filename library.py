@@ -1,5 +1,69 @@
+from enum import Enum
 import re
+import struct
+from typing import Optional
 from machinetypes import Integer, List, Symbol
+
+
+class SymbolKind(Enum):
+    SPECIAL = 1
+    AUX = 2
+    PRIMCALL = 3
+    LOCAL = 4
+    DEFINED_NORMAL = 5
+    DEFINED_MACRO = 6
+    FREE = 7
+
+
+class ExportKind(Enum):
+    NORMAL = 1
+    SPECIAL = 2
+    AUX = 3
+    PRIMCALL = 4
+    MACRO = 5
+
+    def to_symbol_kind(self):
+        return {
+            ExportKind.NORMAL: SymbolKind.DEFINED_NORMAL,
+            ExportKind.SPECIAL: SymbolKind.SPECIAL,
+            ExportKind.AUX: SymbolKind.AUX,
+            ExportKind.PRIMCALL: SymbolKind.PRIMCALL,
+            ExportKind.MACRO: SymbolKind.DEFINED_MACRO,
+        }[self]
+
+    @staticmethod
+    def from_symbol_kind(kind: SymbolKind):
+        return {
+            SymbolKind.SPECIAL: ExportKind.SPECIAL,
+            SymbolKind.PRIMCALL: ExportKind.PRIMCALL,
+            SymbolKind.AUX: ExportKind.AUX,
+            SymbolKind.DEFINED_MACRO: ExportKind.MACRO,
+        }.get(kind, ExportKind.NORMAL)
+
+
+class AuxKeywords(Enum):
+    UNQUOTE = 'unquote'
+    UNQUOTE_SPLICING = 'unquote-splicing'
+    ELSE = 'else'
+    ARROW = '=>'
+    UNDERSCORE = '_'
+    ELLIPSIS = '...'
+
+
+class SpecialForms(Enum):
+    DEFINE = 'define'
+    DEFINE_MACRO = 'define-macro'
+    DEFINE_LIBRARY = 'define-library'
+    BEGIN = 'begin'
+    SET = 'set!'
+    IF = 'if'
+    LAMBDA = 'lambda'
+    LET = 'let'
+    LETREC = 'letrec'
+    QUOTE = 'quote'
+    INCLUDE = 'include'
+    INCLUDE_CI = 'include-ci'
+    COND_EXPAND = 'cond-expand'
 
 
 class LibraryName:
@@ -31,6 +95,7 @@ class LibraryName:
         return f'##{nparts}-' + '-'.join(mangled_parts)
 
     def mangle_symbol(self, sym: Symbol) -> Symbol:
+        assert not sym.name.startswith('##')
         return Symbol(self.mangle() + '-' + sym.name)
 
     @staticmethod
@@ -105,8 +170,19 @@ class LibraryName:
 
 
 class LibraryExportedSymbol:
-    def __init__(self, internal, external, *, export_source_file=None, is_macro=False):
-        self.is_macro = is_macro
+    def __init__(self,
+                 internal: Symbol,
+                 external: Symbol,
+                 *,
+                 kind: Optional[ExportKind]=None,
+                 special_type: Optional[SpecialForms]=None,
+                 aux_type: Optional[AuxKeywords]=None,
+                 export_source_file=None):
+        self.kind = kind
         self.internal = internal
         self.external = external
+
+        self.special_type = special_type
+        self.aux_type = aux_type
+
         self.export_source_file = export_source_file

@@ -3,7 +3,7 @@ import io
 import struct
 from collections import defaultdict
 
-from library import LibraryExportedSymbol, LibraryName
+from library import AuxKeywords, ExportKind, LibraryExportedSymbol, LibraryName, SpecialForms
 from machinetypes import Integer, List, String, Symbol, DEFAULT_ENCODING
 from snippet import show_snippet
 
@@ -259,7 +259,7 @@ class FaslLibInfoSection(FaslSection):
     section_id = 2
 
     def __init__(self):
-        self.libs: dict[LibraryName, list[tuple[Symbol, Symbol]]] = {}
+        self.libs: dict[LibraryName, list[LibraryExportedSymbol]] = {}
 
     @property
     def name(self):
@@ -282,7 +282,20 @@ class FaslLibInfoSection(FaslSection):
             for export in exports:
                 s += serialize_string(export.internal.name)
                 s += serialize_string(export.external.name)
-                s += struct.pack('B', 1 if export.is_macro else 0)
+
+                s += struct.pack('<I', export.kind.value)
+
+                if export.special_type is None:
+                    special_idx = -1
+                else:
+                    special_idx = list(SpecialForms).index(export.special_type)
+                s += struct.pack('<i', special_idx)
+
+                if export.aux_type is None:
+                    aux_idx = -1
+                else:
+                    aux_idx = list(AuxKeywords).index(export.aux_type)
+                s += struct.pack('<i', aux_idx)
 
         return s
 
@@ -301,34 +314,36 @@ class FaslLibInfoSection(FaslSection):
             for _ in range(nexports):
                 internal, offset = deserialize_string(s, offset)
                 external, offset = deserialize_string(s, offset)
-                is_macro = bool(s[offset])
-                offset += 1
                 internal = Symbol(internal)
                 external = Symbol(external)
-                exports.append(LibraryExportedSymbol(internal, external, is_macro=is_macro))
+
+                kind_int, = struct.unpack('<I', s[offset:offset+4])
+                kind = ExportKind(kind_int)
+                offset += 4
+
+                special_idx, = struct.unpack('<i', s[offset:offset+4])
+                offset += 4
+                if special_idx < 0:
+                    special_type = None
+                else:
+                    special_type = list(SpecialForms)[special_idx]
+
+                aux_idx, = struct.unpack('<i', s[offset:offset+4])
+                offset += 4
+                if special_idx < 0:
+                    aux_type = None
+                else:
+                    aux_type = list(AuxKeywords)[aux_idx]
+
+                exports.append(
+                    LibraryExportedSymbol(
+                        internal, external,
+                        kind=kind,
+                        special_type=special_type,
+                        aux_type=aux_type))
             section.add_library(lib_name, exports)
 
         return section
-
-
-class DefineInfo:
-    def __init__(self, is_macro=False):
-        self.is_macro = is_macro
-
-    def dump(self, output):
-        value = 1 if self.is_macro else 0
-        output.write(struct.pack('<I', value))
-
-    @staticmethod
-    def load(input):
-        value = input.read(4)
-        value, = struct.unpack('<I', value)
-        is_macro = (value == 1)
-        info = DefineInfo(is_macro=is_macro)
-        return info
-
-    def __repr__(self):
-        return f'<DefineInfo is_macro={self.is_macro}>'
 
 
 class Fasl:
@@ -336,7 +351,6 @@ class Fasl:
         self.filename = filename
         self.strtab = []
         self.symtab = []
-        self.defines = {}
         self.code = b''
         self.sections = []
 
@@ -355,13 +369,6 @@ class Fasl:
                 return section
 
         return None
-
-    def add_define(self, sym: Symbol, is_macro=False):
-        assert isinstance(sym, Symbol)
-        if sym not in self.symtab:
-            self.add_symbol(sym)
-        self.defines[sym] = DefineInfo(
-            is_macro=is_macro)
 
     def add_symbol(self, sym: Symbol) -> int:
         assert isinstance(sym, Symbol)
@@ -387,11 +394,10 @@ class Fasl:
         # write fasl header
         output.write(FASL_MAGIC)
         output.write(struct.pack(
-            '<BIIIII',
+            '<BIIII',
             FASL_VERSION,              # version
             len(self.strtab),          # number of string ltierals
             len(self.symtab),          # number of symbols
-            len(self.defines),         # number of globally defined symbols
             len(self.code),            # code sizes
             len(self.sections),  # number of sections
         ))
@@ -408,12 +414,6 @@ class Fasl:
             strnum = [s.value for s in self.strtab].index(sym.name)
             output.write(struct.pack('<I', strnum))
 
-        # write defines
-        for sym, info in self.defines.items():
-            symnum = self.symtab.index(sym)
-            output.write(struct.pack('<I', symnum))
-            info.dump(output)
-
         # write code
         output.write(self.code)
 
@@ -429,9 +429,9 @@ class Fasl:
         if magic != FASL_MAGIC:
             raise FaslError('Bad magic')
 
-        headers = input.read(21)
-        version, nstrs, nsyms, ndefines, csize, nsecs = struct.unpack(
-            '<BIIIII', headers)
+        headers = input.read(17)
+        version, nstrs, nsyms, csize, nsecs = struct.unpack(
+            '<BIIII', headers)
 
         if version != FASL_VERSION:
             raise FaslError(f'Unsupported version: {version}')
@@ -445,12 +445,6 @@ class Fasl:
             strnum, = struct.unpack('<I', input.read(4))
             sym = Symbol(fasl.strtab[strnum].value)
             fasl.symtab.append(sym)
-
-        for i in range(ndefines):
-            symnum, = struct.unpack('<I', input.read(4))
-            sym = fasl.symtab[symnum]
-            info = DefineInfo.load(input)
-            fasl.defines[sym] = info
 
         fasl.code = input.read(csize)
 
@@ -584,10 +578,6 @@ def print_general_info(fasl: Fasl):
         print(f'   {s}')
     print()
 
-    print(f'{len(fasl.defines)} definitions:')
-    for name, info in fasl.defines.items():
-        print(f'   {name}{" (M)" if info.is_macro else ""}')
-
     lib_info = fasl.get_section('libinfo')
     if lib_info:
         nlibs = len(lib_info.libs)
@@ -599,13 +589,13 @@ def print_general_info(fasl: Fasl):
             exports.sort(key=lambda r: r.external.name)
             print(f'   {lib_name} has {len(exports)} export(s):')
             for ex in exports:
-                is_macro = ''
-                if ex.is_macro:
-                    is_macro = ' [M]'
+                kind = ''
+                if ex.kind != ExportKind.NORMAL:
+                    kind = f' [{ex.kind.name}]'
                 if ex.internal == ex.external:
-                    print(f'      {ex.external}' + is_macro)
+                    print(f'      {ex.external}' + kind)
                 else:
-                    print(f'      {ex.external} (internal: {ex.internal})' + is_macro)
+                    print(f'      {ex.external} (internal: {ex.internal})' + kind)
 
 
 def main(args):
