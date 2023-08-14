@@ -441,7 +441,7 @@ class Environment:
     def add_import(self, import_set: ImportSet):
         self.import_sets.append(import_set)
 
-    def lookup_symbol(self, sym: Symbol, *, at_head=False) -> SymbolInfo:
+    def lookup_symbol(self, sym: Symbol) -> SymbolInfo:
         local = self.locate_local(sym)
         if local:
             return SymbolInfo(
@@ -453,8 +453,7 @@ class Environment:
         for import_set in self.import_sets:
             result = import_set.lookup(sym)
             if result is not None:
-                if result.kind != SymbolKind.SPECIAL or at_head:
-                    return result
+                return result
 
         is_macro = sym in self.macros
         kind = SymbolKind.MACRO if is_macro else SymbolKind.FREE
@@ -797,9 +796,9 @@ class Compiler:
             form=e.form,
             source=e.source)
 
-    def lookup_symbol(self, sym: Symbol, env: Environment, *, at_head=False) -> SymbolInfo:
+    def lookup_symbol(self, sym: Symbol, env: Environment) -> SymbolInfo:
         try:
-            return env.lookup_symbol(sym, at_head=at_head)
+            return env.lookup_symbol(sym)
         except CompileError as e:
             raise self._rebuild_compile_error(e)
 
@@ -1680,7 +1679,7 @@ class Compiler:
                 f'Cannot compile improper list: {expr}')
 
         if isinstance(expr.car, Symbol):
-            info =  env.lookup_symbol(expr.car, at_head=True)
+            info =  env.lookup_symbol(expr.car)
             if info.kind == SymbolKind.AUX:
                 raise self._compile_error(
                     f'Invalid use of aux keyword "{expr.car}"',
@@ -1863,8 +1862,6 @@ class Compiler:
 
         # check exports
         for export in lib_env.exports:
-            # set at_head to true to make sure specials are also matched
-            info = lib_env.lookup_symbol(export.internal, at_head=True)
             if info.kind == SymbolKind.MACRO:
                 export.is_macro = True
                 continue
@@ -1908,7 +1905,7 @@ class Compiler:
 
         info = None
         if isinstance(form.car, Symbol):
-            info = self.lookup_symbol(form.car, env, at_head=True)
+            info = self.lookup_symbol(form.car, env)
 
         if info and info.kind == SymbolKind.AUX:
             raise self._compile_error(
