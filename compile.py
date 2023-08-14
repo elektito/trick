@@ -2121,7 +2121,10 @@ class Compiler:
             code = [S(':filename-start'), String(full_path)] + code
             code += [S(':filename-end')]
 
-        env.check_for_undefined()
+        try:
+            env.check_for_undefined()
+        except CompileError as e:
+            raise self._rebuild_compile_error(e)
 
         all_defines = set(self.defined_symbols.keys())
         for lib in self.lib_fasls:
