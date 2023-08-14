@@ -1537,21 +1537,22 @@ class Compiler:
             cur_file_path = Path(self.current_source.filename)
             relative_file = cur_file_path.parent / filename
             if relative_file.exists():
-                return str(relative_file)
+                return str(relative_file.absolute())
 
         if filename.startswith('./') or filename.startswith('../'):
             # when the file is relative to . or .., don't look anywhere else.
             return None
 
         # then search current working directory
-        if os.path.exists(filename):
-            return filename
+        if path.exists():
+            return path.absolute()
 
         # otherwise search any user specified search paths
-        for path in self.include_paths:
-            full_path = os.path.join(path, filename)
-            if os.path.exists(full_path):
-                return str(full_path)
+        for ipath in self.include_paths:
+            ipath = Path(ipath)
+            full_path = ipath / filename
+            if full_path.exists():
+                return str(full_path.absolute())
 
         return None
 
@@ -1604,7 +1605,7 @@ class Compiler:
                 assert False, 'unhandled context'
 
             if self.debug_info:
-                include_code = [S(':filename-start'), filename] + include_code
+                include_code = [S(':filename-start'), String(full_path)] + include_code
                 include_code += [S(':filename-end')]
 
             code += include_code
@@ -2116,7 +2117,8 @@ class Compiler:
             code += [S('drop')]
 
         if filename and self.debug_info:
-            code = [S(':filename-start'), String(filename)] + code
+            full_path = str(Path(filename).absolute())
+            code = [S(':filename-start'), String(full_path)] + code
             code += [S(':filename-end')]
 
         env.check_for_undefined()
