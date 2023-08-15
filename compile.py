@@ -815,8 +815,8 @@ class Compiler:
         self.compiling_library = True
 
     def _compile_error(self, msg, form=None, source=None):
-        form = form or self.current_form
-        source = source or self.current_source
+        form = form if form is not None else self.current_form
+        source = source if source is not None else self.current_source
         return CompileError(msg, form=form, source=source)
 
     def _rebuild_compile_error(self, e: CompileError) -> CompileError:
