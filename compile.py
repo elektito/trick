@@ -1930,15 +1930,14 @@ class Compiler:
         return code
 
     def compile_toplevel_begin(self, form: Pair, env: Environment):
-        form_code = []
-        for expr in form.cdr:
-            sub_code = self.compile_toplevel_form(expr, env)
-            if form_code != []:
-                form_code += [S('drop')]
-            form_code += sub_code
-        if form_code == []:
-            form_code = [S('void')]
-        return form_code
+        code = []
+        for i, expr in enumerate(form.cdr):
+            if i > 0:
+                code += [S('drop')]
+            code += self.compile_toplevel_form(expr, env)
+        if code == []:
+            code = [S('void')]
+        return code
 
     def _compile_toplevel_form(self, form, env):
         if isinstance(form, Nil):
@@ -2134,6 +2133,11 @@ class Compiler:
             if code == []:
                 code = form_code
             elif form_code != []:
+                # notice the "form_code != []" only makes sense if all forms
+                # return some actual code and it's not possible that they return
+                # something that only consists of debug info with no real code
+                # in it. this _should_ be the case now, but beware the potential
+                # for bugs!
                 code += [S('drop')] + form_code
 
         if code != []:
