@@ -381,14 +381,17 @@ class Fasl:
             self.symtab.append(sym)
             return len(self.symtab) - 1
 
-    def add_string(self, s: String) -> int:
-        assert isinstance(s, String)
+    def add_string(self, new_string: String) -> int:
+        assert isinstance(new_string, String)
 
-        try:
-            return self.strtab.index(s)
-        except ValueError:
-            self.strtab.append(s)
-            return len(self.strtab) - 1
+        # String objects don't (and shouldn't) have __eq__, so we can't use
+        # self.strtab.index(...) here
+        for i, s in enumerate(self.strtab):
+            if s.value == new_string.value:
+                return i
+
+        self.strtab.append(new_string)
+        return len(self.strtab) - 1
 
     def dump(self, output):
         # write fasl header
