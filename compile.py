@@ -1894,7 +1894,7 @@ class Compiler:
             lib_name = LibraryName(lib_name.to_list())
         except ValueError:
             raise self._compile_error(
-                f'Inavlid library name: {lib_name}', form=lib_name)
+                f'Invalid library name: {lib_name}', form=lib_name)
 
         code = []
         lib_env = Environment(lib_name=lib_name)
