@@ -946,9 +946,9 @@ class Compiler:
 
             # expr: (define . ((name . params) . body))
             # expr[1] is in this form: (name . params)
-            name = expr.cdar().car
-            params = expr.cdar().cdr
-            body = expr.cddr()
+            name = expr.cdr.car.car
+            params = expr.cdr.car.cdr
+            body = expr.cdr.cdr
 
             if not isinstance(name, Symbol):
                 raise self._compile_error(
@@ -1144,7 +1144,7 @@ class Compiler:
         new_env.add_frame(params)
 
         # expr: (lambda . (params . body))
-        body = expr.cddr()
+        body = expr.cdr.cdr
         body_code = self.compile_body(body, new_env, full_form=expr)
         body_code += [S('ret')]
         if body_code[-2] == S('ap') or body_code[-2] == S('ap'):
@@ -1303,8 +1303,8 @@ class Compiler:
         # let: (let . (bindings . body))
         # bindings: (( a . (value1 . nil) (b . (value2 . nil))))
         vars = List.from_list([b.car for b in bindings])
-        values = List.from_list([b.cdar() for b in bindings])
-        body = expr.cddr()
+        values = List.from_list([b.cdr.car for b in bindings])
+        body = expr.cdr.cdr
 
         for v in vars:
             if not isinstance(v, Symbol):
@@ -1333,8 +1333,8 @@ class Compiler:
 
         # bindings (( a . (value1 . nil) (b . (value2 . nil))))
         vars = List.from_list([b.car for b in bindings])
-        values = List.from_list([b.cdar() for b in bindings])
-        body = expr.cddr()
+        values = List.from_list([b.cdr.car for b in bindings])
+        body = expr.cdr.cdr
 
         for v in vars:
             if not isinstance(v, Symbol):
@@ -1342,8 +1342,8 @@ class Compiler:
 
         if values != Nil():
             for v, b in zip(values, bindings):
-                v.src_start = b.cdar().src_start
-                v.src_end = b.cdar().src_end
+                v.src_start = b.cdr.car.src_start
+                v.src_end = b.cdr.car.src_end
 
         secd_code = [S('dum'), S('nil')]
         for v in reversed(values.to_list()):
@@ -1898,7 +1898,7 @@ class Compiler:
 
         code = []
         lib_env = Environment(lib_name=lib_name)
-        for i, declaration in enumerate(form.cddr()):
+        for i, declaration in enumerate(form.cdr.cdr):
             if i > 0:
                 code += [S('drop')]
             code += self.compile_library_declaration(declaration, lib_env)
@@ -2020,7 +2020,7 @@ class Compiler:
                     f'Invalid "only" import set: {import_set[1]}',
                     form=import_set[1])
             base_set = self.process_import_set(import_set[1])
-            identifiers = import_set.cddr()
+            identifiers = import_set.cdr.cdr
             for identifier in identifiers:
                 if base_set.lookup(identifier) is None:
                     raise self._compile_error(
@@ -2033,7 +2033,7 @@ class Compiler:
                     f'Invalid "except" import set: {import_set[1]}',
                     form=import_set[1])
             base_set = self.process_import_set(import_set[1])
-            identifiers = import_set.cddr()
+            identifiers = import_set.cdr.cdr
             for identifier in identifiers:
                 if base_set.lookup(identifier) is None:
                     raise self._compile_error(
@@ -2059,7 +2059,7 @@ class Compiler:
                     f'Invalid "rename" import set: {import_set[1]}',
                     form=import_set[1])
             base_set = self.process_import_set(import_set[1])
-            renames = import_set.cddr()
+            renames = import_set.cdr.cdr
             for rename in renames:
                 if not isinstance(rename, Pair) or \
                    len(rename) != 2 or \
