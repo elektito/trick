@@ -1570,7 +1570,9 @@ class Compiler:
                 'Missing filenames in include directive')
 
         code = []
-        for filename in expr.cdr:
+        for i, filename in enumerate(expr.cdr):
+            if i > 0:
+                code += [S('drop')]
             if not isinstance(filename, String):
                 raise self._compile_error(
                     f'Filename in include directive not a string '
@@ -1607,7 +1609,9 @@ class Compiler:
                 include_code = self.compile_toplevel_form(begin_form, env)
             elif context == 'library-declarations':
                 include_code = []
-                for expr in exprs:
+                for i, expr in enumerate(exprs):
+                    if i > 0:
+                        include_code += [S('drop')]
                     include_code += self.compile_library_declaration(expr, env)
             else:
                 assert False, 'unhandled context'
@@ -1835,13 +1839,13 @@ class Compiler:
                 return False
 
     def compile_library_declaration(self, declaration, env: Environment):
-        code = []
         if not isinstance(declaration, Pair):
             raise self._compile_error(
                 f'Library declaration is not a list: {declaration}',
                 form=declaration)
         if declaration.car == S('import'):
             self.process_import(declaration, env)
+            code = [S('void')]
         elif declaration.car == S('export'):
             for export_spec in declaration.cdr:
                 if isinstance(export_spec, Symbol):
@@ -1859,19 +1863,20 @@ class Compiler:
                     raise self._compile_error(
                         f'Bad export spec: {export_spec}',
                         form=export_spec)
+            code = [S('void')]
         elif declaration.car == S('include'):
-            code += self._compile_include(
+            code = self._compile_include(
                 declaration, env, context='library', casefold=False)
         elif declaration.car == S('include-ci'):
-            code += self._compile_include(
+            code = self._compile_include(
                 declaration, env, context='library', casefold=True)
         elif declaration.car == S('include-library-declarations'):
-            code += self._compile_include(
+            code = self._compile_include(
                 declaration, env, context='library-declarations', casefold=False)
         elif declaration.car == S('cond-expand'):
-            code += self._compile_cond_expand(declaration, env, context='library')
+            code = self._compile_cond_expand(declaration, env, context='library')
         elif declaration.car == S('begin'):
-            code += self.compile_toplevel_begin(declaration, env)
+            code = self.compile_toplevel_begin(declaration, env)
         else:
             raise self._compile_error(
                 f'Invalid library declaration: {declaration}',
@@ -1893,7 +1898,9 @@ class Compiler:
 
         code = []
         lib_env = Environment(lib_name=lib_name)
-        for declaration in form.cddr():
+        for i, declaration in enumerate(form.cddr()):
+            if i > 0:
+                code += [S('drop')]
             code += self.compile_library_declaration(declaration, lib_env)
 
         # check exports add more information to them
