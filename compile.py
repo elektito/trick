@@ -322,6 +322,9 @@ class RenameImportSet(ImportSet):
                 result =  self.base_import_set.lookup(from_name)
                 result.symbol = to_name
                 return result
+            elif sym == from_name:
+                # the original name is not available anymore
+                return None
         return self.base_import_set.lookup(sym)
 
     def __str__(self):
