@@ -1843,6 +1843,13 @@ class Compiler:
                 return False
 
     def compile_library_declaration(self, declaration, env: Environment):
+        # we'll be checking library declarations using symbols like import,
+        # export, begin, etc, instead of looking up the symbols in env in case
+        # they are renamed or not imported. my understanding of the r7rs spec is
+        # that this is the right thing to do, since define-library seems like a
+        # special case. the identifiers "define-library" and "library" are not
+        # even in the list of names exported by the standard library.
+
         if not isinstance(declaration, Pair):
             raise self._compile_error(
                 f'Library declaration is not a list: {declaration}',
