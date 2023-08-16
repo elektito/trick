@@ -162,11 +162,17 @@ class CoreImportSet(ImportSet):
                 immutable=True,
             )
 
-        if any(sym.name == i.value for i in SpecialForms):
+        if any((sym.name == i.value or
+                (sym.name.startswith('#$') and sym.name[2:] == i.value))
+               for i in SpecialForms):
+            if sym.name.startswith('#$'):
+                special_type = SpecialForms(sym.name[2:])
+            else:
+                special_type = SpecialForms(sym.name)
             return SymbolInfo(
                 symbol=sym,
                 kind=SymbolKind.SPECIAL,
-                special_type=SpecialForms(sym.name),
+                special_type=special_type,
                 immutable=True,
             )
 
@@ -866,9 +872,9 @@ class Compiler:
               len(form) > 0 and \
               isinstance(form[0], Symbol):
             name_sym = form[0]
-            if name_sym.name == 'quote':
-                return form
             info = self.lookup_symbol(name_sym, env)
+            if info.is_special(SpecialForms.QUOTE):
+                return form
             if info.kind != SymbolKind.DEFINED_MACRO:
                 break
 
@@ -958,7 +964,7 @@ class Compiler:
                     f'Invalid name for {form_name}: {name}')
 
             # form: (lambda . ( params . body ))
-            value = Pair(S('lambda'), Pair(params, body))
+            value = Pair(S('#$lambda'), Pair(params, body))
         else:
             raise self._compile_error(f'Malformed {form_name}.')
 
@@ -1056,7 +1062,7 @@ class Compiler:
         seen = set()
         for define_type, define_form in defines:
             # a name cannot be defined more than once
-            name, value = self.parse_define_form(define_form, define_type)
+            name, _ = self.parse_define_form(define_form, define_type)
             if name in seen:
                 raise self._compile_error(
                     f'Duplicate definition: {name}', form=define_form)
@@ -1078,9 +1084,9 @@ class Compiler:
         # now that the environment has all the new variables, set variable
         # values
         for define_type, define_form in defines:
-            name, value = self.parse_define_form(define_form, define_type)
+            name, lambda_form = self.parse_define_form(define_form, define_type)
             if define_type == SpecialForms.DEFINE:
-                code += self.compile_form(value, env)
+                code += self.compile_form(lambda_form, env)
                 code += [S('st'), env.locate_local(name)]
             elif define_type == SpecialForms.DEFINE_MACRO:
                 assert False, 'define-macro in body'
@@ -1281,7 +1287,9 @@ class Compiler:
             var_values = [i[1] for i in bindings]
 
             lambda_expr = List.from_list(
-                [S('lambda'), var_names] + let_body.to_list()
+                # use #$lambda to make sure the keyword always means lambda no
+                # matter the environment
+                [S('#$lambda'), var_names] + let_body.to_list()
             )
 
             lambda_expr.src_start = expr.src_start
@@ -1291,7 +1299,7 @@ class Compiler:
             letrec_bindings = List.from_list([letrec_binding])
 
             letrec_expr = List.from_list([
-                S('letrec'),
+                S('#$letrec'),
                 letrec_bindings,
                 List.from_list([let_name] + var_values),
             ])
@@ -1316,7 +1324,7 @@ class Compiler:
 
         # transform let to a lambda call and compile that instead
         # ((lambda . ( params . body )) . args)
-        lambda_form = Pair(S('lambda'), Pair(vars, body))
+        lambda_form = Pair(S('#$lambda'), Pair(vars, body))
         lambda_call = Pair(lambda_form, values)
 
         lambda_form.src_start = expr.src_start
@@ -1356,7 +1364,7 @@ class Compiler:
             secd_code += self.compile_form(v, new_env) + [S('cons')]
 
         # ((lambda . ( params . body )) . args)
-        lambda_call = Pair(S('lambda'), Pair(vars, body))
+        lambda_call = Pair(S('#$lambda'), Pair(vars, body))
 
         lambda_call.src_start = expr.src_start
         lambda_call.src_end = expr.src_end
@@ -1601,7 +1609,15 @@ class Compiler:
                 continue
 
             exprs = List.from_list(exprs)
-            begin_form = Pair(S('begin'), exprs)
+            begin_form = Pair(S('#$begin'), exprs)
+
+            # we directly use a "begin" symbol in our constructed form. this is
+            # okay even if begin is not imported or renamed, because: in case of
+            # top-level and local contexts we're directly calling
+            # compile_toplevel_begin and compile_begin, which don't check the
+            # head of the list passed to them. in case of a "library" context on
+            # the other hand we always use literal symbols and never renamed
+            # forms, so that's okay as well.
 
             old_source = self.current_source
             self.current_source = SourceFile(filename=full_path)
@@ -1692,7 +1708,7 @@ class Compiler:
             requirement = clause.car
             expressions = clause.cdr
             if match(requirement):
-                begin_form = Pair(S('begin'), expressions)
+                begin_form = Pair(S('#$begin'), expressions)
                 begin_form.src_start = clause.src_start
                 begin_form.src_end = clause.src_end
                 if context == 'toplevel':
@@ -1700,7 +1716,13 @@ class Compiler:
                 elif context == 'local':
                     code += self.compile_form(begin_form, env)
                 elif context == 'library':
-                    for expr in expressions:
+                    # we can't compile this one as a begin form, since "begin"
+                    # has a different meaning inside a library. we wouldn't be
+                    # able to have "import", "export", etc, if we tried to
+                    # compile this as a "begin" clause in a library definition.
+                    for i, expr in enumerate(expressions):
+                        if i > 0:
+                            code += [S('drop')]
                         code += self.compile_library_declaration(expr, env)
                 else:
                     assert False, 'unhandled context'
@@ -1887,6 +1909,9 @@ class Compiler:
         elif declaration.car == S('cond-expand'):
             code = self._compile_cond_expand(declaration, env, context='library')
         elif declaration.car == S('begin'):
+            # compile_toplevel_begin does not check the first item in the list,
+            # so it doesn't matter that we have a literal begin which might mean
+            # something else in the top-level environment.
             code = self.compile_toplevel_begin(declaration, env)
         else:
             raise self._compile_error(
@@ -1981,7 +2006,7 @@ class Compiler:
             if not self.compiling_library:
                 form_code = []
         elif info and info.is_special(SpecialForms.DEFINE):
-            name_sym, value = self.parse_define_form(form, 'define')
+            name_sym, lambda_form = self.parse_define_form(form, 'define')
 
             info = env.lookup_symbol(name_sym)
             if info.immutable:
@@ -1990,7 +2015,7 @@ class Compiler:
                     form=name_sym)
 
             env.add_define(name_sym, DefineKind.NORMAL)
-            form_code = self.compile_form(value, env)
+            form_code = self.compile_form(lambda_form, env)
 
             form_code += [S('set'), info.symbol, S('void')]
             if self.debug_info:
