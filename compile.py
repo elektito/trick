@@ -1007,7 +1007,7 @@ class Compiler:
             false_code = [S('void'), S('join')]
         return cond_code + [S('sel')] + [true_code] + [false_code]
 
-    def collect_defines(self, body):
+    def collect_defines(self, body, env):
         # receive the body a lambda (or let and the like).
         # the body forms should have been macro-expanded already (not recursively)
         # collects all initial defines (including those in begin statements)
@@ -1019,12 +1019,13 @@ class Compiler:
             if not isinstance(form, Pair):
                 break
 
-            if form.car == S('define'):
-                defines.append(('define', form))
-            elif form.car == S('define-macro'):
-                defines.append(('define-macro', form))
-            elif form.car == S('begin'):
-                begin_defines, begin_rest = self.collect_defines(form.cdr)
+            info = env.lookup_symbol(form.car)
+            if info.is_special(SpecialForms.DEFINE):
+                defines.append((SpecialForms.DEFINE, form))
+            elif info.is_special(SpecialForms.DEFINE_MACRO):
+                defines.append((SpecialForms.DEFINE_MACRO, form))
+            elif info.is_special(SpecialForms.BEGIN):
+                begin_defines, begin_rest = self.collect_defines(form.cdr, env)
                 defines += begin_defines
                 if begin_rest != Nil():
                     # add whatever is remaining in the begin body to the
@@ -1049,7 +1050,7 @@ class Compiler:
             cur.car = self.macro_expand(cur.car, env)
             cur = cur.cdr
 
-        defines, body = self.collect_defines(body)
+        defines, body = self.collect_defines(body, env)
 
         # expand the environment to include the defines
         seen = set()
@@ -1061,13 +1062,13 @@ class Compiler:
                     f'Duplicate definition: {name}', form=define_form)
             seen.add(name)
 
-            if define_type == 'define':
+            if define_type == SpecialForms.DEFINE:
                 # it's okay if the name already exists though, we're just
                 # shadowing a let/letrec/lambda varaible
                 if not env.frames[0].contains(name):
                     env.frames[0].add_variable(name)
                     code += [S('xp')]
-            elif define_type == 'define-macro':
+            elif define_type == SpecialForms.DEFINE_MACRO:
                 raise self._compile_error(
                     f'define-macro only allowed at the top-level',
                     form=define_form)
@@ -1078,10 +1079,10 @@ class Compiler:
         # values
         for define_type, define_form in defines:
             name, value = self.parse_define_form(define_form, define_type)
-            if define_type == 'define':
+            if define_type == SpecialForms.DEFINE:
                 code += self.compile_form(value, env)
                 code += [S('st'), env.locate_local(name)]
-            elif define_type == 'define-macro':
+            elif define_type == SpecialForms.DEFINE_MACRO:
                 assert False, 'define-macro in body'
             else:
                 assert False, 'Unhandled define type'
