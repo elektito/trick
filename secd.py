@@ -1214,6 +1214,9 @@ def main(args):
         sys.exit(1)
 
     if m.halt_code is None:
-        print('Code exhausted.', file=sys.stderr)
+        print('Code exhausted.', file=sys.stderr, end=' ')
     else:
-        print('Machine halted with code:', m.halt_code, file=sys.stderr)
+        print('Machine halted with code:', m.halt_code,
+              file=sys.stderr, end=' ')
+
+    print(f'({len(m.s)} item(s) left on the stack.)', file=sys.stderr)
