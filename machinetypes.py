@@ -367,6 +367,10 @@ class Continuation(Procedure):
 
 
 class List(TrickType):
+    def __init__(self):
+        self.src_start = None
+        self.src_end = None
+
     @staticmethod
     def from_list(ls, *, after_dot=None):
         if ls == []:
@@ -672,6 +676,8 @@ class Vector(TrickType):
         def __init__(self, vector):
             self._vector = vector
             self._i = 0
+            self.src_start = None
+            self.src_end = None
 
         def __next__(self):
             if self._i >= len(self._vector):
