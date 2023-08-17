@@ -720,7 +720,7 @@ class VariableTemplate(Template):
                 tail=None if tail is None else self.convert_to_user_env(tail),
                 src_start=value.src_start,
                 src_end=value.src_end)
-            return cur
+            return new_value
         elif isinstance(value, Vector):
             result = Vector([
                 self.convert_to_user_env(i) for i in value
