@@ -99,11 +99,13 @@ class Integer(int, TrickType):
 class Symbol(TrickType):
     gensym_number = 0
 
-    def __init__(self, name, *, short_name=None):
+    def __init__(self, name, *, short_name=None, env=None, original=None):
         assert isinstance(name, str)
         assert not short_name or isinstance(short_name, str)
 
         self.name = name
+        self.env = env
+        self.original = original
 
         # if short_name is not set and the name has the same format as a gensym
         # name, parse the short name. so for #:uuuuniiiquuueeid-12, we set the
@@ -188,28 +190,6 @@ class Symbol(TrickType):
             full_name = f'#:{uid}-{gensym_number}'
 
         return Symbol(full_name, short_name=short_name)
-
-
-class Identifier:
-    def __init__(self, symbol: Symbol, original: Symbol, env,
-                 *,
-                 src_start=None, src_end=None):
-        self.symbol = symbol
-        self.original = original
-        self.env = env
-
-        if src_start is None and symbol.src_start is not None:
-            self.src_start = symbol.src_start
-        else:
-            self.src_start = src_start
-
-        if src_end is None and symbol.src_end is not None:
-            self.src_end = symbol.src_end
-        else:
-            self.src_end = src_end
-
-    def __repr__(self):
-        return f"#'{self.symbol}"
 
 
 class Bool(TrickType):
@@ -476,9 +456,9 @@ class Pair(List):
             return value
 
     def __init__(self, car, cdr):
-        if not isinstance(car, (TrickType, Reference, Identifier)):
+        if not isinstance(car, (TrickType, Reference)):
             raise TypeError(f'Invalid value type for car: {car}')
-        if not isinstance(cdr, (TrickType, Reference, Identifier)):
+        if not isinstance(cdr, (TrickType, Reference)):
             raise TypeError(f'Invalid value type for cdr: {cdr}')
 
         self.car = car

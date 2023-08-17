@@ -14,7 +14,7 @@ from program import Program
 import runtime
 from fasl import Fasl
 from read import Reader, ReadError
-from machinetypes import Bool, Char, Identifier, Integer, List, Nil, Pair, Symbol, String, Vector
+from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String, Vector
 from assemble import Assembler
 from secd import RunError, Secd
 from snippet import show_snippet
@@ -1209,18 +1209,19 @@ class Compiler:
         return code
 
     def compile_symbol(self, sym: Symbol, env: Environment):
-        return self.compile_identifier(Identifier(sym, sym, env), env)
+        if sym.env is not None:
+            info = sym.env.lookup_symbol(sym)
+        else:
+            info = env.lookup_symbol(sym)
 
-    def compile_identifier(self, identifier: Identifier, env: Environment):
-        info = identifier.env.lookup_symbol(identifier.symbol)
         if info.kind == SymbolKind.AUX:
             raise self._compile_error(
-                f'Invalid use of aux keyword: {identifier.symbol}',
-                form=identifier)
+                f'Invalid use of aux keyword: {sym}',
+                form=sym)
         elif info.kind == SymbolKind.SPECIAL:
             raise self._compile_error(
-                f'Invalid use of special symbol: {identifier.symbol}',
-                form=identifier)
+                f'Invalid use of special symbol: {sym}',
+                form=sym)
         elif info.kind == SymbolKind.PRIMCALL:
             # using a primitive like "car" or "cons" as a symbol. this should
             # return a function that performs those primitives. what we do is
@@ -1235,20 +1236,20 @@ class Compiler:
             func_code += [S('ret')]
             return [S('ldf'), Integer(info.primcall_nargs), func_code]
         elif info.kind == SymbolKind.LOCAL:
-            if env == identifier.env:
+            if sym.env is None or env == sym.env:
                 return [S('ld'), [info.local_frame_idx, info.local_var_idx]]
             else:
                 # FIXME
                 raise self._compile_error('not supported yet!')
         elif info.kind == SymbolKind.FREE:
-            env.add_read(identifier.symbol)
+            env.add_read(sym)
             return [S('get'), info.symbol]
         elif info.kind == SymbolKind.DEFINED_NORMAL:
             return [S('get'), info.symbol]
         elif info.kind == SymbolKind.DEFINED_MACRO:
             raise self._compile_error(
-                f'Invalid use of macro name: {identifier.symbol}',
-                form=identifier)
+                f'Invalid use of macro name: {sym}',
+                form=sym)
         else:
             assert False, f'unhandled symbol kind: {info.kind}'
 
@@ -1539,9 +1540,12 @@ class Compiler:
         elif isinstance(form, Vector):
             return self.compile_vector_literal(form, env, labels, processed)
         elif isinstance(form, Symbol):
-            return [S('ldsym'), form]
-        elif isinstance(form, Identifier):
-            return [S('ldsym'), form.original]
+            if form.original:
+                # a renamed symbol returned from a macro; use the original name
+                # in quote.
+                return [S('ldsym'), form.original]
+            else:
+                return [S('ldsym'), form]
         else:
             # other atoms evaluate to themselves, quoted or not
             return self.compile_form(form, env)
@@ -1823,7 +1827,7 @@ class Compiler:
         # convert body into a let expression with no variable bindings. this is
         # necessary so that normal things in a body, like defines at the
         # beginning are allowed.
-        new_body = Pair(S('let'), Pair(Nil(), body))
+        new_body = Pair(S('#$let'), Pair(Nil(), body))
 
         body_code = self.compile_let(new_body, new_env)
         return body_code
@@ -1852,6 +1856,14 @@ class Compiler:
 
         for var, value in zip(vars, values):
             t = self.compile_form(value, new_env)
+
+            # since we're getting transformers through compile_form, which is
+            # supposed to return a list of instructions, each "t" is going to be
+            # a list of size 1.
+            assert isinstance(t, list)
+            assert len(t) == 1
+            t = t[0]
+
             if not isinstance(t, Transformer):
                 raise self._compile_error(
                     f'Invalid transformer: {v}', form=v)
@@ -1860,9 +1872,9 @@ class Compiler:
         # convert body into a let expression with no variable bindings. this is
         # necessary so that normal things in a body, like defines at the
         # beginning are allowed.
-        new_body = Pair(S('let'), Pair(Nil(), body))
+        new_body = Pair(S('#$let'), Pair(Nil(), body))
 
-        body_code = self.compile_body(new_body, new_env, full_form=expr)
+        body_code = self.compile_let(new_body, new_env,)
         return body_code
 
     def compile_syntax_rules(self, expr, env: Environment):
@@ -1882,8 +1894,8 @@ class Compiler:
             raise self._compile_error(
                 f'Cannot compile improper list: {expr}')
 
-        if isinstance(expr.car, (Symbol | Identifier)):
-            if isinstance(expr.car, Symbol):
+        if isinstance(expr.car, Symbol):
+            if expr.car.env is None:
                 info = env.lookup_symbol(expr.car)
             else:
                 info = expr.car.env.lookup_symbol(expr.car.symbol)
@@ -1972,8 +1984,6 @@ class Compiler:
             secd_code += self.compile_int(expr, env)
         elif isinstance(expr, Symbol):
             secd_code += self.compile_symbol(expr, env)
-        elif isinstance(expr, Identifier):
-            secd_code += self.compile_identifier(expr, env)
         elif isinstance(expr, String):
             secd_code += self.compile_string(expr, env)
         elif isinstance(expr, Bool):

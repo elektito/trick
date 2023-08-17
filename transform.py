@@ -150,7 +150,6 @@ class SyntaxRulesTransformer(Transformer):
     def transform(self, expr, env):
         # use a new gensyms table on each expansion
         self.gensyms = {}
-
         for pattern, template in self.rules:
             result, vars = pattern.match(expr)
             if result:
@@ -478,13 +477,13 @@ class MatchList(Matcher):
             result, p_vars = p.match(v)
             if not result:
                 return False, {}
-            vars.update(p_vars)
+            merge_vars(vars, p_vars)
 
         if self.tail is not None:
             result, tail_vars = self.tail.match(value_tail)
             if not result:
                 return False, {}
-            vars.update(tail_vars)
+            merge_vars(vars, tail_vars)
 
         return True, vars
 
@@ -537,7 +536,7 @@ class MatchListWithEllipsis(Matcher):
             result, p_vars = self.proper[i].match(v)
             if not result:
                 return False, {}
-            vars.update(p_vars)
+            merge_vars(vars, p_vars)
 
             if j <= self.n_before and j >= len(value_proper) - self.n_after:
                 # empty match on repeated. proceed to the next pattern.
@@ -549,7 +548,7 @@ class MatchListWithEllipsis(Matcher):
             result, tail_vars = self.tail.match(value_tail)
             if not result:
                 return False, {}
-            vars.update(tail_vars)
+            merge_vars(vars, tail_vars)
 
         return True, vars
 
@@ -583,7 +582,7 @@ class MatchVector(Matcher):
             result, p_vars = p.match(v)
             if not result:
                 return False, {}
-            vars.update(p_vars)
+            merge_vars(vars, p_vars)
 
         return True, vars
 
@@ -623,7 +622,7 @@ class MatchVectorWithEllipsis(Matcher):
             result, p_vars = self.items[i].match(v)
             if not result:
                 return False, {}
-            vars.update(p_vars)
+            merge_vars(vars, p_vars)
 
             if j < self.n_before or j >= len(value) - self.n_after:
                 i += 1
@@ -644,14 +643,17 @@ class MatchRepeated(Matcher):
     def __init__(self, matcher):
         assert is_valid_matcher(matcher)
         self.matcher = matcher
-        self.vars = defaultdict(list)
 
     def match(self, value):
         result, vars = self.matcher.match(value)
+        output_vars = {}
         if result:
             for name, value in vars.items():
-                self.vars[name].append(value)
-        return result, dict(self.vars)
+                if name in output_vars:
+                    output_vars[name].append(value)
+                else:
+                    output_vars[name] = [value]
+        return result, output_vars
 
     def get_vars(self):
         return self.matcher.get_vars()
@@ -848,7 +850,8 @@ class RepeatedTemplate(Template):
             }
 
             # add the non-repeated values
-            new_vars.update({v: vars[v] for v in non_repeated_vars})
+            merge_vars(new_vars,
+                       {v: vars[v] for v in non_repeated_vars})
 
             # now expand using this new set of variables
             expanded.append(self.template.expand(new_vars))
@@ -860,6 +863,18 @@ class RepeatedTemplate(Template):
 
     def __repr__(self):
         return f'<RepeatedTemplate {self.template}>'
+
+
+def merge_vars(old, new):
+    for name, value in new.items():
+        if isinstance(value, list):
+            if name in old:
+                old[name] += value
+            else:
+                old[name] = value
+        else:
+            assert name not in old
+            old[name] = value
 
 
 def is_valid_matcher(m):
