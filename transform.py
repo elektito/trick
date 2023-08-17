@@ -1,6 +1,6 @@
 from collections import defaultdict
 from library import AuxKeywords, SymbolKind
-from machinetypes import List, Nil, Pair, String, Symbol, TrickType, Vector
+from machinetypes import Bool, Char, Integer, List, Nil, Pair, String, Symbol, TrickType, Vector
 
 
 class _List:
@@ -669,7 +669,7 @@ class MatchConstant(Matcher):
         self.constant = constant
 
     def match(self, value):
-        return value == self.constant, {}
+        return equal(value, self.constant), {}
 
     def __repr__(self):
         return f'<MatchConstant {self.constant}>'
@@ -893,3 +893,15 @@ def is_valid_template(t):
         return all(is_valid_template(i) for i in t)
     else:
         return False
+
+
+def equal(v1, v2):
+    if type(v1) != type(v2):
+        return False
+
+    if isinstance(v1, (Integer, Symbol, Bool, Char)):
+        return v1 == v2
+    elif isinstance(v1, String):
+        return v1.value == v2.value
+    else:
+        return v1 == v2
