@@ -70,7 +70,6 @@ def compile_expr_to_fasl(expr, lib_fasls=None, env=None):
 
     fasl = Fasl()
     asm_code = compiler.compile_toplevel_form(expr, env)
-    fasl.defines = compiler.defined_symbols
 
     assembler = Assembler()
     assembler.assemble(asm_code, fasl)

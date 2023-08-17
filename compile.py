@@ -853,7 +853,6 @@ class Compiler:
         self.debug_info = debug_info
         self.include_paths = []
         self.defined_libs = []
-        self.defined_symbols = {}
 
         self.current_source = None
         self.current_form = None
