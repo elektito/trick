@@ -123,7 +123,7 @@ def show_snippet_terminal(text, start, end, *,
 
     mark_start = cc.orange
     mark_end = cc.reset
-    max_line_number_size = len(str(last_line))
+    max_line_number_size = len(str(last_line + post_lines))
 
     for line_no, (line, line_start, line_end) in enumerate(lines, 1):
         prefix = f'|{line_no: >{max_line_number_size}}| '
