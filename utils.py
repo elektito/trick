@@ -117,9 +117,9 @@ def load_fasl_files(filenames):
 
 
 def find_shared(obj):
-    from machinetypes import Pair, Vector, Reference, Symbol, shareable_types
+    from machinetypes import Pair, Vector, shareable_types
 
-    seen = {}
+    seen = set()
     shared = set()
     stack = [obj]
 
@@ -132,7 +132,7 @@ def find_shared(obj):
         if obj in seen:
             shared.add(obj)
             continue
-        seen[obj] = Reference(Symbol.gensym())
+        seen.add(obj)
 
         if isinstance(obj, Pair):
             stack.append(obj.car)
