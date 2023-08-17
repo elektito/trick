@@ -13,6 +13,7 @@ class SymbolKind(Enum):
     DEFINED_NORMAL = 5
     DEFINED_MACRO = 6
     FREE = 7
+    TRANSFORMER = 8
 
 
 class ExportKind(Enum):
@@ -54,16 +55,20 @@ class SpecialForms(Enum):
     DEFINE = 'define'
     DEFINE_MACRO = 'define-macro'
     DEFINE_LIBRARY = 'define-library'
+    DEFINE_SYNTAX = 'define-syntax'
     BEGIN = 'begin'
     SET = 'set!'
     IF = 'if'
     LAMBDA = 'lambda'
     LET = 'let'
     LETREC = 'letrec'
+    LET_SYNTAX = 'let-syntax'
+    LETREC_SYNTAX = 'letrec-syntax'
     QUOTE = 'quote'
     INCLUDE = 'include'
     INCLUDE_CI = 'include-ci'
     COND_EXPAND = 'cond-expand'
+    SYNTAX_RULES = 'syntax-rules'
 
 
 class LibraryName:

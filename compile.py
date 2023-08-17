@@ -14,10 +14,11 @@ from program import Program
 import runtime
 from fasl import Fasl
 from read import Reader, ReadError
-from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String, Vector
+from machinetypes import Bool, Char, Identifier, Integer, List, Nil, Pair, Symbol, String, Vector
 from assemble import Assembler
 from secd import RunError, Secd
 from snippet import show_snippet
+from transform import SyntaxRulesTransformer, TransformError, Transformer, UninitializedTransformer
 from utils import OrderedSet, find_shared
 from version import __version__
 
@@ -97,6 +98,7 @@ class SymbolInfo:
                  local_var_idx=None,
                  special_type=None,
                  aux_type=None,
+                 transformer=None,
                  library_name=None,
                  immutable=False):
         self.symbol = symbol
@@ -107,6 +109,7 @@ class SymbolInfo:
         self.local_var_idx = local_var_idx
         self.special_type = special_type
         self.aux_type = aux_type
+        self.transformer = transformer
         self.library_name = library_name
         self.immutable = immutable
 
@@ -400,6 +403,27 @@ class EnvironmentFrame:
         self.variables.append(name)
 
 
+class EnvironmentSyntaxFrame(EnvironmentFrame):
+    def __init__(self, bindings: dict[Symbol, Transformer]):
+        assert isinstance(bindings, dict)
+        assert all(isinstance(k, Symbol) for k in bindings.keys())
+        assert all(isinstance(v, Transformer) for v in bindings.values())
+        self.bindings = bindings
+
+    def copy(self):
+        copy = EnvironmentSyntaxFrame({})
+        copy.bindings = {k: v for k, v in self.bindings.items()}
+        return copy
+
+    def get_value(self, name: Symbol):
+        return self.bindings.get(name)
+
+    def set_value(self, name: Symbol, value: Transformer):
+        assert isinstance(name, Symbol)
+        assert isinstance(value, Transformer)
+        self.bindings[name] = value
+
+
 class Environment:
     def __init__(self, *, lib_name=None):
         self.frames: list[EnvironmentFrame] = []
@@ -424,14 +448,24 @@ class Environment:
     def add_frame(self, variables):
         self.frames.insert(0, EnvironmentFrame(variables))
 
+    def add_syntax_frame(self, bindings: dict[Symbol, Transformer]):
+        self.frames.insert(0, EnvironmentSyntaxFrame(bindings))
+
     def locate_local(self, name: Symbol):
-        for i, frame in enumerate(self.frames):
-            try:
-                j = frame.variables.index(name)
-            except ValueError:
-                pass
+        i = 0
+        for frame in self.frames:
+            if isinstance(frame, EnvironmentSyntaxFrame):
+                t = frame.get_value(name)
+                if t is not None:
+                    return t
             else:
-                return [Integer(i), Integer(j)]
+                try:
+                    j = frame.variables.index(name)
+                except ValueError:
+                    pass
+                else:
+                    return [Integer(i), Integer(j)]
+                i += 1
         return None
 
     def add_import(self, import_set: ImportSet):
@@ -440,12 +474,19 @@ class Environment:
     def lookup_symbol(self, sym: Symbol) -> SymbolInfo:
         local = self.locate_local(sym)
         if local:
-            return SymbolInfo(
-                symbol=sym,
-                kind=SymbolKind.LOCAL,
-                local_frame_idx=local[0],
-                local_var_idx=local[1],
-            )
+            if isinstance(local, Transformer):
+                return SymbolInfo(
+                    symbol=sym,
+                    kind=SymbolKind.TRANSFORMER,
+                    transformer=local,
+                )
+            else:
+                return SymbolInfo(
+                    symbol=sym,
+                    kind=SymbolKind.LOCAL,
+                    local_frame_idx=local[0],
+                    local_var_idx=local[1],
+                )
 
         mangled_sym = sym
         if self.lib_name:
@@ -1167,16 +1208,19 @@ class Compiler:
 
         return code
 
-    def compile_symbol(self, sym: Symbol, env):
-        info = self.lookup_symbol(sym, env)
+    def compile_symbol(self, sym: Symbol, env: Environment):
+        return self.compile_identifier(Identifier(sym, sym, env), env)
+
+    def compile_identifier(self, identifier: Identifier, env: Environment):
+        info = identifier.env.lookup_symbol(identifier.symbol)
         if info.kind == SymbolKind.AUX:
             raise self._compile_error(
-                f'Invalid use of aux keyword: {sym}',
-                form=sym)
+                f'Invalid use of aux keyword: {identifier.symbol}',
+                form=identifier)
         elif info.kind == SymbolKind.SPECIAL:
             raise self._compile_error(
-                f'Invalid use of special symbol: {sym}',
-                form=sym)
+                f'Invalid use of special symbol: {identifier.symbol}',
+                form=identifier)
         elif info.kind == SymbolKind.PRIMCALL:
             # using a primitive like "car" or "cons" as a symbol. this should
             # return a function that performs those primitives. what we do is
@@ -1191,16 +1235,20 @@ class Compiler:
             func_code += [S('ret')]
             return [S('ldf'), Integer(info.primcall_nargs), func_code]
         elif info.kind == SymbolKind.LOCAL:
-            return [S('ld'), [info.local_frame_idx, info.local_var_idx]]
+            if env == identifier.env:
+                return [S('ld'), [info.local_frame_idx, info.local_var_idx]]
+            else:
+                # FIXME
+                raise self._compile_error('not supported yet!')
         elif info.kind == SymbolKind.FREE:
-            env.add_read(sym)
+            env.add_read(identifier.symbol)
             return [S('get'), info.symbol]
         elif info.kind == SymbolKind.DEFINED_NORMAL:
             return [S('get'), info.symbol]
         elif info.kind == SymbolKind.DEFINED_MACRO:
             raise self._compile_error(
-                f'Invalid use of macro name: {sym}',
-                form=sym)
+                f'Invalid use of macro name: {identifier.symbol}',
+                form=identifier)
         else:
             assert False, f'unhandled symbol kind: {info.kind}'
 
@@ -1492,6 +1540,8 @@ class Compiler:
             return self.compile_vector_literal(form, env, labels, processed)
         elif isinstance(form, Symbol):
             return [S('ldsym'), form]
+        elif isinstance(form, Identifier):
+            return [S('ldsym'), form.original]
         else:
             # other atoms evaluate to themselves, quoted or not
             return self.compile_form(form, env)
@@ -1735,6 +1785,94 @@ class Compiler:
     def compile_cond_expand_local(self, expr, env):
         return self._compile_cond_expand(expr, env, context='local')
 
+    def compile_let_syntax(self, expr: Pair, env: Environment):
+        if len(expr) < 2:
+            raise self._compile_error(
+                f'Invalid number of arguments for let-syntax: {expr}')
+
+        bindings = expr[1]
+        self.check_let_bindings(bindings, 'let-syntax')
+
+        # let-syntax: (let-syntax . (bindings . body))
+        # bindings: (( a . (value1 . nil) (b . (value2 . nil))))
+        vars = List.from_list([b.car for b in bindings])
+        values = List.from_list([b.cdr.car for b in bindings])
+        body = expr.cdr.cdr
+
+        for v in vars:
+            if not isinstance(v, Symbol):
+                raise self._compile_error(
+                    f'Invalid let-syntax variable: {v}', form=v)
+
+        transformers = {}
+        for var, value in zip(vars, values):
+            t = self.compile_form(value, env)
+
+            # since we're getting transformers through compile_form, which is
+            # supposed to return a list of instructions, each "t" is going to be
+            # a list of size 1.
+            assert isinstance(t, list)
+            assert len(t) == 1
+            t = t[0]
+
+            transformers[var] = t
+
+        new_env = env.copy()
+        new_env.add_syntax_frame(transformers)
+
+        # convert body into a let expression with no variable bindings. this is
+        # necessary so that normal things in a body, like defines at the
+        # beginning are allowed.
+        new_body = Pair(S('let'), Pair(Nil(), body))
+
+        body_code = self.compile_let(new_body, new_env)
+        return body_code
+
+    def compile_letrec_syntax(self, expr: Pair, env: Environment):
+        if len(expr) < 2:
+            raise self._compile_error(
+                f'Invalid number of arguments for letrec-syntax: {expr}')
+
+        bindings = expr[1]
+        self.check_let_bindings(bindings, 'letrec-syntax')
+
+        # letrec-syntax: (letrec-sytnax . (bindings . body))
+        # bindings: (( a . (value1 . nil) (b . (value2 . nil))))
+        vars = List.from_list([b.car for b in bindings])
+        values = List.from_list([b.cdr.car for b in bindings])
+        body = expr.cdr.cdr
+
+        for v in vars:
+            if not isinstance(v, Symbol):
+                raise self._compile_error(f'Invalid letrec-syntax variable: {v}', form=v)
+
+        new_env = env.copy()
+        bad_transformers = [UninitializedTransformer()] * len(vars)
+        new_env.add_syntax_frame(dict(zip(vars, bad_transformers)))
+
+        for var, value in zip(vars, values):
+            t = self.compile_form(value, new_env)
+            if not isinstance(t, Transformer):
+                raise self._compile_error(
+                    f'Invalid transformer: {v}', form=v)
+            new_env.frames[0].set_value(var, t)
+
+        # convert body into a let expression with no variable bindings. this is
+        # necessary so that normal things in a body, like defines at the
+        # beginning are allowed.
+        new_body = Pair(S('let'), Pair(Nil(), body))
+
+        body_code = self.compile_body(new_body, new_env, full_form=expr)
+        return body_code
+
+    def compile_syntax_rules(self, expr, env: Environment):
+        try:
+            return [SyntaxRulesTransformer(expr, env)]
+        except TransformError as e:
+            raise self._compile_error(
+                f'Error while creating transformer: {e}',
+                form=e.form)
+
     def compile_list(self, expr, env: Environment):
         if expr == Nil():
             raise self._compile_error(
@@ -1744,8 +1882,11 @@ class Compiler:
             raise self._compile_error(
                 f'Cannot compile improper list: {expr}')
 
-        if isinstance(expr.car, Symbol):
-            info =  env.lookup_symbol(expr.car)
+        if isinstance(expr.car, (Symbol | Identifier)):
+            if isinstance(expr.car, Symbol):
+                info = env.lookup_symbol(expr.car)
+            else:
+                info = expr.car.env.lookup_symbol(expr.car.symbol)
             if info.kind == SymbolKind.AUX:
                 raise self._compile_error(
                     f'Invalid use of aux keyword "{expr.car}"',
@@ -1758,13 +1899,25 @@ class Compiler:
                 SpecialForms.LAMBDA: self.compile_lambda,
                 SpecialForms.LET: self.compile_let,
                 SpecialForms.LETREC: self.compile_letrec,
+                SpecialForms.LET_SYNTAX: self.compile_let_syntax,
+                SpecialForms.LETREC: self.compile_letrec,
+                SpecialForms.LETREC_SYNTAX: self.compile_letrec_syntax,
                 SpecialForms.QUOTE: self.compile_quote,
                 SpecialForms.INCLUDE: self.compile_include_local,
                 SpecialForms.INCLUDE_CI: self.compile_include_ci_local,
                 SpecialForms.COND_EXPAND: self.compile_cond_expand_local,
+                SpecialForms.SYNTAX_RULES: self.compile_syntax_rules,
             }
 
-            if info.kind == SymbolKind.SPECIAL:
+            if info.kind == SymbolKind.TRANSFORMER:
+                try:
+                    new_expr = info.transformer.transform(expr, env)
+                except TransformError as e:
+                    raise self._compile_error(
+                        f'Error while transforming: {e}',
+                        form=e.form if e.form is not None else expr)
+                return self.compile_form(new_expr, env)
+            elif info.kind == SymbolKind.SPECIAL:
                 compile_func = special_forms.get(info.special_type)
 
                 if not compile_func:
@@ -1819,6 +1972,8 @@ class Compiler:
             secd_code += self.compile_int(expr, env)
         elif isinstance(expr, Symbol):
             secd_code += self.compile_symbol(expr, env)
+        elif isinstance(expr, Identifier):
+            secd_code += self.compile_identifier(expr, env)
         elif isinstance(expr, String):
             secd_code += self.compile_string(expr, env)
         elif isinstance(expr, Bool):
@@ -1840,6 +1995,8 @@ class Compiler:
         self.current_form = expr
         try:
             return self._compile_form(expr, env)
+        except CompileError as e:
+            raise self._rebuild_compile_error(e)
         finally:
             self.current_form = old_current_form
 
@@ -2046,6 +2203,8 @@ class Compiler:
         self.current_form = form
         try:
             return self._compile_toplevel_form(form, env)
+        except CompileError as e:
+            raise self._rebuild_compile_error(e)
         finally:
             self.current_form = old_current_form
 

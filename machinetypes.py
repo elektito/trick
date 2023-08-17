@@ -190,6 +190,28 @@ class Symbol(TrickType):
         return Symbol(full_name, short_name=short_name)
 
 
+class Identifier:
+    def __init__(self, symbol: Symbol, original: Symbol, env,
+                 *,
+                 src_start=None, src_end=None):
+        self.symbol = symbol
+        self.original = original
+        self.env = env
+
+        if src_start is None and symbol.src_start is not None:
+            self.src_start = symbol.src_start
+        else:
+            self.src_start = src_start
+
+        if src_end is None and symbol.src_end is not None:
+            self.src_end = symbol.src_end
+        else:
+            self.src_end = src_end
+
+    def __repr__(self):
+        return f"#'{self.symbol}"
+
+
 class Bool(TrickType):
     def __init__(self, value: bool):
         if not isinstance(value, bool):
@@ -385,10 +407,13 @@ class List(TrickType):
         else:
             return Pair.from_list_recursive(ls)
 
-    def to_list(self):
+    def to_list(self) -> list:
         raise NotImplementedError
 
     def to_list_recursive(self):
+        raise NotImplementedError
+
+    def split_improper_tail(self):
         raise NotImplementedError
 
 
@@ -433,6 +458,9 @@ class Nil(List):
     def to_list_recursive(self):
         return []
 
+    def split_improper_tail(self):
+        return self, None
+
 
 class Pair(List):
     class Iterator:
@@ -448,9 +476,9 @@ class Pair(List):
             return value
 
     def __init__(self, car, cdr):
-        if not isinstance(car, (TrickType, Reference)):
+        if not isinstance(car, (TrickType, Reference, Identifier)):
             raise TypeError(f'Invalid value type for car: {car}')
-        if not isinstance(cdr, (TrickType, Reference)):
+        if not isinstance(cdr, (TrickType, Reference, Identifier)):
             raise TypeError(f'Invalid value type for cdr: {cdr}')
 
         self.car = car
@@ -606,6 +634,17 @@ class Pair(List):
                 return False
             visited.add(cur)
             cur = cur.cdr
+
+    def split_improper_tail(self):
+        cur = self
+        proper = []
+        while isinstance(cur, Pair):
+            proper.append(cur.car)
+            cur = cur.cdr
+        if isinstance(cur, Nil):
+            return proper, None
+        else:
+            return proper, cur
 
 
     @staticmethod
