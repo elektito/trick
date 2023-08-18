@@ -1,12 +1,12 @@
 import io
 import unittest
 
-from compile import CompileError, Compiler, CoreImportSet, Environment
+from compile import CompileError, Compiler, CoreImportSet, ToplevelEnvironment
 from read import Reader
 
 class TestCompiler(unittest.TestCase):
     def setUp(self):
-        self.env = Environment()
+        self.env = ToplevelEnvironment()
         self.env.add_import(CoreImportSet())
 
     def _test_toplevel_error(self, source, error=None):
@@ -93,3 +93,40 @@ class TestCompiler(unittest.TestCase):
           (define x 20)
           x)
         ''')
+
+    def test_lambda_with_empty_body(self):
+        self._test_toplevel_error('''
+        (lambda ()
+          )
+        ''', error='cannot be empty')
+
+    def test_let_with_empty_body(self):
+        self._test_toplevel_error('''
+        (let ()
+          )
+        ''', error='cannot be empty')
+
+    def test_letrec_with_empty_body(self):
+        self._test_toplevel_error('''
+        (letrec ()
+          )
+        ''', error='cannot be empty')
+
+    def test_let_syntax_with_empty_body(self):
+        self._test_toplevel_error('''
+        (let-syntax ()
+          )
+        ''', error='cannot be empty')
+
+    def test_letrec_syntax_with_empty_body(self):
+        self._test_toplevel_error('''
+        (letrec-syntax ()
+          )
+        ''', error='cannot be empty')
+
+    def test_syntax_rules_just_ellipis(self):
+        self._test_toplevel_error('''
+        (letrec-syntax ((foo (syntax-rules ()
+                               ((_) ...))))
+          1)
+        ''', error='single ellipsis')
