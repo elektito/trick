@@ -1376,3 +1376,47 @@ and still a comment
 (= 200 (with-exception-handler
         (lambda (e) 100)
         (lambda () 200)))
+
+;; macros
+
+(let-syntax ((swap! (syntax-rules ()
+                      ((_ x y) (let ((tmp x))
+                                 (set! x y)
+                                 (set! y tmp))))))
+  (let ((a 100) (b 200))
+    (swap! a b)
+    (and (= a 200) (= b 100))))
+
+(letrec-syntax ((a (syntax-rules ()
+                     ((_ x) 'A)
+                     ((_ x y ...) (b y ...))))
+                (b (syntax-rules ()
+                     ((_ x) 'B)
+                     ((_ x y ...) (a y ...)))))
+  (and (eq? 'B (a 1 2 3 4 5 6))
+       (eq? 'A (b 1 2 3 4 5 6))
+       (eq? 'A (a 1 2 3 4 5))
+       (eq? 'B (b 1 2 3 4 5))))
+
+(let-syntax ((q (syntax-rules ()
+                  ((_ x) (quote x)))))
+  (eq? 'abc (q abc)))
+
+(let-syntax ((foo (syntax-rules ()
+                    ((_) 100)
+                    ((_ (z ...) (x y) ...)
+                     (list x ... y ... '(x  z 100) ... 'z ...)) ((_ x) (+ x 1)))))
+  (equal? '(1 3 5 2 4 6 (1 a 100) (3 b 100) (5 c 100) a b c)
+          (foo (a b c) (1 2) (3 4) (5 6))))
+
+;; test injecting local variables from the macro
+(let ((x 10))
+  (let ((x 100))
+    (let-syntax ((foo (syntax-rules ()
+                        ((_) (let ()
+                               (let ()
+                                 (list 10 20 x)))))))
+      (let ((a 999)
+            (x 200)
+            (list (lambda x (list 'ABC x))))
+        (equal? '(10 20 100) (foo))))))
