@@ -1962,15 +1962,13 @@ class Compiler:
             # since we're getting transformers through compile_form, which is
             # supposed to return a list of instructions, each "t" is going to be
             # a list of size 1.
-            assert isinstance(t, list)
-            assert len(t) == 1
-            t = t[0]
-
-            if not isinstance(t, Transformer):
+            if not isinstance(t, list) or \
+               len(t) != 1 or \
+               not isinstance(t[0], Transformer):
                 raise self._compile_error(
-                    f'Invalid transformer: {t}', form=t)
+                    f'Invalid transformer: {value}', form=value)
 
-            transformers[var] = t
+            transformers[var] = t[0]
 
         new_env = env.with_new_syntax_frame(transformers)
 
@@ -2016,14 +2014,13 @@ class Compiler:
             # since we're getting transformers through compile_form, which is
             # supposed to return a list of instructions, each "t" is going to be
             # a list of size 1.
-            assert isinstance(t, list)
-            assert len(t) == 1
-            t = t[0]
-
-            if not isinstance(t, Transformer):
+            if not isinstance(t, list) or \
+               len(t) != 1 or \
+               not isinstance(t[0], Transformer):
                 raise self._compile_error(
-                    f'Invalid transformer: {t}', form=t)
-            new_env.frame.set_value(var, t)
+                    f'Invalid transformer: {value}', form=value)
+
+            new_env.frame.set_value(var, t[0])
 
         # convert body into a let expression with no variable bindings. this is
         # necessary so that normal things in a body, like defines at the
