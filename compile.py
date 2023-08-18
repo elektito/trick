@@ -432,7 +432,7 @@ class Environment:
         self.lib_name = lib_name
         self.defined_symbols = {}
         self.written_free_symbols = []
-        self.read_free_symbols = []
+        self.read_free_symbols = OrderedSet()
 
     def copy(self):
         copy = Environment()
@@ -442,7 +442,7 @@ class Environment:
         copy.lib_name = self.lib_name
         copy.defined_symbols = {k: v for k, v in self.defined_symbols.items()}
         copy.written_free_symbols = [i for i in self.written_free_symbols]
-        copy.read_free_symbols = [i for i in self.read_free_symbols]
+        copy.read_free_symbols = OrderedSet(self.read_free_symbols)
         return copy
 
     def add_frame(self, variables):
@@ -550,7 +550,7 @@ class Environment:
         assert not sym.name.startswith('##'), \
             'add_read is supposed to be called with external names ' \
             'but has been passesd a mangled name instead.'
-        self.read_free_symbols.append(sym)
+        self.read_free_symbols.add(sym)
 
     def add_write(self, sym: Symbol):
         assert not sym.name.startswith('##'), \

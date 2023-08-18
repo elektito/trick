@@ -3,10 +3,13 @@ import os
 
 
 class OrderedSet:
-    def __init__(self):
+    def __init__(self, values=None):
         # since python 3.7+ dictionaries retain order, we'll be using the
         # dictionary keys as our set.
         self.set = {}
+        if values is not None:
+            for v in values:
+                self.set[v] = True
 
     def add(self, value):
         self.set[value] = True
