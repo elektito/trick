@@ -114,8 +114,3 @@ def main(args):
             if result != [Void()]:
                 for r in result:
                     print(r)
-
-        # if the expression was a definition, add the fasl to the our list of
-        # libraries, so it's available to future expressions.
-        if len(expr_fasl.defines) > 0:
-            libs.append(expr_fasl)
