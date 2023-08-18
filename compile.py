@@ -1922,6 +1922,10 @@ class Compiler:
         values = List.from_list([b.cdr.car for b in bindings])
         body = expr.cdr.cdr
 
+        if len(body) == 0:
+            raise self._compile_error(
+                f'let-syntax body cannot be empty.')
+
         for v in vars:
             if not isinstance(v, Symbol):
                 raise self._compile_error(
@@ -1963,6 +1967,10 @@ class Compiler:
         vars = List.from_list([b.car for b in bindings])
         values = List.from_list([b.cdr.car for b in bindings])
         body = expr.cdr.cdr
+
+        if len(body) == 0:
+            raise self._compile_error(
+                f'let-syntax body cannot be empty.')
 
         for v in vars:
             if not isinstance(v, Symbol):
