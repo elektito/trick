@@ -76,13 +76,13 @@ def asm_code_for_features():
     return code
 
 
-class DefineKind(Enum):
+class VariableKind(Enum):
     NORMAL = 1
     MACRO = 2
 
 
 class DefineInfo:
-    def __init__(self, name: Symbol, kind: DefineKind):
+    def __init__(self, name: Symbol, kind: VariableKind):
         self.name = name
         self.kind = kind
 
@@ -384,44 +384,63 @@ class SourceFile:
         return hash((self._text, self._filename))
 
 
-class EnvironmentFrame:
-    def __init__(self, initial_variables=None):
-        if initial_variables is None:
-            self.variables = []
-        else:
-            self.variables = initial_variables
+class Variable:
+    def __init__(self, name: Symbol, kind: VariableKind, value=None):
+        self.name = name
+        self.kind = kind
+        self.value = value
 
-    def copy(self):
-        copy = EnvironmentFrame()
-        copy.variables = [s for s in self.variables]
-        return copy
+    def __repr__(self):
+        return f'<Variable {self.name} ({self.kind.name})>'
+
+
+class EnvironmentFrame:
+    def __init__(self, initial_variables: list[Variable] = [],
+                 *, pure_syntax_frame=False):
+        assert all(isinstance(i, Variable) for i in initial_variables)
+        self.variables = initial_variables
+
+        # a pure syntax frame is one created for let-syntax/letrec-syntax and
+        # has no equivalent run-time frame.
+        self.pure_syntax_frame = pure_syntax_frame
 
     def contains(self, name: Symbol):
         return name in self.variables
 
-    def add_variable(self, name: Symbol):
-        self.variables.append(name)
+    def add_variable(self, name: Symbol, kind: VariableKind):
+        self.variables.append(Variable(name, kind))
 
+    def get_variable(self, name: Symbol) -> (None | Variable):
+        for var in self.variables:
+            if var.name == name:
+                return var
 
-class EnvironmentSyntaxFrame(EnvironmentFrame):
-    def __init__(self, bindings: dict[Symbol, Transformer]):
-        assert isinstance(bindings, dict)
-        assert all(isinstance(k, Symbol) for k in bindings.keys())
-        assert all(isinstance(v, Transformer) for v in bindings.values())
-        self.bindings = bindings
+        return None
 
-    def copy(self):
-        copy = EnvironmentSyntaxFrame({})
-        copy.bindings = {k: v for k, v in self.bindings.items()}
-        return copy
+    def get_variable_index(self, name: Symbol):
+        i = 0
+        for var in self.variables:
+            if var.kind == VariableKind.NORMAL:
+                if var.name == name:
+                    return i
+                i += 1
+
+        return None
 
     def get_value(self, name: Symbol):
-        return self.bindings.get(name)
+        for var in self.variables:
+            if var.name == name:
+                return var.value
 
-    def set_value(self, name: Symbol, value: Transformer):
-        assert isinstance(name, Symbol)
-        assert isinstance(value, Transformer)
-        self.bindings[name] = value
+        return None
+
+    def set_value(self, name: Symbol, value):
+        for var in self.variables:
+            if var.name == name:
+                var.value = value
+                return True
+
+        return False
 
 
 class Environment:
@@ -429,15 +448,23 @@ class Environment:
         self.parent = None
 
     def with_new_frame(self, variables):
+        variables = [
+            Variable(name, VariableKind.NORMAL)
+            for name in variables
+        ]
         return LocalEnvironment(
             parent=self,
             frame=EnvironmentFrame(variables),
         )
 
     def with_new_syntax_frame(self, bindings: dict[Symbol, Transformer]):
+        variables = [
+            Variable(name, VariableKind.MACRO, transformer)
+            for name, transformer in bindings.items()
+        ]
         return LocalEnvironment(
             parent=self,
-            frame=EnvironmentSyntaxFrame(bindings),
+            frame=EnvironmentFrame(variables, pure_syntax_frame=True),
         )
 
     def locate_local(self, name: Symbol, *, _frame_idx=0):
@@ -461,7 +488,7 @@ class Environment:
     def get_all_names(self):
         raise NotImplementedError
 
-    def add_define(self, sym: Symbol, kind: DefineKind):
+    def add_define(self, sym: Symbol, kind: VariableKind):
         raise NotImplementedError
 
     def add_read(self, sym: Symbol):
@@ -497,7 +524,7 @@ class ToplevelEnvironment(Environment):
         define_info = self.defined_symbols.get(mangled_sym)
         if define_info:
             kind = SymbolKind.DEFINED_NORMAL
-            if define_info.kind == DefineKind.MACRO:
+            if define_info.kind == VariableKind.MACRO:
                 kind = SymbolKind.DEFINED_MACRO
             return SymbolInfo(
                 symbol=mangled_sym,
@@ -544,7 +571,7 @@ class ToplevelEnvironment(Environment):
         names.extend(self.defined_symbols.keys())
         return names
 
-    def add_define(self, sym: Symbol, kind: DefineKind):
+    def add_define(self, sym: Symbol, kind: VariableKind):
         if self.lib_name:
             sym = self.lib_name.mangle_symbol(sym)
         self.defined_symbols[sym] = DefineInfo(sym, kind)
@@ -588,21 +615,18 @@ class LocalEnvironment(Environment):
             self.toplevel = parent.toplevel
 
     def locate_local(self, name: Symbol, *, _frame_idx=0):
-        if isinstance(self.frame, EnvironmentSyntaxFrame):
-            t = self.frame.get_value(name)
-            if t is not None:
-                return t
-            else:
-                return self.parent.locate_local(
-                    name, _frame_idx=_frame_idx)
-
-        try:
-            i = self.frame.variables.index(name)
-        except ValueError:
+        var = self.frame.get_variable(name)
+        if var is None:
             return self.parent.locate_local(
-                name, _frame_idx=_frame_idx+1)
+                    name, _frame_idx=_frame_idx+1)
+
+        if var.kind == VariableKind.MACRO:
+            return var.value
         else:
-            return [Integer(_frame_idx), Integer(i)]
+            return [
+                Integer(_frame_idx),
+                Integer(self.frame.get_variable_index(name))
+            ]
 
     def add_import(self, import_set: ImportSet):
         return self.toplevel.add_import(import_set)
@@ -639,7 +663,7 @@ class LocalEnvironment(Environment):
     def get_all_names(self):
         return self.toplevel.get_all_names()
 
-    def add_define(self, sym: Symbol, kind: DefineKind):
+    def add_define(self, sym: Symbol, kind: VariableKind):
         return self.toplevel.add_define(sym, kind)
 
     def add_read(self, sym: Symbol):
@@ -1109,7 +1133,7 @@ class Compiler:
                 form=name)
         if info.kind != SymbolKind.FREE:
             raise self._compile_error(f'Duplicate definition for: {name}')
-        env.add_define(name, DefineKind.MACRO)
+        env.add_define(name, VariableKind.MACRO)
 
         code = self.compile_form(lambda_form, env)
         code += [S('set'), info.symbol, S('void')]
@@ -1208,7 +1232,7 @@ class Compiler:
                 # it's okay if the name already exists though, we're just
                 # shadowing a let/letrec/lambda varaible
                 if not env.frame.contains(name):
-                    env.frame.add_variable(name)
+                    env.frame.add_variable(name, VariableKind.NORMAL)
                     code += [S('xp')]
             elif define_type == SpecialForms.DEFINE_MACRO:
                 raise self._compile_error(
@@ -1351,7 +1375,7 @@ class Compiler:
                 i = 0
                 cur_env = env
                 while cur_env != sym.env:
-                    if not isinstance(cur_env.frame, EnvironmentSyntaxFrame):
+                    if not cur_env.frame.pure_syntax_frame:
                         i += 1
                     if cur_env.parent is None:
                         # we reached the top-level environment. this is a bug,
@@ -2309,7 +2333,7 @@ class Compiler:
                     f'Attempting to assign immutable variable: {name_sym}',
                     form=name_sym)
 
-            env.add_define(name_sym, DefineKind.NORMAL)
+            env.add_define(name_sym, VariableKind.NORMAL)
             form_code = self.compile_form(lambda_form, env)
 
             form_code += [S('set'), info.symbol, S('void')]
