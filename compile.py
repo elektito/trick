@@ -1243,7 +1243,7 @@ class Compiler:
     def compile_lambda(self, expr, env: Environment):
         if len(expr) < 3:
             raise self._compile_error(
-                f'Invalid number of arguments for lambda: {expr}')
+                f'Lambda body cannot be empty: {expr}')
 
         params = expr[1]
         if params == Nil():
