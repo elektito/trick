@@ -282,19 +282,24 @@ class SyntaxRulesTransformer(Transformer):
                    self.is_ellipsis(proper[i+1]):
                     compiled_proper.append(
                         RepeatedTemplate(
-                            self.compile_template(proper[i], variables)))
+                            self.compile_template(
+                                proper[i], variables,
+                                no_ellipses=no_ellipses)))
                     i += 2
                 else:
-                    if self.is_ellipsis(proper[i]):
+                    if self.is_ellipsis(proper[i]) and not no_ellipses:
                         raise TransformError(
                             f'Lone ellipsis in transform template: {template}',
                             form=proper[i])
                     compiled_proper.append(
-                        self.compile_template(proper[i], variables))
+                        self.compile_template(
+                            proper[i], variables,
+                            no_ellipses=no_ellipses))
                     i += 1
             compiled_tail = None
             if tail is not None:
-                compiled_tail = self.compile_template(tail, variables)
+                compiled_tail = self.compile_template(
+                    tail, variables, no_ellipses=no_ellipses)
             return ListTemplate(
                 compiled_proper, compiled_tail,
                 src_start=template.src_start,
@@ -308,10 +313,14 @@ class SyntaxRulesTransformer(Transformer):
                    self.is_ellipsis(template[i+1]):
                     items.append(
                         RepeatedTemplate(
-                            self.compile_template(template[i], variables)))
+                            self.compile_template(
+                                template[i], variables,
+                                no_ellipses=no_ellipses)))
                     i += 2
                 else:
-                    items.append(self.compile_template(template[i], variables))
+                    items.append(self.compile_template(
+                        template[i], variables,
+                        no_ellipses=no_ellipses))
                     i += 1
             return VectorTemplate(
                 items,

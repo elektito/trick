@@ -1420,3 +1420,21 @@ and still a comment
             (x 200)
             (list (lambda x (list 'ABC x))))
         (equal? '(10 20 100) (foo))))))
+
+(let-syntax ((foo (syntax-rules ()
+                    ((_ x) x))))
+  (define (foo x) 200)
+  (= 200 (foo 100)))
+
+(let-syntax ((foo (syntax-rules ()
+                    ((_ x) x))))
+  (define (bar x) (foo x))
+  (= 100 (bar 100)))
+
+(let-syntax ((foo (syntax-rules ()
+                    ((_) '(... ...)))))
+  (equal? '... (foo)))
+
+(let-syntax ((foo (syntax-rules ()
+                    ((_ x ...) (... '(1 2 ... 3))))))
+  (equal? '(1 2 ... 3) (foo)))
