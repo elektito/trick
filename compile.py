@@ -1966,6 +1966,10 @@ class Compiler:
             assert len(t) == 1
             t = t[0]
 
+            if not isinstance(t, Transformer):
+                raise self._compile_error(
+                    f'Invalid transformer: {t}', form=t)
+
             transformers[var] = t
 
         new_env = env.with_new_syntax_frame(transformers)
@@ -2018,7 +2022,7 @@ class Compiler:
 
             if not isinstance(t, Transformer):
                 raise self._compile_error(
-                    f'Invalid transformer: {v}', form=v)
+                    f'Invalid transformer: {t}', form=t)
             new_env.frame.set_value(var, t)
 
         # convert body into a let expression with no variable bindings. this is
