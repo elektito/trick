@@ -1167,14 +1167,30 @@ class Compiler:
 
         return defines, body
 
+    def macro_expand_body(self, body, env):
+        new_body = []
+        cur = body
+        changed = False
+        while not isinstance(cur, Nil):
+            expansion = self.macro_expand(cur.car, env)
+            if expansion != cur.car:
+                changed = True
+            new_body.append(expansion)
+            cur = cur.cdr
+
+        if changed:
+            new_body = List.from_list(new_body)
+            new_body.src_start = body.src_start
+            new_body.src_end = body.src_end
+            return new_body
+        else:
+            return body
+
     def compile_body(self, body, env, full_form):
         code = []
 
         # first macro expand the body, since collect_defines expects that.
-        cur = body
-        while not isinstance(cur, Nil):
-            cur.car = self.macro_expand(cur.car, env)
-            cur = cur.cdr
+        body = self.macro_expand_body(body, env)
 
         defines, body = self.collect_defines(body, env)
 
