@@ -1992,7 +1992,7 @@ class Compiler:
             if expr.car.env is None:
                 info = env.lookup_symbol(expr.car)
             else:
-                info = expr.car.env.lookup_symbol(expr.car.symbol)
+                info = expr.car.env.lookup_symbol(expr.car)
             if info.kind == SymbolKind.AUX:
                 raise self._compile_error(
                     f'Invalid use of aux keyword "{expr.car}"',
