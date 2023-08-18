@@ -1333,8 +1333,34 @@ class Compiler:
             if sym.env is None or env == sym.env:
                 return [S('ld'), [info.local_frame_idx, info.local_var_idx]]
             else:
-                # FIXME
-                raise self._compile_error('not supported yet!')
+                # sym.env must be a parent of current env, so we find how many
+                # levels higher it is, and then use the difference to calculate
+                # frame index at the current environment.
+                #
+                # as an example:
+                # (let ((x 10))
+                #   (let ()
+                #     (let-syntax ((foo (syntax-rules ()
+                #                         ((_) x)))))
+                #       (let ((x 20))
+                #         (print (foo))))))
+                #
+                # the transformer environment is one level higher than the
+                # expansion site environment so we should add that to the
+                # frame_idx we get from the transformer environment.
+                i = 0
+                cur_env = env
+                while cur_env != sym.env:
+                    if not isinstance(cur_env.frame, EnvironmentSyntaxFrame):
+                        i += 1
+                    if cur_env.parent is None:
+                        # we reached the top-level environment. this is a bug,
+                        # since it means macro injected env and current env are
+                        # unrelated, which should not be possible.
+                        assert False, 'invalid macro-injected environment'
+                    cur_env = cur_env.parent
+                frame_idx = info.local_var_idx + i
+                return [S('ld'), [Integer(frame_idx), info.local_var_idx]]
         elif info.kind == SymbolKind.FREE:
             env.add_read(sym)
             return [S('get'), info.symbol]
