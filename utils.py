@@ -37,7 +37,7 @@ def assoc(item, alist):
 
 def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
                              include_paths=None, dbg_info=False):
-    from compile import Compiler, Environment
+    from compile import Compiler
     from assemble import Assembler
     from fasl import Fasl
 
@@ -62,12 +62,12 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
 
 
 def compile_expr_to_fasl(expr, lib_fasls=None, env=None):
-    from compile import Compiler, Environment
+    from compile import Compiler, ToplevelEnvironment
     from assemble import Assembler
     from fasl import Fasl
 
     lib_fasls = lib_fasls or []
-    env = env or Environment()
+    env = env or ToplevelEnvironment()
 
     compiler = Compiler(lib_fasls)
 

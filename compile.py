@@ -425,8 +425,58 @@ class EnvironmentSyntaxFrame(EnvironmentFrame):
 
 
 class Environment:
+    def __init__(self):
+        self.parent = None
+
+    def with_new_frame(self, variables):
+        return LocalEnvironment(
+            parent=self,
+            frame=EnvironmentFrame(variables),
+        )
+
+    def with_new_syntax_frame(self, bindings: dict[Symbol, Transformer]):
+        return LocalEnvironment(
+            parent=self,
+            frame=EnvironmentSyntaxFrame(bindings),
+        )
+
+    def locate_local(self, name: Symbol, *, _frame_idx=0):
+        raise NotImplementedError
+
+    def add_import(self, import_set: ImportSet):
+        raise NotImplementedError
+
+    def lookup_symbol(self, sym: Symbol) -> SymbolInfo:
+        raise NotImplementedError
+
+    def add_export(self, sym: Symbol, source_file: (SourceFile | None)):
+        raise NotImplementedError
+
+    def add_renamed_export(self,
+                           internal: Symbol,
+                           external: Symbol,
+                           source_file: (SourceFile | None)):
+        raise NotImplementedError
+
+    def get_all_names(self):
+        raise NotImplementedError
+
+    def add_define(self, sym: Symbol, kind: DefineKind):
+        raise NotImplementedError
+
+    def add_read(self, sym: Symbol):
+        raise NotImplementedError
+
+    def add_write(self, sym: Symbol):
+        raise NotImplementedError
+
+    def check_for_undefined(self):
+        raise NotImplementedError
+
+
+class ToplevelEnvironment(Environment):
     def __init__(self, *, lib_name=None):
-        self.frames: list[EnvironmentFrame] = []
+        self.parent = None
         self.import_sets = []
         self.exports = []
         self.lib_name = lib_name
@@ -434,60 +484,13 @@ class Environment:
         self.written_free_symbols = []
         self.read_free_symbols = OrderedSet()
 
-    def copy(self):
-        copy = Environment()
-        copy.frames = [f.copy() for f in self.frames]
-        copy.import_sets = self.import_sets
-        copy.exports = [i for i in self.exports]
-        copy.lib_name = self.lib_name
-        copy.defined_symbols = {k: v for k, v in self.defined_symbols.items()}
-        copy.written_free_symbols = [i for i in self.written_free_symbols]
-        copy.read_free_symbols = OrderedSet(self.read_free_symbols)
-        return copy
-
-    def add_frame(self, variables):
-        self.frames.insert(0, EnvironmentFrame(variables))
-
-    def add_syntax_frame(self, bindings: dict[Symbol, Transformer]):
-        self.frames.insert(0, EnvironmentSyntaxFrame(bindings))
-
-    def locate_local(self, name: Symbol):
-        i = 0
-        for frame in self.frames:
-            if isinstance(frame, EnvironmentSyntaxFrame):
-                t = frame.get_value(name)
-                if t is not None:
-                    return t
-            else:
-                try:
-                    j = frame.variables.index(name)
-                except ValueError:
-                    pass
-                else:
-                    return [Integer(i), Integer(j)]
-                i += 1
+    def locate_local(self, name: Symbol, *, _frame_idx=0):
         return None
 
     def add_import(self, import_set: ImportSet):
         self.import_sets.append(import_set)
 
     def lookup_symbol(self, sym: Symbol) -> SymbolInfo:
-        local = self.locate_local(sym)
-        if local:
-            if isinstance(local, Transformer):
-                return SymbolInfo(
-                    symbol=sym,
-                    kind=SymbolKind.TRANSFORMER,
-                    transformer=local,
-                )
-            else:
-                return SymbolInfo(
-                    symbol=sym,
-                    kind=SymbolKind.LOCAL,
-                    local_frame_idx=local[0],
-                    local_var_idx=local[1],
-                )
-
         mangled_sym = sym
         if self.lib_name:
             mangled_sym = self.lib_name.mangle_symbol(sym)
@@ -570,6 +573,83 @@ class Environment:
             if info.kind == SymbolKind.FREE:
                 raise CompileError(
                     f'Unbound variable is set: {sym}', form=sym)
+
+
+class LocalEnvironment(Environment):
+    def __init__(self,
+                 parent: Environment,
+                 frame: EnvironmentFrame):
+        self.parent = parent
+        self.frame = frame
+
+        if isinstance(parent, ToplevelEnvironment):
+            self.toplevel = parent
+        else:
+            self.toplevel = parent.toplevel
+
+    def locate_local(self, name: Symbol, *, _frame_idx=0):
+        if isinstance(self.frame, EnvironmentSyntaxFrame):
+            t = self.frame.get_value(name)
+            if t is not None:
+                return t
+            else:
+                return self.parent.locate_local(
+                    name, _frame_idx=_frame_idx)
+
+        try:
+            i = self.frame.variables.index(name)
+        except ValueError:
+            return self.parent.locate_local(
+                name, _frame_idx=_frame_idx+1)
+        else:
+            return [Integer(_frame_idx), Integer(i)]
+
+    def add_import(self, import_set: ImportSet):
+        return self.toplevel.add_import(import_set)
+
+    def lookup_symbol(self, sym: Symbol) -> SymbolInfo:
+        local = self.locate_local(sym)
+        if local:
+            if isinstance(local, Transformer):
+                return SymbolInfo(
+                    symbol=sym,
+                    kind=SymbolKind.TRANSFORMER,
+                    transformer=local,
+                )
+            else:
+                return SymbolInfo(
+                    symbol=sym,
+                    kind=SymbolKind.LOCAL,
+                    local_frame_idx=local[0],
+                    local_var_idx=local[1],
+                )
+
+        return self.toplevel.lookup_symbol(sym)
+
+    def add_export(self, sym: Symbol, source_file: (SourceFile | None)):
+        return self.toplevel.add_export(sym, source_file)
+
+    def add_renamed_export(self,
+                           internal: Symbol,
+                           external: Symbol,
+                           source_file: (SourceFile | None)):
+        return self.toplevel.add_renamed_export(
+            internal, external, source_file)
+
+    def get_all_names(self):
+        return self.toplevel.get_all_names()
+
+    def add_define(self, sym: Symbol, kind: DefineKind):
+        return self.toplevel.add_define(sym, kind)
+
+    def add_read(self, sym: Symbol):
+        return self.toplevel.add_read(sym)
+
+    def add_write(self, sym: Symbol):
+        return self.toplevel.add_write(sym)
+
+    def check_for_undefined(self):
+        return self.toplevel.check_for_undefined()
 
 
 primcalls = {
@@ -1111,8 +1191,8 @@ class Compiler:
             if define_type == SpecialForms.DEFINE:
                 # it's okay if the name already exists though, we're just
                 # shadowing a let/letrec/lambda varaible
-                if not env.frames[0].contains(name):
-                    env.frames[0].add_variable(name)
+                if not env.frame.contains(name):
+                    env.frame.add_variable(name)
                     code += [S('xp')]
             elif define_type == SpecialForms.DEFINE_MACRO:
                 raise self._compile_error(
@@ -1144,7 +1224,7 @@ class Compiler:
 
         return code
 
-    def compile_lambda(self, expr, env):
+    def compile_lambda(self, expr, env: Environment):
         if len(expr) < 3:
             raise self._compile_error(
                 f'Invalid number of arguments for lambda: {expr}')
@@ -1190,8 +1270,7 @@ class Compiler:
         # writing the "ldf" instruction though.
         original_nparams = len(params)
 
-        new_env = env.copy()
-        new_env.add_frame(params)
+        new_env = env.with_new_frame(params)
 
         # expr: (lambda . (params . body))
         body = expr.cdr.cdr
@@ -1383,7 +1462,7 @@ class Compiler:
 
         return self.compile_form(lambda_call, env)
 
-    def compile_letrec(self, expr, env):
+    def compile_letrec(self, expr, env: Environment):
         if len(expr) < 2:
             raise self._compile_error(
                 f'Invalid number of arguments for letrec: {expr}')
@@ -1407,8 +1486,7 @@ class Compiler:
 
         secd_code = [S('dum'), S('nil')]
         for v in reversed(values.to_list()):
-            new_env = env.copy()
-            new_env.add_frame(vars)
+            new_env = env.with_new_frame(vars)
             secd_code += self.compile_form(v, new_env) + [S('cons')]
 
         # ((lambda . ( params . body )) . args)
@@ -1820,8 +1898,7 @@ class Compiler:
 
             transformers[var] = t
 
-        new_env = env.copy()
-        new_env.add_syntax_frame(transformers)
+        new_env = env.with_new_syntax_frame(transformers)
 
         # convert body into a let expression with no variable bindings. this is
         # necessary so that normal things in a body, like defines at the
@@ -1849,9 +1926,11 @@ class Compiler:
             if not isinstance(v, Symbol):
                 raise self._compile_error(f'Invalid letrec-syntax variable: {v}', form=v)
 
-        new_env = env.copy()
+        # initialize variables with "bad" transformers that throw an error if
+        # used. this is to make sure the variables are not used while the actual
+        # transformers are being evaluated.
         bad_transformers = [UninitializedTransformer()] * len(vars)
-        new_env.add_syntax_frame(dict(zip(vars, bad_transformers)))
+        new_env = env.with_new_syntax_frame(dict(zip(vars, bad_transformers)))
 
         for var, value in zip(vars, values):
             t = self.compile_form(value, new_env)
@@ -1866,7 +1945,7 @@ class Compiler:
             if not isinstance(t, Transformer):
                 raise self._compile_error(
                     f'Invalid transformer: {v}', form=v)
-            new_env.frames[0].set_value(var, t)
+            new_env.frame.set_value(var, t)
 
         # convert body into a let expression with no variable bindings. this is
         # necessary so that normal things in a body, like defines at the
@@ -2099,7 +2178,7 @@ class Compiler:
                 f'Invalid library name: {lib_name}', form=lib_name)
 
         code = []
-        lib_env = Environment(lib_name=lib_name)
+        lib_env = ToplevelEnvironment(lib_name=lib_name)
         for i, declaration in enumerate(form.cdr.cdr):
             if i > 0:
                 code += [S('drop')]
@@ -2304,7 +2383,7 @@ class Compiler:
 
     def compile_program(self, text, env=None, *, filename=None):
         if env is None:
-            env = Environment()
+            env = ToplevelEnvironment()
 
         code = []
         self.current_source = SourceFile(text=text, filename=filename)

@@ -2,7 +2,7 @@ import os
 import atexit
 import argparse
 import readline
-from compile import CompileError, CoreImportSet, Environment, LibraryImportSet, primcalls
+from compile import CompileError, CoreImportSet, LibraryImportSet, ToplevelEnvironment, primcalls
 from fasl import Fasl
 from library import LibraryName
 from machinetypes import Symbol, Void
@@ -58,7 +58,7 @@ def main(args):
 
     libs = [stdlib_fasl]
 
-    env = Environment()
+    env = ToplevelEnvironment()
     env.add_import(CoreImportSet())
     env.add_import(
         LibraryImportSet.get_import_set(

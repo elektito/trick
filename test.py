@@ -2,7 +2,7 @@
 
 import argparse
 import sys
-from compile import CompileError, CoreImportSet, Environment, LibraryImportSet
+from compile import CompileError, CoreImportSet, LibraryImportSet, ToplevelEnvironment
 from fasl import Fasl
 from library import LibraryName
 from machinetypes import Symbol
@@ -98,7 +98,7 @@ def main():
 
     machine = Secd(libs)
 
-    env = Environment()
+    env = ToplevelEnvironment()
     env.add_import(CoreImportSet())
     env.add_import(
         LibraryImportSet.get_import_set(
