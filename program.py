@@ -9,7 +9,7 @@ class Program:
     """
 
     def __init__(self, code: list,
-                 defined_libs: dict[LibraryName, list[LibraryExportedSymbol]],
+                 defined_libs,
                  debug_info_enabled: bool):
         self.code = List.from_list_recursive(code)
         self.defined_libs = defined_libs

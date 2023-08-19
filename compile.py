@@ -102,6 +102,23 @@ class SymbolInfo:
                  transformer=None,
                  library_name=None,
                  immutable=False):
+        assert isinstance(symbol, Symbol)
+        match kind:
+            case SymbolKind.PRIMCALL:
+                assert primcall_nargs is not None
+                assert primcall_code is not None
+            case SymbolKind.LOCAL:
+                assert local_frame_idx is not None
+                assert local_var_idx is not None
+            case SymbolKind.SPECIAL:
+                assert special_type is not None
+            case SymbolKind.AUX:
+                assert aux_type is not None
+            case SymbolKind.DEFINED_MACRO:
+                assert transformer is not None
+            case SymbolKind.TRANSFORMER:
+                assert transformer is not None
+
         self.symbol = symbol
         self.kind = kind
         self.primcall_nargs = primcall_nargs
@@ -205,20 +222,32 @@ class CoreImportSet(ImportSet):
 
 
 class LibraryImportSet(ImportSet):
-    def __init__(self, lib_name: LibraryName, exports: list):
+    def __init__(self,
+                 lib_name: LibraryName,
+                 exports: list,
+                 macros: dict[Symbol, Transformer]):
+        assert isinstance(lib_name, LibraryName)
+        assert isinstance(exports, list)
+        assert all(isinstance(i, LibraryExportedSymbol) for i in exports)
+        assert isinstance(macros, dict)
+        assert all(isinstance(k, Symbol) for k in macros.keys())
+        assert all(isinstance(v, Transformer) for v in macros.values())
         self.lib_name = lib_name
-
         self.exports = exports
+        self.macros = macros
 
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
         for e in self.exports:
             if sym == e.external:
                 primcall_nargs = None
                 primcall_code = None
+                transformer = None
                 if e.kind == ExportKind.PRIMCALL:
                     prim = primcalls[e.internal.name]
                     primcall_nargs = prim['nargs']
                     primcall_code = prim['code']
+                if e.kind == ExportKind.MACRO:
+                    transformer = self.macros[e.internal]
                 return SymbolInfo(
                     symbol=e.internal,
                     kind=e.kind.to_symbol_kind(),
@@ -227,6 +256,7 @@ class LibraryImportSet(ImportSet):
                     aux_type=e.aux_type,
                     primcall_nargs=primcall_nargs,
                     primcall_code=primcall_code,
+                    transformer=transformer,
                     immutable=True,
                 )
 
@@ -246,9 +276,10 @@ class LibraryImportSet(ImportSet):
         if name.parts == [S('trick'), S('core')]:
             return CoreImportSet()
         else:
-            for lib_name, lib_exports in local_libs:
+            for lib_name, lib_exports, lib_macros in local_libs:
                 if lib_name == name:
-                    return LibraryImportSet(lib_name, lib_exports)
+                    return LibraryImportSet(
+                        lib_name, lib_exports, lib_macros)
 
             for fasl in fasls:
                 lib_info = fasl.get_section('libinfo')
@@ -535,11 +566,12 @@ class ToplevelEnvironment(Environment):
             elif define_info.kind == VariableKind.MACRO:
                 kind = SymbolKind.DEFINED_MACRO
                 transformer = self.macros[mangled_sym]
-            return SymbolInfo(
+            info = SymbolInfo(
                 symbol=mangled_sym,
                 kind=kind,
                 transformer=transformer,
             )
+            return info
 
         for import_set in self.import_sets:
             result = import_set.lookup(sym)
@@ -2033,13 +2065,14 @@ class Compiler:
         body_code = self.compile_let(new_body, new_env,)
         return body_code
 
-    def process_define_syntax(self, expr, env: Environment):
+    def compile_define_syntax(self, expr, env: Environment):
         if len(expr) != 3:
             raise self._compile_error(
                 f'Invalid number of arguments for define-syntax: {expr}')
 
         name = expr[1]
-        transformer = self.compile_transformer(expr[2], env)
+        transformer_form = expr[2]
+        transformer = self.compile_transformer(transformer_form, env)
 
         info = env.lookup_symbol(name)
         if info.immutable:
@@ -2050,7 +2083,20 @@ class Compiler:
             raise self._compile_error(
                 f'Duplicate definition for: {name}', form=name)
 
+        env.add_define(name, VariableKind.MACRO)
+
+        # add it to the list of available top-level macros than can be used
+        # later in this same compilation unit.
         env.add_macro(name, transformer)
+
+        # compile the transformer's source form as a literal. this will then be
+        # included in the library and in the fasl, and can be loaded again and
+        # compiled into a transformer object.
+        code = self.compile_literal(transformer_form, env, )
+        code += [S('set'), info.symbol]
+
+        return code
+
 
     def compile_syntax_rules(self, expr, env: Environment):
         try:
@@ -2318,7 +2364,7 @@ class Compiler:
 
         # add library to available_libs so that it becomes immediately available
         # to libraries defined later
-        self.defined_libs.append((lib_name, lib_env.exports))
+        self.defined_libs.append((lib_name, lib_env.exports, lib_env.macros))
 
         return code
 
@@ -2363,8 +2409,8 @@ class Compiler:
             if not self.compiling_library:
                 form_code = []
         elif info and info.is_special(SpecialForms.DEFINE_SYNTAX):
-            self.process_define_syntax(form, env)
-            form_code = [S('void')]
+            form_code = self.compile_define_syntax(form, env)
+            form_code += [S('void')]
         elif info and info.is_special(SpecialForms.DEFINE):
             name_sym, lambda_form = self.parse_define_form(form, 'define')
 

@@ -309,7 +309,7 @@ class Assembler:
 
         if program.defined_libs:
             libs_section = FaslLibInfoSection()
-            for lib_name, exports in program.defined_libs:
+            for lib_name, exports, _ in program.defined_libs:
                 libs_section.add_library(lib_name, exports)
             fasl.add_section(libs_section)
 
