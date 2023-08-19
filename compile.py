@@ -8,7 +8,7 @@ import re
 import platform
 import sys
 import argparse
-from library import AuxKeywords, ExportKind, LibraryExportedSymbol, LibraryName, SpecialForms, SymbolKind
+from library import AuxKeywords, ExportKind, Library, LibraryExportedSymbol, LibraryName, SpecialForms, SymbolKind
 from program import Program
 
 import runtime
@@ -226,22 +226,11 @@ class CoreImportSet(ImportSet):
 
 
 class LibraryImportSet(ImportSet):
-    def __init__(self,
-                 lib_name: LibraryName,
-                 exports: list,
-                 macros: dict[Symbol, Transformer]):
-        assert isinstance(lib_name, LibraryName)
-        assert isinstance(exports, list)
-        assert all(isinstance(i, LibraryExportedSymbol) for i in exports)
-        assert isinstance(macros, dict)
-        assert all(isinstance(k, Symbol) for k in macros.keys())
-        assert all(isinstance(v, Transformer) for v in macros.values())
-        self.lib_name = lib_name
-        self.exports = exports
-        self.macros = macros
+    def __init__(self, lib: Library):
+        self.lib = lib
 
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
-        for e in self.exports:
+        for e in self.lib.exports:
             if sym == e.external:
                 primcall_nargs = None
                 primcall_code = None
@@ -251,11 +240,11 @@ class LibraryImportSet(ImportSet):
                     primcall_nargs = prim['nargs']
                     primcall_code = prim['code']
                 if e.kind == ExportKind.MACRO:
-                    transformer = self.macros[e.internal]
+                    transformer = self.lib.macros[e.internal]
                 return SymbolInfo(
                     symbol=e.internal,
                     kind=e.kind.to_symbol_kind(),
-                    library_name=self.lib_name,
+                    library_name=self.lib.name,
                     special_type=e.special_type,
                     aux_type=e.aux_type,
                     primcall_nargs=primcall_nargs,
@@ -280,20 +269,17 @@ class LibraryImportSet(ImportSet):
         if name.parts == [S('trick'), S('core')]:
             return CoreImportSet()
         else:
-            for lib_name, lib_exports, lib_macros in local_libs:
-                if lib_name == name:
-                    return LibraryImportSet(
-                        lib_name, lib_exports, lib_macros)
+            for lib in local_libs:
+                if lib.name == name:
+                    return LibraryImportSet(lib)
 
             for fasl in fasls:
                 lib_info = fasl.get_section('libinfo')
                 if not lib_info:
                     continue
-                for lib_name, exports in lib_info.libs.items():
-                    if name == lib_name:
-                        # FIXME the last argument is currently empty because we
-                        # don't support loading macros from fasls yet
-                        return LibraryImportSet(name, exports, {})
+                for lib in lib_info.libs:
+                    if name == lib.name:
+                        return LibraryImportSet(lib)
 
         return None
 
@@ -2383,7 +2369,8 @@ class Compiler:
 
         # add library to available_libs so that it becomes immediately available
         # to libraries defined later
-        self.defined_libs.append((lib_name, lib_env.exports, lib_env.macros))
+        self.defined_libs.append(
+            Library(lib_name, lib_env.exports, lib_env.macros))
 
         return code
 

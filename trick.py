@@ -111,7 +111,7 @@ def main():
         lib_fasls += [stdlib_fasl]
 
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
-        env = compile.Environment()
+        env = compile.ToplevelEnvironment()
         env.add_import(compile.CoreImportSet())
         env.add_import(
             compile.LibraryImportSet.get_import_set(
@@ -142,7 +142,7 @@ def main():
             stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
         lib_fasls += [stdlib_fasl]
 
-        env = compile.Environment()
+        env = compile.ToplevelEnvironment()
         env.add_import(compile.CoreImportSet())
         env.add_import(
             compile.LibraryImportSet.get_import_set(
@@ -171,7 +171,7 @@ def main():
             stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
         lib_fasls += [stdlib_fasl]
 
-        env = compile.Environment()
+        env = compile.ToplevelEnvironment()
         env.add_import(compile.CoreImportSet())
         env.add_import(
             compile.LibraryImportSet.get_import_set(
@@ -194,7 +194,7 @@ def main():
             stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
         lib_fasls += [stdlib_fasl]
 
-        env = compile.Environment()
+        env = compile.ToplevelEnvironment()
         env.add_import(compile.CoreImportSet())
         env.add_import(
             compile.LibraryImportSet.get_import_set(

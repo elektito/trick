@@ -195,3 +195,25 @@ class LibraryExportedSymbol:
         self.aux_type = aux_type
 
         self.export_source_file = export_source_file
+
+
+class Library:
+    def __init__(self,
+                 name: LibraryName,
+                 exports: list[LibraryExportedSymbol],
+                 macros: dict):
+        from transform import Transformer  # avoid circular reference
+
+        assert isinstance(name, LibraryName)
+        assert isinstance(exports, list)
+        assert all(isinstance(i, LibraryExportedSymbol) for i in exports)
+        assert isinstance(macros, dict)
+        assert all(isinstance(k, Symbol) for k in macros.keys())
+        assert all(isinstance(v, Transformer) for v in macros.values())
+
+        self.name = name
+        self.exports = exports
+        self.macros = macros
+
+    def __repr__(self):
+        return f'<Library {self.name}>'

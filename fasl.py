@@ -3,7 +3,7 @@ import io
 import struct
 from collections import defaultdict
 
-from library import AuxKeywords, ExportKind, LibraryExportedSymbol, LibraryName, SpecialForms
+from library import AuxKeywords, ExportKind, Library, LibraryExportedSymbol, LibraryName, SpecialForms
 from machinetypes import Integer, List, String, Symbol, DEFAULT_ENCODING
 from snippet import show_snippet
 
@@ -259,16 +259,14 @@ class FaslLibInfoSection(FaslSection):
     section_id = 2
 
     def __init__(self):
-        self.libs: dict[LibraryName, list[LibraryExportedSymbol]] = {}
+        self.libs: list[Library] = []
 
     @property
     def name(self):
         return 'libinfo'
 
-    def add_library(self,
-                    name: LibraryName,
-                    exports: list[LibraryExportedSymbol]):
-        self.libs[name] = exports
+    def add_library(self, lib: Library):
+        self.libs.append(lib)
 
     def __repr__(self):
         return f'<FaslLibInfoSection>'
@@ -276,10 +274,10 @@ class FaslLibInfoSection(FaslSection):
     def _serialize(self) -> bytes:
         s = b''
         s += struct.pack('<I', len(self.libs))
-        for name, exports in self.libs.items():
-            s += serialize_string(name.mangle())
-            s += struct.pack('<I', len(exports))
-            for export in exports:
+        for lib in self.libs:
+            s += serialize_string(lib.name.mangle())
+            s += struct.pack('<I', len(lib.exports))
+            for export in lib.exports:
                 s += serialize_string(export.internal.name)
                 s += serialize_string(export.external.name)
 
@@ -341,7 +339,9 @@ class FaslLibInfoSection(FaslSection):
                         kind=kind,
                         special_type=special_type,
                         aux_type=aux_type))
-            section.add_library(lib_name, exports)
+            # FIXME last argument to Library is empty because we don't support
+            # loading macros from a FASL yet.
+            section.add_library(Library(lib_name, exports, {}))
 
         return section
 
@@ -590,11 +590,11 @@ def print_general_info(fasl: Fasl):
         nlibs = len(lib_info.libs)
         print()
         print(f'{nlibs} librar{"ies" if nlibs != 1 else "y"} available: ', end='')
-        print(', '.join(str(n) for n in lib_info.libs.keys()))
+        print(', '.join(str(lib.name) for lib in lib_info.libs()))
 
-        for lib_name, exports in lib_info.libs.items():
-            exports.sort(key=lambda r: r.external.name)
-            print(f'   {lib_name} has {len(exports)} export(s):')
+        for lib in lib_info.libs:
+            exports = lib.exports.sort(key=lambda r: r.external.name)
+            print(f'   {lib.name} has {len(exports)} export(s):')
             for ex in exports:
                 kind = ''
                 if ex.kind != ExportKind.NORMAL:
