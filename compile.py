@@ -1957,18 +1957,7 @@ class Compiler:
 
         transformers = {}
         for var, value in zip(vars, values):
-            t = self.compile_form(value, env)
-
-            # since we're getting transformers through compile_form, which is
-            # supposed to return a list of instructions, each "t" is going to be
-            # a list of size 1.
-            if not isinstance(t, list) or \
-               len(t) != 1 or \
-               not isinstance(t[0], Transformer):
-                raise self._compile_error(
-                    f'Invalid transformer: {value}', form=value)
-
-            transformers[var] = t[0]
+            transformers[var] = self.compile_transformer(value, env)
 
         new_env = env.with_new_syntax_frame(transformers)
 
@@ -2009,18 +1998,8 @@ class Compiler:
         new_env = env.with_new_syntax_frame(dict(zip(vars, bad_transformers)))
 
         for var, value in zip(vars, values):
-            t = self.compile_form(value, new_env)
-
-            # since we're getting transformers through compile_form, which is
-            # supposed to return a list of instructions, each "t" is going to be
-            # a list of size 1.
-            if not isinstance(t, list) or \
-               len(t) != 1 or \
-               not isinstance(t[0], Transformer):
-                raise self._compile_error(
-                    f'Invalid transformer: {value}', form=value)
-
-            new_env.frame.set_value(var, t[0])
+            transformer = self.compile_transformer(value, new_env)
+            new_env.frame.set_value(var, transformer)
 
         # convert body into a let expression with no variable bindings. this is
         # necessary so that normal things in a body, like defines at the
@@ -2032,11 +2011,19 @@ class Compiler:
 
     def compile_syntax_rules(self, expr, env: Environment):
         try:
-            return [SyntaxRulesTransformer(expr, env)]
+            return SyntaxRulesTransformer(expr, env)
         except TransformError as e:
             raise self._compile_error(
                 f'Error while creating transformer: {e}',
                 form=e.form)
+
+    def compile_transformer(self, expr, env: Environment):
+        if not isinstance(expr, Pair):
+            raise self._compile_error(f'Invalid transformer: {expr}')
+        info = self.lookup_symbol(expr.car, env)
+        if not info.is_special(SpecialForms.SYNTAX_RULES):
+            raise self._compile_error(f'Invalid transformer: {expr}')
+        return self.compile_syntax_rules(expr, env)
 
     def compile_list(self, expr, env: Environment):
         if expr == Nil():
@@ -2095,6 +2082,9 @@ class Compiler:
                         raise self._compile_error(
                             f'define-macro is only allowed at the top-level or beginning of the body',
                             form=expr)
+                    elif info.is_special(SpecialForms.SYNTAX_RULES):
+                        raise self._compile_error(
+                            'Ill-placed syntax-rules', form=expr)
                     else:
                         # for example, define-library at non-top-level
                         # positions
@@ -2356,6 +2346,9 @@ class Compiler:
             form_code = self.compile_cond_expand_toplevel(form, env)
         elif info and info.is_special(SpecialForms.DEFINE_LIBRARY):
             form_code = self.compile_define_library(form)
+        elif info and info.is_special(SpecialForms.SYNTAX_RULES):
+            raise self._compile_error(
+                'Ill-placed syntax-rules', form=form)
         else:
             form_code = self.compile_form(form, env)
 
