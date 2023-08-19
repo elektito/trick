@@ -1038,8 +1038,9 @@ class Compiler:
             raise self._rebuild_compile_error(e)
 
     def macro_expand(self, form, env):
+        initial_form = form
         while True:
-            original_form = form
+            prev_form = form
             form = self.macro_expand_unhygienic(form, env)
 
             if isinstance(form, Pair):
@@ -1047,9 +1048,14 @@ class Compiler:
                     info = self.lookup_symbol(form.car, env)
                     if info.kind in (SymbolKind.DEFINED_MACRO,
                                      SymbolKind.TRANSFORMER):
-                        form = info.transformer.transform(form, env)
+                        try:
+                            form = info.transformer.transform(form, env)
+                        except TransformError as e:
+                            raise self._compile_error(
+                                f'Error while transforming: {e}',
+                                form=e.form if e.form is not None else initial_form)
 
-            if form == original_form:
+            if form == prev_form:
                 break
 
         return form
@@ -2171,16 +2177,7 @@ class Compiler:
                 SpecialForms.SYNTAX_RULES: self.compile_syntax_rules,
             }
 
-            if info.kind in (SymbolKind.TRANSFORMER,
-                             SymbolKind.DEFINED_MACRO):
-                try:
-                    new_expr = info.transformer.transform(expr, env)
-                except TransformError as e:
-                    raise self._compile_error(
-                        f'Error while transforming: {e}',
-                        form=e.form if e.form is not None else expr)
-                return self.compile_form(new_expr, env)
-            elif info.kind == SymbolKind.SPECIAL:
+            if info.kind == SymbolKind.SPECIAL:
                 compile_func = special_forms.get(info.special_type)
 
                 if not compile_func:
