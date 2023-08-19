@@ -116,7 +116,7 @@ class SymbolInfo:
                 assert aux_type is not None
             case SymbolKind.DEFINED_MACRO:
                 assert transformer is not None
-            case SymbolKind.TRANSFORMER:
+            case SymbolKind.LOCAL_MACRO:
                 assert transformer is not None
 
         self.symbol = symbol
@@ -687,7 +687,7 @@ class LocalEnvironment(Environment):
             if isinstance(local, Transformer):
                 return SymbolInfo(
                     symbol=sym,
-                    kind=SymbolKind.TRANSFORMER,
+                    kind=SymbolKind.LOCAL_MACRO,
                     transformer=local,
                 )
             else:
@@ -1047,7 +1047,7 @@ class Compiler:
                 if isinstance(form.car, Symbol):
                     info = self.lookup_symbol(form.car, env)
                     if info.kind in (SymbolKind.DEFINED_MACRO,
-                                     SymbolKind.TRANSFORMER):
+                                     SymbolKind.LOCAL_MACRO):
                         try:
                             form = info.transformer.transform(form, env)
                         except TransformError as e:

@@ -13,8 +13,8 @@ class SymbolKind(Enum):
     DEFINED_NORMAL = 5
     DEFINED_UNHYGIENIC_MACRO = 6
     DEFINED_MACRO = 7
-    FREE = 8
-    TRANSFORMER = 9
+    LOCAL_MACRO = 8
+    FREE = 9
 
 
 class ExportKind(Enum):
