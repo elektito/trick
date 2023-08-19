@@ -287,7 +287,9 @@ class LibraryImportSet(ImportSet):
                     continue
                 for lib_name, exports in lib_info.libs.items():
                     if name == lib_name:
-                        return LibraryImportSet(name, exports)
+                        # FIXME the last argument is currently empty because we
+                        # don't support loading macros from fasls yet
+                        return LibraryImportSet(name, exports, {})
 
         return None
 
@@ -1036,6 +1038,23 @@ class Compiler:
             raise self._rebuild_compile_error(e)
 
     def macro_expand(self, form, env):
+        while True:
+            original_form = form
+            form = self.macro_expand_unhygienic(form, env)
+
+            if isinstance(form, Pair):
+                if isinstance(form.car, Symbol):
+                    info = self.lookup_symbol(form.car, env)
+                    if info.kind in (SymbolKind.DEFINED_MACRO,
+                                     SymbolKind.TRANSFORMER):
+                        form = info.transformer.transform(form, env)
+
+            if form == original_form:
+                break
+
+        return form
+
+    def macro_expand_unhygienic(self, form, env):
         while isinstance(form, Pair) and \
               len(form) > 0 and \
               isinstance(form[0], Symbol):
