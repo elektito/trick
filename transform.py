@@ -221,7 +221,7 @@ class SyntaxRulesTransformer(Transformer):
     def compile(self):
         # (transform literals *rules)
         # OR
-        # (transform ellipses literals *rules)
+        # (transform ellipsis-symbol literals *rules)
 
         d = self.definition
 
