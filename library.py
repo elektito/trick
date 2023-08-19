@@ -11,9 +11,10 @@ class SymbolKind(Enum):
     PRIMCALL = 3
     LOCAL = 4
     DEFINED_NORMAL = 5
-    DEFINED_MACRO = 6
-    FREE = 7
-    TRANSFORMER = 8
+    DEFINED_UNHYGIENIC_MACRO = 6
+    DEFINED_MACRO = 7
+    FREE = 8
+    TRANSFORMER = 9
 
 
 class ExportKind(Enum):
@@ -21,7 +22,8 @@ class ExportKind(Enum):
     SPECIAL = 2
     AUX = 3
     PRIMCALL = 4
-    MACRO = 5
+    UNHYGIENIC_MACRO = 5
+    MACRO = 6
 
     def to_symbol_kind(self):
         return {
@@ -29,6 +31,7 @@ class ExportKind(Enum):
             ExportKind.SPECIAL: SymbolKind.SPECIAL,
             ExportKind.AUX: SymbolKind.AUX,
             ExportKind.PRIMCALL: SymbolKind.PRIMCALL,
+            ExportKind.UNHYGIENIC_MACRO: SymbolKind.DEFINED_UNHYGIENIC_MACRO,
             ExportKind.MACRO: SymbolKind.DEFINED_MACRO,
         }[self]
 
@@ -38,6 +41,7 @@ class ExportKind(Enum):
             SymbolKind.SPECIAL: ExportKind.SPECIAL,
             SymbolKind.PRIMCALL: ExportKind.PRIMCALL,
             SymbolKind.AUX: ExportKind.AUX,
+            SymbolKind.DEFINED_UNHYGIENIC_MACRO: ExportKind.UNHYGIENIC_MACRO,
             SymbolKind.DEFINED_MACRO: ExportKind.MACRO,
         }.get(kind, ExportKind.NORMAL)
 

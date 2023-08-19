@@ -78,7 +78,8 @@ def asm_code_for_features():
 
 class VariableKind(Enum):
     NORMAL = 1
-    MACRO = 2
+    UNHYGIENIC_MACRO = 2
+    MACRO = 3
 
 
 class DefineInfo:
@@ -459,7 +460,7 @@ class Environment:
 
     def with_new_syntax_frame(self, bindings: dict[Symbol, Transformer]):
         variables = [
-            Variable(name, VariableKind.MACRO, transformer)
+            Variable(name, VariableKind.UNHYGIENIC_MACRO, transformer)
             for name, transformer in bindings.items()
         ]
         return LocalEnvironment(
@@ -491,6 +492,9 @@ class Environment:
     def add_define(self, sym: Symbol, kind: VariableKind):
         raise NotImplementedError
 
+    def add_macro(self, name: Symbol, transformer: Transformer):
+        raise NotImplementedError
+
     def add_read(self, sym: Symbol):
         raise NotImplementedError
 
@@ -508,6 +512,7 @@ class ToplevelEnvironment(Environment):
         self.exports = []
         self.lib_name = lib_name
         self.defined_symbols = {}
+        self.macros = {}
         self.written_free_symbols = []
         self.read_free_symbols = OrderedSet()
 
@@ -524,11 +529,16 @@ class ToplevelEnvironment(Environment):
         define_info = self.defined_symbols.get(mangled_sym)
         if define_info:
             kind = SymbolKind.DEFINED_NORMAL
-            if define_info.kind == VariableKind.MACRO:
+            transformer = None
+            if define_info.kind == VariableKind.UNHYGIENIC_MACRO:
+                kind = SymbolKind.DEFINED_UNHYGIENIC_MACRO
+            elif define_info.kind == VariableKind.MACRO:
                 kind = SymbolKind.DEFINED_MACRO
+                transformer = self.macros[mangled_sym]
             return SymbolInfo(
                 symbol=mangled_sym,
                 kind=kind,
+                transformer=transformer,
             )
 
         for import_set in self.import_sets:
@@ -576,6 +586,12 @@ class ToplevelEnvironment(Environment):
             sym = self.lib_name.mangle_symbol(sym)
         self.defined_symbols[sym] = DefineInfo(sym, kind)
 
+    def add_macro(self, name: Symbol, transformer: Transformer):
+        if self.lib_name:
+            name = self.lib_name.mangle_symbol(name)
+        self.defined_symbols[name] = DefineInfo(name, VariableKind.MACRO)
+        self.macros[name] = transformer
+
     def add_read(self, sym: Symbol):
         assert not sym.name.startswith('##'), \
             'add_read is supposed to be called with external names ' \
@@ -620,7 +636,7 @@ class LocalEnvironment(Environment):
             return self.parent.locate_local(
                     name, _frame_idx=_frame_idx+1)
 
-        if var.kind == VariableKind.MACRO:
+        if var.kind == VariableKind.UNHYGIENIC_MACRO:
             return var.value
         else:
             return [
@@ -665,6 +681,10 @@ class LocalEnvironment(Environment):
 
     def add_define(self, sym: Symbol, kind: VariableKind):
         return self.toplevel.add_define(sym, kind)
+
+    def add_macro(self, name, transformer):
+        # only top-level macros can be added to the library/fasl
+        assert False, 'add_macro should not be called on non-toplevel environment'
 
     def add_read(self, sym: Symbol):
         return self.toplevel.add_read(sym)
@@ -989,7 +1009,7 @@ class Compiler:
               isinstance(form[0], Symbol):
             name_sym = form[0]
             info = self.lookup_symbol(name_sym, env)
-            if info.kind != SymbolKind.DEFINED_MACRO:
+            if info.kind != SymbolKind.DEFINED_UNHYGIENIC_MACRO:
                 break
 
             src_start = form.src_start
@@ -1019,7 +1039,7 @@ class Compiler:
             info = self.lookup_symbol(name_sym, env)
             if info.is_special(SpecialForms.QUOTE):
                 return form
-            if info.kind != SymbolKind.DEFINED_MACRO:
+            if info.kind != SymbolKind.DEFINED_UNHYGIENIC_MACRO:
                 break
 
             args = form.cdr
@@ -1133,7 +1153,7 @@ class Compiler:
                 form=name)
         if info.kind != SymbolKind.FREE:
             raise self._compile_error(f'Duplicate definition for: {name}')
-        env.add_define(name, VariableKind.MACRO)
+        env.add_define(name, VariableKind.UNHYGIENIC_MACRO)
 
         code = self.compile_form(lambda_form, env)
         code += [S('set'), info.symbol, S('void')]
@@ -1390,6 +1410,10 @@ class Compiler:
             return [S('get'), info.symbol]
         elif info.kind == SymbolKind.DEFINED_NORMAL:
             return [S('get'), info.symbol]
+        elif info.kind == SymbolKind.DEFINED_UNHYGIENIC_MACRO:
+            raise self._compile_error(
+                f'Invalid use of macro name: {sym}',
+                form=sym)
         elif info.kind == SymbolKind.DEFINED_MACRO:
             raise self._compile_error(
                 f'Invalid use of macro name: {sym}',
@@ -2009,6 +2033,25 @@ class Compiler:
         body_code = self.compile_let(new_body, new_env,)
         return body_code
 
+    def process_define_syntax(self, expr, env: Environment):
+        if len(expr) != 3:
+            raise self._compile_error(
+                f'Invalid number of arguments for define-syntax: {expr}')
+
+        name = expr[1]
+        transformer = self.compile_transformer(expr[2], env)
+
+        info = env.lookup_symbol(name)
+        if info.immutable:
+            raise self._compile_error(
+                f'Attempting to assign immutable variable: {name}',
+                form=name)
+        elif info.kind != SymbolKind.FREE:
+            raise self._compile_error(
+                f'Duplicate definition for: {name}', form=name)
+
+        env.add_macro(name, transformer)
+
     def compile_syntax_rules(self, expr, env: Environment):
         try:
             return SyntaxRulesTransformer(expr, env)
@@ -2019,10 +2062,12 @@ class Compiler:
 
     def compile_transformer(self, expr, env: Environment):
         if not isinstance(expr, Pair):
-            raise self._compile_error(f'Invalid transformer: {expr}')
+            raise self._compile_error(
+                f'Invalid transformer: {expr}', form=expr)
         info = self.lookup_symbol(expr.car, env)
         if not info.is_special(SpecialForms.SYNTAX_RULES):
-            raise self._compile_error(f'Invalid transformer: {expr}')
+            raise self._compile_error(
+                f'Invalid transformer: {expr}', form=expr)
         return self.compile_syntax_rules(expr, env)
 
     def compile_list(self, expr, env: Environment):
@@ -2061,7 +2106,8 @@ class Compiler:
                 SpecialForms.SYNTAX_RULES: self.compile_syntax_rules,
             }
 
-            if info.kind == SymbolKind.TRANSFORMER:
+            if info.kind in (SymbolKind.TRANSFORMER,
+                             SymbolKind.DEFINED_MACRO):
                 try:
                     new_expr = info.transformer.transform(expr, env)
                 except TransformError as e:
@@ -2256,6 +2302,7 @@ class Compiler:
             export.special_type = info.special_type
             export.aux_type = info.aux_type
             if info.kind in (SymbolKind.DEFINED_NORMAL,
+                             SymbolKind.DEFINED_UNHYGIENIC_MACRO,
                              SymbolKind.DEFINED_MACRO):
                 export.internal = info.symbol
             if info.kind == SymbolKind.FREE:
@@ -2315,6 +2362,9 @@ class Compiler:
             # code in the output.
             if not self.compiling_library:
                 form_code = []
+        elif info and info.is_special(SpecialForms.DEFINE_SYNTAX):
+            self.process_define_syntax(form, env)
+            form_code = [S('void')]
         elif info and info.is_special(SpecialForms.DEFINE):
             name_sym, lambda_form = self.parse_define_form(form, 'define')
 
