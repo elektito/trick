@@ -139,6 +139,10 @@ class SymbolInfo:
         return self.kind == SymbolKind.AUX and \
             self.aux_type == aux_type
 
+    def is_macro(self):
+        return self.kind in (SymbolKind.DEFINED_MACRO,
+                             SymbolKind.LOCAL_MACRO)
+
     def __repr__(self):
         return f'<SymbolInfo {self.symbol} kind={self.kind.name}>'
 
@@ -1046,8 +1050,7 @@ class Compiler:
             if isinstance(form, Pair):
                 if isinstance(form.car, Symbol):
                     info = self.lookup_symbol(form.car, env)
-                    if info.kind in (SymbolKind.DEFINED_MACRO,
-                                     SymbolKind.LOCAL_MACRO):
+                    if info.is_macro():
                         try:
                             form = info.transformer.transform(form, env)
                         except TransformError as e:
@@ -1471,7 +1474,7 @@ class Compiler:
             raise self._compile_error(
                 f'Invalid use of macro name: {sym}',
                 form=sym)
-        elif info.kind == SymbolKind.DEFINED_MACRO:
+        elif info.is_macro():
             raise self._compile_error(
                 f'Invalid use of macro name: {sym}',
                 form=sym)
