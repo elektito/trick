@@ -1,4 +1,3 @@
-from collections import defaultdict
 from library import AuxKeywords, SymbolKind
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, String, Symbol, TrickType, Vector
 
