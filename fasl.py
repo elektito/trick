@@ -590,10 +590,10 @@ def print_general_info(fasl: Fasl):
         nlibs = len(lib_info.libs)
         print()
         print(f'{nlibs} librar{"ies" if nlibs != 1 else "y"} available: ', end='')
-        print(', '.join(str(lib.name) for lib in lib_info.libs()))
+        print(', '.join(str(lib.name) for lib in lib_info.libs))
 
         for lib in lib_info.libs:
-            exports = lib.exports.sort(key=lambda r: r.external.name)
+            exports = sorted(lib.exports, key=lambda r: r.external.name)
             print(f'   {lib.name} has {len(exports)} export(s):')
             for ex in exports:
                 kind = ''
