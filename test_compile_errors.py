@@ -1,8 +1,9 @@
 import io
 import unittest
 
-from compile import CompileError, Compiler, LibraryImportSet, ToplevelEnvironment
-from library import CoreLibrary
+from compile import Compiler, ToplevelEnvironment
+from exceptions import CompileError
+from library import CoreLibrary, LibraryImportSet
 from read import Reader
 
 class TestCompiler(unittest.TestCase):

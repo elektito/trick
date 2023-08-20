@@ -8,8 +8,8 @@ import compile
 import assemble
 from exceptions import RunError
 import fasl
-from library import CoreLibrary, LibraryName
-from machinetypes import List, Symbol
+from library import CoreLibrary, LibraryImportSet, LibraryName
+from machinetypes import Symbol
 from read import ReadError, read_expr
 import secd
 import repl
@@ -113,9 +113,9 @@ def main():
 
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         env = compile.ToplevelEnvironment()
-        env.add_import(compile.LibraryImportSet(CoreLibrary()))
+        env.add_import(LibraryImportSet(CoreLibrary()))
         env.add_import(
-            compile.LibraryImportSet.get_import_set(
+            compile.get_import_set(
                 LibraryName([Symbol('trick')]),
                 lib_fasls))
         try:
@@ -144,9 +144,9 @@ def main():
         lib_fasls += [stdlib_fasl]
 
         env = compile.ToplevelEnvironment()
-        env.add_import(compile.LibraryImportSet(CoreLibrary()))
+        env.add_import(LibraryImportSet(CoreLibrary()))
         env.add_import(
-            compile.LibraryImportSet.get_import_set(
+            compile.get_import_set(
                 LibraryName([Symbol('trick')]),
                 lib_fasls))
 
@@ -173,9 +173,9 @@ def main():
         lib_fasls += [stdlib_fasl]
 
         env = compile.ToplevelEnvironment()
-        env.add_import(compile.LibraryImportSet(CoreLibrary()))
+        env.add_import(LibraryImportSet(CoreLibrary()))
         env.add_import(
-            compile.LibraryImportSet.get_import_set(
+            compile.get_import_set(
                 LibraryName([Symbol('trick')]),
                 lib_fasls))
 
@@ -196,9 +196,9 @@ def main():
         lib_fasls += [stdlib_fasl]
 
         env = compile.ToplevelEnvironment()
-        env.add_import(compile.LibraryImportSet(CoreLibrary()))
+        env.add_import(LibraryImportSet(CoreLibrary()))
         env.add_import(
-            compile.LibraryImportSet.get_import_set(
+            compile.get_import_set(
                 LibraryName([Symbol('trick')]),
                 lib_fasls))
 

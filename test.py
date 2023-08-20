@@ -3,10 +3,10 @@
 import argparse
 import sys
 
-from compile import CompileError, LibraryImportSet, ToplevelEnvironment
-from exceptions import RunError
+from compile import ToplevelEnvironment, get_import_set
+from exceptions import CompileError, RunError
 from fasl import Fasl
-from library import CoreLibrary, LibraryName
+from library import CoreLibrary, LibraryImportSet, LibraryName
 from machinetypes import Symbol
 from read import ReadError, Reader
 from secd import Secd
@@ -103,7 +103,7 @@ def main():
     env = ToplevelEnvironment()
     env.add_import(LibraryImportSet(CoreLibrary()))
     env.add_import(
-        LibraryImportSet.get_import_set(
+        get_import_set(
             LibraryName([Symbol('trick')]),
             libs))
 

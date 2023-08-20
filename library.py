@@ -3,7 +3,7 @@ import re
 from typing import Optional
 
 import runtime
-from machinetypes import Integer, List, Symbol
+from machinetypes import Integer, List, Pair, Symbol
 from primcalls import primcalls
 
 
@@ -383,3 +383,114 @@ class CoreLibrary(Library):
         names += [Symbol(i.value) for i in AuxKeywords]
         names += list(Symbol(i) for i in primcalls.keys())
         return names
+
+
+class ImportSet:
+    def lookup(self, sym: Symbol) -> (SymbolInfo | None):
+        raise NotImplementedError
+
+
+class LibraryImportSet(ImportSet):
+    def __init__(self, lib: Library):
+        self.lib = lib
+
+    def lookup(self, sym: Symbol) -> (SymbolInfo | None):
+        try:
+            return self.lib.lookup(sym)
+        except LibraryLookupError as e:
+            raise CompileError(str(e), form=e.form)
+
+    def get_all_names(self):
+        return self.lib.get_all_names()
+
+    def __str__(self):
+        return f'<LibraryImportSet {self.lib.name}>'
+
+    def __repr__(self):
+        return str(self)
+
+
+class OnlyImportSet(ImportSet):
+    def __init__(self, base_import_set: ImportSet, identifiers: list[Symbol]):
+        self.base_import_set = base_import_set
+        self.identifiers = identifiers
+
+    def lookup(self, sym: Symbol):
+        if sym not in self.identifiers:
+            return None
+
+        return self.base_import_set.lookup(sym)
+
+    def __str__(self):
+        return f'<OnlyImportSet base={self.base_import_set} only={self.identifiers}>'
+
+    def __repr__(self):
+        return str(self)
+
+
+class ExceptImportSet(ImportSet):
+    def __init__(self, base_import_set: ImportSet, identifiers: list[Symbol]):
+        self.base_import_set = base_import_set
+        self.identifiers = identifiers
+
+    def lookup(self, sym: Symbol):
+        if sym in self.identifiers:
+            return None
+
+        return self.base_import_set.lookup(sym)
+
+    def __str__(self):
+        return f'<ExceptImportSet base={self.base_import_set} except={self.identifiers}>'
+
+    def __repr__(self):
+        return str(self)
+
+
+class PrefixImportSet(ImportSet):
+    def __init__(self, base_import_set: ImportSet, prefix: Symbol):
+        self.base_import_set = base_import_set
+        self.prefix = prefix.name
+
+    def lookup(self, sym: Symbol):
+        if not sym.name.startswith(self.prefix):
+            return None
+
+        no_prefix_name = S(sym.name[len(self.prefix):])
+        result = self.base_import_set.lookup(no_prefix_name)
+        if result is None:
+            return None
+        result.symbol = no_prefix_name
+        return result
+
+    def __str__(self):
+        return f'<PrefixImportSet base={self.base_import_set} prefix="{self.prefix}">'
+
+    def __repr__(self):
+        return str(self)
+
+
+class RenameImportSet(ImportSet):
+    def __init__(self, base_import_set: ImportSet, renames: list[Pair]):
+        self.base_import_set = base_import_set
+        self.renames = renames
+
+    def lookup(self, sym: Symbol):
+        for rename in self.renames:
+            from_name = rename[0]
+            to_name = rename[1]
+            if sym == to_name:
+                result =  self.base_import_set.lookup(from_name)
+                result.symbol = to_name
+                return result
+            elif sym == from_name:
+                # the original name is not available anymore
+                return None
+        return self.base_import_set.lookup(sym)
+
+    def __str__(self):
+        renames = [f'"{f}"=>"{t}"' for f, t in self.renames]
+        renames = ' '.join(renames)
+        return f'<RenameImportSet base={self.base_import_set} renames=({renames})>'
+
+    def __repr__(self):
+        return str(self)
