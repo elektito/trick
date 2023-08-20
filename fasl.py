@@ -1,10 +1,9 @@
 import argparse
 import io
 import struct
-from collections import defaultdict
 
 from library import AuxKeywords, ExportKind, Library, LibraryExportedSymbol, LibraryName, SpecialForms
-from machinetypes import Integer, List, String, Symbol, DEFAULT_ENCODING
+from machinetypes import List, String, Symbol, DEFAULT_ENCODING
 from snippet import show_snippet
 
 

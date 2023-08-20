@@ -1,8 +1,19 @@
 from enum import Enum
 import re
-import struct
 from typing import Optional
+
+import runtime
 from machinetypes import Integer, List, Symbol
+from primcalls import primcalls
+
+
+class LibraryLookupError(Exception):
+    def __init__(self, msg, form=None):
+        self.msg = msg
+        self.form = form
+
+    def __repr__(self):
+        return self.msg
 
 
 class SymbolKind(Enum):
@@ -73,6 +84,62 @@ class SpecialForms(Enum):
     INCLUDE_CI = 'include-ci'
     COND_EXPAND = 'cond-expand'
     SYNTAX_RULES = 'syntax-rules'
+
+
+class SymbolInfo:
+    def __init__(self, symbol: Symbol, kind: SymbolKind, *,
+                 primcall_nargs=None,
+                 primcall_code=None,
+                 local_frame_idx=None,
+                 local_var_idx=None,
+                 special_type=None,
+                 aux_type=None,
+                 transformer=None,
+                 library_name=None,
+                 immutable=False):
+        assert isinstance(symbol, Symbol)
+        match kind:
+            case SymbolKind.PRIMCALL:
+                assert primcall_nargs is not None
+                assert primcall_code is not None
+            case SymbolKind.LOCAL:
+                assert local_frame_idx is not None
+                assert local_var_idx is not None
+            case SymbolKind.SPECIAL:
+                assert special_type is not None
+            case SymbolKind.AUX:
+                assert aux_type is not None
+            case SymbolKind.DEFINED_MACRO:
+                assert transformer is not None
+            case SymbolKind.LOCAL_MACRO:
+                assert transformer is not None
+
+        self.symbol = symbol
+        self.kind = kind
+        self.primcall_nargs = primcall_nargs
+        self.primcall_code = primcall_code
+        self.local_frame_idx = local_frame_idx
+        self.local_var_idx = local_var_idx
+        self.special_type = special_type
+        self.aux_type = aux_type
+        self.transformer = transformer
+        self.library_name = library_name
+        self.immutable = immutable
+
+    def is_special(self, special_type: SpecialForms) -> bool:
+        return self.kind == SymbolKind.SPECIAL and \
+            self.special_type == special_type
+
+    def is_aux(self, aux_type: AuxKeywords) -> bool:
+        return self.kind == SymbolKind.AUX and \
+            self.aux_type == aux_type
+
+    def is_macro(self):
+        return self.kind in (SymbolKind.DEFINED_MACRO,
+                             SymbolKind.LOCAL_MACRO)
+
+    def __repr__(self):
+        return f'<SymbolInfo {self.symbol} kind={self.kind.name}>'
 
 
 class LibraryName:
@@ -217,3 +284,102 @@ class Library:
 
     def __repr__(self):
         return f'<Library {self.name}>'
+
+    def lookup(self, sym: Symbol) -> (SymbolInfo | None):
+        for e in self.exports:
+            if sym == e.external:
+                primcall_nargs = None
+                primcall_code = None
+                transformer = None
+                if e.kind == ExportKind.PRIMCALL:
+                    prim = primcalls[e.internal.name]
+                    primcall_nargs = prim['nargs']
+                    primcall_code = prim['code']
+                if e.kind == ExportKind.MACRO:
+                    transformer = self.macros[e.internal]
+                return SymbolInfo(
+                    symbol=e.internal,
+                    kind=e.kind.to_symbol_kind(),
+                    library_name=self.name,
+                    special_type=e.special_type,
+                    aux_type=e.aux_type,
+                    primcall_nargs=primcall_nargs,
+                    primcall_code=primcall_code,
+                    transformer=transformer,
+                    immutable=True,
+                )
+
+        return None
+
+    def get_all_names(self) -> list[Symbol]:
+        return [e.external for e in self.exports]
+
+
+class CoreLibrary(Library):
+    def __init__(self):
+        self.name = LibraryName([Symbol('trick'), Symbol('core')])
+
+    def lookup(self, sym: Symbol) -> (SymbolInfo | None):
+        m = re.match(r'#\$/(?P<module>\w+)/(?P<proc>\w+)', sym.name)
+        if m:
+            module = m.group('module')
+            proc = m.group('proc')
+            desc = runtime.find_proc(module, proc)
+            if desc is None:
+                raise LibraryLookupError(
+                    f'Unknown runtime procedure: {sym.name}',
+                    form=sym)
+
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.PRIMCALL,
+                primcall_nargs=len(desc['args']),
+                primcall_code=[Symbol('trap'), Symbol(f'{module}/{proc}')],
+                immutable=True,
+            )
+
+        if sym.name.startswith('#$'):
+            desc = primcalls.get(sym.name[2:])
+            found = bool(desc)
+        else:
+            desc = primcalls.get(sym.name)
+            found = desc and desc['exported']
+        if found:
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.PRIMCALL,
+                primcall_nargs=desc['nargs'],
+                primcall_code=desc['code'],
+                immutable=True,
+            )
+
+        if any((sym.name == i.value or
+                (sym.name.startswith('#$') and sym.name[2:] == i.value))
+               for i in SpecialForms):
+            if sym.name.startswith('#$'):
+                special_type = SpecialForms(sym.name[2:])
+            else:
+                special_type = SpecialForms(sym.name)
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.SPECIAL,
+                special_type=special_type,
+                immutable=True,
+            )
+
+        if any(sym.name == i.value for i in AuxKeywords):
+            return SymbolInfo(
+                symbol=sym,
+                kind=SymbolKind.AUX,
+                aux_type=AuxKeywords(sym.name),
+                immutable=True,
+            )
+
+        return None
+
+    def get_all_names(self):
+        names = []
+        names += [Symbol(i.value) for i in SpecialForms]
+        names += [Symbol(i.value) for i in AuxKeywords]
+        names += list(Symbol(i) for i in primcalls.keys())
+        return names

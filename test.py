@@ -2,12 +2,14 @@
 
 import argparse
 import sys
-from compile import CompileError, CoreImportSet, LibraryImportSet, ToplevelEnvironment
+
+from compile import CompileError, LibraryImportSet, ToplevelEnvironment
+from exceptions import RunError
 from fasl import Fasl
-from library import LibraryName
+from library import CoreLibrary, LibraryName
 from machinetypes import Symbol
 from read import ReadError, Reader
-from secd import RunError, Secd
+from secd import Secd
 from utils import compile_expr_to_fasl, ensure_stdlib
 
 
@@ -99,7 +101,7 @@ def main():
     machine = Secd(libs)
 
     env = ToplevelEnvironment()
-    env.add_import(CoreImportSet())
+    env.add_import(LibraryImportSet(CoreLibrary()))
     env.add_import(
         LibraryImportSet.get_import_set(
             LibraryName([Symbol('trick')]),

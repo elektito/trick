@@ -2,13 +2,14 @@ import os
 import atexit
 import argparse
 import readline
-from compile import CompileError, CoreImportSet, LibraryImportSet, ToplevelEnvironment, primcalls
+from compile import CompileError, LibraryImportSet, ToplevelEnvironment
+from exceptions import RunError
 from fasl import Fasl
-from library import LibraryName
+from library import CoreLibrary, LibraryName
 from machinetypes import Symbol, Void
 from read import ReadError, read_expr
 from runtime import TrickExitException
-from secd import RunError, Secd
+from secd import Secd
 from utils import compile_expr_to_fasl, ensure_stdlib
 
 
@@ -59,7 +60,7 @@ def main(args):
     libs = [stdlib_fasl]
 
     env = ToplevelEnvironment()
-    env.add_import(CoreImportSet())
+    env.add_import(LibraryImportSet(CoreLibrary()))
     env.add_import(
         LibraryImportSet.get_import_set(
             LibraryName([Symbol('trick')]),

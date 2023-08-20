@@ -6,17 +6,15 @@ from pathlib import Path
 import re
 import sys
 import argparse
-from library import AuxKeywords, ExportKind, Library, LibraryExportedSymbol, LibraryName, SpecialForms, SymbolKind
-from program import Program
 
-import runtime
+from exceptions import CompileError, RunError
+from library import CoreLibrary, ExportKind, Library, LibraryExportedSymbol, LibraryLookupError, LibraryName, SpecialForms, SymbolInfo, SymbolKind
+from program import Program
 from fasl import Fasl
 from read import Reader, ReadError
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String, Vector
 from assemble import Assembler
-from primcalls import primcalls
-from secd import RunError, Secd
-from snippet import show_snippet
+from secd import Secd
 from transform import SyntaxRulesTransformer, TransformError, Transformer, UninitializedTransformer
 from utils import OrderedSet, find_shared
 from version import __version__
@@ -41,138 +39,9 @@ class DefineInfo:
         return f'<DefineInfo {self.name} ({self.kind.name})>'
 
 
-class SymbolInfo:
-    def __init__(self, symbol: Symbol, kind: SymbolKind, *,
-                 primcall_nargs=None,
-                 primcall_code=None,
-                 local_frame_idx=None,
-                 local_var_idx=None,
-                 special_type=None,
-                 aux_type=None,
-                 transformer=None,
-                 library_name=None,
-                 immutable=False):
-        assert isinstance(symbol, Symbol)
-        match kind:
-            case SymbolKind.PRIMCALL:
-                assert primcall_nargs is not None
-                assert primcall_code is not None
-            case SymbolKind.LOCAL:
-                assert local_frame_idx is not None
-                assert local_var_idx is not None
-            case SymbolKind.SPECIAL:
-                assert special_type is not None
-            case SymbolKind.AUX:
-                assert aux_type is not None
-            case SymbolKind.DEFINED_MACRO:
-                assert transformer is not None
-            case SymbolKind.LOCAL_MACRO:
-                assert transformer is not None
-
-        self.symbol = symbol
-        self.kind = kind
-        self.primcall_nargs = primcall_nargs
-        self.primcall_code = primcall_code
-        self.local_frame_idx = local_frame_idx
-        self.local_var_idx = local_var_idx
-        self.special_type = special_type
-        self.aux_type = aux_type
-        self.transformer = transformer
-        self.library_name = library_name
-        self.immutable = immutable
-
-    def is_special(self, special_type: SpecialForms) -> bool:
-        return self.kind == SymbolKind.SPECIAL and \
-            self.special_type == special_type
-
-    def is_aux(self, aux_type: AuxKeywords) -> bool:
-        return self.kind == SymbolKind.AUX and \
-            self.aux_type == aux_type
-
-    def is_macro(self):
-        return self.kind in (SymbolKind.DEFINED_MACRO,
-                             SymbolKind.LOCAL_MACRO)
-
-    def __repr__(self):
-        return f'<SymbolInfo {self.symbol} kind={self.kind.name}>'
-
-
 class ImportSet:
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
         raise NotImplementedError
-
-
-class CoreImportSet(ImportSet):
-    def lookup(self, sym: Symbol) -> (SymbolInfo | None):
-        m = re.match(r'#\$/(?P<module>\w+)/(?P<proc>\w+)', sym.name)
-        if m:
-            module = m.group('module')
-            proc = m.group('proc')
-            desc = runtime.find_proc(module, proc)
-            if desc is None:
-                raise CompileError(
-                    f'Unknown runtime procedure: {sym.name}',
-                    form=sym)
-
-            return SymbolInfo(
-                symbol=sym,
-                kind=SymbolKind.PRIMCALL,
-                primcall_nargs=len(desc['args']),
-                primcall_code=[S('trap'), S(f'{module}/{proc}')],
-                immutable=True,
-            )
-
-        if sym.name.startswith('#$'):
-            desc = primcalls.get(sym.name[2:])
-            found = bool(desc)
-        else:
-            desc = primcalls.get(sym.name)
-            found = desc and desc['exported']
-        if found:
-            return SymbolInfo(
-                symbol=sym,
-                kind=SymbolKind.PRIMCALL,
-                primcall_nargs=desc['nargs'],
-                primcall_code=desc['code'],
-                immutable=True,
-            )
-
-        if any((sym.name == i.value or
-                (sym.name.startswith('#$') and sym.name[2:] == i.value))
-               for i in SpecialForms):
-            if sym.name.startswith('#$'):
-                special_type = SpecialForms(sym.name[2:])
-            else:
-                special_type = SpecialForms(sym.name)
-            return SymbolInfo(
-                symbol=sym,
-                kind=SymbolKind.SPECIAL,
-                special_type=special_type,
-                immutable=True,
-            )
-
-        if any(sym.name == i.value for i in AuxKeywords):
-            return SymbolInfo(
-                symbol=sym,
-                kind=SymbolKind.AUX,
-                aux_type=AuxKeywords(sym.name),
-                immutable=True,
-            )
-
-        return None
-
-    def __str__(self):
-        return '<CoreImportSet>'
-
-    def __repr__(self):
-        return str(self)
-
-    def get_all_names(self):
-        names = []
-        names += [S(i.value) for i in SpecialForms]
-        names += [S(i.value) for i in AuxKeywords]
-        names += list(S(i) for i in primcalls.keys())
-        return names
 
 
 class LibraryImportSet(ImportSet):
@@ -180,36 +49,16 @@ class LibraryImportSet(ImportSet):
         self.lib = lib
 
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
-        for e in self.lib.exports:
-            if sym == e.external:
-                primcall_nargs = None
-                primcall_code = None
-                transformer = None
-                if e.kind == ExportKind.PRIMCALL:
-                    prim = primcalls[e.internal.name]
-                    primcall_nargs = prim['nargs']
-                    primcall_code = prim['code']
-                if e.kind == ExportKind.MACRO:
-                    transformer = self.lib.macros[e.internal]
-                return SymbolInfo(
-                    symbol=e.internal,
-                    kind=e.kind.to_symbol_kind(),
-                    library_name=self.lib.name,
-                    special_type=e.special_type,
-                    aux_type=e.aux_type,
-                    primcall_nargs=primcall_nargs,
-                    primcall_code=primcall_code,
-                    transformer=transformer,
-                    immutable=True,
-                )
-
-        return None
+        try:
+            return self.lib.lookup(sym)
+        except LibraryLookupError as e:
+            raise CompileError(str(e), form=e.form)
 
     def get_all_names(self):
-        return [e.external for e in self.lib.exports]
+        return self.lib.get_all_names()
 
     def __str__(self):
-        return f'<LibraryImportSet {self.lib_name}>'
+        return f'<LibraryImportSet {self.lib.name}>'
 
     def __repr__(self):
         return str(self)
@@ -217,7 +66,7 @@ class LibraryImportSet(ImportSet):
     @staticmethod
     def get_import_set(name: LibraryName, fasls: list[Fasl], *, local_libs=[]):
         if name.parts == [S('trick'), S('core')]:
-            return CoreImportSet()
+            return LibraryImportSet(CoreLibrary())
         else:
             for lib in local_libs:
                 if lib.name == name:
@@ -677,30 +526,6 @@ class LocalEnvironment(Environment):
 
     def check_for_undefined(self):
         return self.toplevel.check_for_undefined()
-
-
-class CompileError(Exception):
-    def __init__(self, msg, form=None, source=None):
-        self.msg = msg
-        self.form = form
-        self.source = source
-
-    def __repr__(self):
-        return self.msg
-
-    def print_snippet(self):
-        if self.form is None or self.source is None:
-            return
-
-        if self.form.src_start is None or self.form.src_end is None:
-            return
-
-        print()
-        if self.source.filename:
-            print(f'--- source file: {self.source.filename}')
-        show_snippet(
-            self.source.text, self.form.src_start, self.form.src_end,
-            pre_lines=3, post_lines=3)
 
 
 class Compiler:

@@ -3,16 +3,13 @@
 import io
 import sys
 import argparse
-from program import Program
 
 import runtime
+from exceptions import AssembleError
+from program import Program
 from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, DbgInfoSourceFileRecord, Fasl, FaslDbgInfoSection, FaslLibInfoSection
 from read import Reader, ReadError
-from machinetypes import List, Pair, String, Symbol
-
-
-class AssembleError(Exception):
-    pass
+from machinetypes import List, String, Symbol
 
 
 class Assembler:

@@ -6,6 +6,7 @@ import argparse
 import unicodedata
 
 import runtime
+from exceptions import RunError
 from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from snippet import show_snippet
 from machinetypes import (
@@ -13,8 +14,6 @@ from machinetypes import (
 )
 
 
-class RunError(Exception):
-    pass
 
 
 class AbortedException(Exception):

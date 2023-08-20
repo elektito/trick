@@ -1,13 +1,14 @@
 import io
 import unittest
 
-from compile import CompileError, Compiler, CoreImportSet, ToplevelEnvironment
+from compile import CompileError, Compiler, LibraryImportSet, ToplevelEnvironment
+from library import CoreLibrary
 from read import Reader
 
 class TestCompiler(unittest.TestCase):
     def setUp(self):
         self.env = ToplevelEnvironment()
-        self.env.add_import(CoreImportSet())
+        self.env.add_import(LibraryImportSet(CoreLibrary()))
 
     def _test_toplevel_error(self, source, error=None):
         c = Compiler([])

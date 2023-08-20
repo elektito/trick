@@ -2,9 +2,9 @@ import inspect
 import sys
 import traceback
 
-from machinetypes import Integer, List, Port, String, Symbol, TrickType, Void
+from exceptions import RunError
+from machinetypes import Integer, Port, String, Symbol, TrickType, Void
 from print import PrintMode, PrintStyle, Printer
-from secd import RunError
 
 
 modules = {}

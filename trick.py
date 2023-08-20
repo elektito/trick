@@ -6,8 +6,9 @@ import os
 
 import compile
 import assemble
+from exceptions import RunError
 import fasl
-from library import LibraryName
+from library import CoreLibrary, LibraryName
 from machinetypes import List, Symbol
 from read import ReadError, read_expr
 import secd
@@ -112,7 +113,7 @@ def main():
 
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         env = compile.ToplevelEnvironment()
-        env.add_import(compile.CoreImportSet())
+        env.add_import(compile.LibraryImportSet(CoreLibrary()))
         env.add_import(
             compile.LibraryImportSet.get_import_set(
                 LibraryName([Symbol('trick')]),
@@ -143,7 +144,7 @@ def main():
         lib_fasls += [stdlib_fasl]
 
         env = compile.ToplevelEnvironment()
-        env.add_import(compile.CoreImportSet())
+        env.add_import(compile.LibraryImportSet(CoreLibrary()))
         env.add_import(
             compile.LibraryImportSet.get_import_set(
                 LibraryName([Symbol('trick')]),
@@ -172,7 +173,7 @@ def main():
         lib_fasls += [stdlib_fasl]
 
         env = compile.ToplevelEnvironment()
-        env.add_import(compile.CoreImportSet())
+        env.add_import(compile.LibraryImportSet(CoreLibrary()))
         env.add_import(
             compile.LibraryImportSet.get_import_set(
                 LibraryName([Symbol('trick')]),
@@ -195,7 +196,7 @@ def main():
         lib_fasls += [stdlib_fasl]
 
         env = compile.ToplevelEnvironment()
-        env.add_import(compile.CoreImportSet())
+        env.add_import(compile.LibraryImportSet(CoreLibrary()))
         env.add_import(
             compile.LibraryImportSet.get_import_set(
                 LibraryName([Symbol('trick')]),
@@ -216,7 +217,7 @@ def main():
         machine = secd.Secd(lib_fasls)
         try:
             machine.execute_fasl(expr_fasl)
-        except secd.RunError as e:
+        except RunError as e:
             print(e)
         else:
             result = machine.s.pop_multiple()
