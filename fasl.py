@@ -327,7 +327,7 @@ class FaslLibInfoSection(FaslSection):
 
                 aux_idx, = struct.unpack('<i', s[offset:offset+4])
                 offset += 4
-                if special_idx < 0:
+                if aux_idx < 0:
                     aux_type = None
                 else:
                     aux_type = list(AuxKeywords)[aux_idx]
