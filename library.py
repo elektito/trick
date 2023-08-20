@@ -266,6 +266,9 @@ class LibraryExportedSymbol:
 
         self.export_source_file = export_source_file
 
+    def __repr__(self):
+        return f'<LibraryExportedSymbol {self.kind}>'
+
 
 class Library:
     def __init__(self,
