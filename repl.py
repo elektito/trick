@@ -71,6 +71,7 @@ def main(args):
     atexit.register(write_history)
 
     readline.parse_and_bind("tab: complete")
+    readline.parse_and_bind("set blink-matching-paren on")
     readline.set_completer_delims('()[] \'"|')
     readline.set_completer(Completer(env))
 
