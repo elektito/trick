@@ -59,7 +59,7 @@
         current-output-port
         define
         define-record-type
-        ;; define-syntax
+        define-syntax
         ;; define-values
         ;; denominator
         do
@@ -107,11 +107,11 @@
         let
         let*
         let*-values
-        ;; let-syntax
+        let-syntax
         let-values
         letrec
         ;; letrec*
-        ;; letrec-syntax
+        letrec-syntax
         list
         list->string
         list->vector
@@ -202,7 +202,7 @@
         symbol=?
         symbol?
         ;; syntax-error
-        ;; syntax-rules
+        syntax-rules
         ;; textual-port?
         ;; truncate
         ;; truncate-quotient

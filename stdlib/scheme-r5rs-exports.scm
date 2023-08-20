@@ -85,7 +85,7 @@
         current-input-port
         current-output-port
         define
-        ;; define-syntax
+        define-syntax
         ;; delay
         ;; denominator
         display
@@ -117,9 +117,9 @@
         length
         let
         let*
-        ;; let-syntax
+        let-syntax
         letrec
-        ;; letrec-syntax
+        letrec-syntax
         list
         list->string
         list->vector
