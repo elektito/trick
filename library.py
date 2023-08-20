@@ -254,6 +254,9 @@ class LibraryExportedSymbol:
                  special_type: Optional[SpecialForms]=None,
                  aux_type: Optional[AuxKeywords]=None,
                  export_source_file=None):
+        assert kind != ExportKind.AUX or aux_type is not None
+        assert kind != ExportKind.SPECIAL or special_type is not None
+
         self.kind = kind
         self.internal = internal
         self.external = external
