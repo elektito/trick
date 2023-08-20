@@ -228,12 +228,15 @@ class ToplevelEnvironment(Environment):
     def __init__(self, *, lib_name=None):
         self.parent = None
         self.import_sets = []
-        self.exports = []
         self.lib_name = lib_name
         self.defined_symbols = {}
         self.macros = {}
         self.written_free_symbols = []
         self.read_free_symbols = OrderedSet()
+
+        # this is only used for collecting exports when processing a
+        # define-library and is not a part of the environment itself.
+        self.exports = []
 
     def locate_local(self, name: Symbol, *, _frame_idx=0):
         return None
