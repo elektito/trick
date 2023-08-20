@@ -1398,9 +1398,26 @@ and still a comment
        (eq? 'A (a 1 2 3 4 5))
        (eq? 'B (b 1 2 3 4 5))))
 
+(let ()
+  (define-syntax bind-to-zero
+    (syntax-rules ()
+      ((_ id) (define id 0))))
+  (let ()
+    (bind-to-zero x)
+    (zero? x)))
+
 (let-syntax ((q (syntax-rules ()
                   ((_ x) (quote x)))))
   (eq? 'abc (q abc)))
+
+(let-syntax ((be-like-begin (syntax-rules ()
+                              ((be-like-begin name)
+                               (define-syntax name
+                                 (syntax-rules ()
+                                   ((name expr (... ...))
+                                    (begin expr (... ...)))))))))
+  (be-like-begin sequence)
+  (= 4 (sequence 1 2 3 4)))
 
 (let-syntax ((foo (syntax-rules ()
                     ((_) 100)
@@ -1420,6 +1437,18 @@ and still a comment
             (x 200)
             (list (lambda x (list 'ABC x))))
         (equal? '(10 20 100) (foo))))))
+
+;; test local macro expanding to "begin", used nested
+(let ((x 10))
+  (define-syntax my-begin
+    (syntax-rules ()
+      ((_ x ...) (begin x ...))))
+  (my-begin
+   (define y 20)
+   (my-begin
+    (define z 30)
+    (set! x 100)))
+  (equal? '(100 20 30) (list x y z)))
 
 (let-syntax ((foo (syntax-rules ()
                     ((_ x) x))))

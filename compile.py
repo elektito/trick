@@ -423,16 +423,23 @@ class EnvironmentFrame:
                  *, pure_syntax_frame=False):
         assert all(isinstance(i, Variable) for i in initial_variables)
         self.variables = initial_variables
+        self.macros = {}
 
         # a pure syntax frame is one created for let-syntax/letrec-syntax and
         # has no equivalent run-time frame.
         self.pure_syntax_frame = pure_syntax_frame
 
-    def contains(self, name: Symbol):
-        return name in self.variables
-
     def add_variable(self, name: Symbol, kind: VariableKind):
+        if self.get_variable(name) is not None:
+            raise CompileError(f'Duplicate variable: {name}', form=name)
         self.variables.append(Variable(name, kind))
+
+    def add_macro(self, name: Symbol, transformer: Transformer):
+        if self.get_variable(name) is not None:
+            raise CompileError(f'Duplicate variable: {name}', form=name)
+        var = Variable(name, VariableKind.MACRO)
+        self.variables.append(var)
+        var.value = transformer
 
     def get_variable(self, name: Symbol) -> (None | Variable):
         for var in self.variables:
@@ -483,7 +490,7 @@ class Environment:
 
     def with_new_syntax_frame(self, bindings: dict[Symbol, Transformer]):
         variables = [
-            Variable(name, VariableKind.UNHYGIENIC_MACRO, transformer)
+            Variable(name, VariableKind.MACRO, transformer)
             for name, transformer in bindings.items()
         ]
         return LocalEnvironment(
@@ -660,13 +667,15 @@ class LocalEnvironment(Environment):
             return self.parent.locate_local(
                     name, _frame_idx=_frame_idx+1)
 
-        if var.kind == VariableKind.UNHYGIENIC_MACRO:
+        if var.kind == VariableKind.MACRO:
             return var.value
-        else:
+        elif var.kind == VariableKind.NORMAL:
             return [
                 Integer(_frame_idx),
                 Integer(self.frame.get_variable_index(name))
             ]
+        else:
+            assert False, f'unhandled case for {var.kind}'
 
     def add_import(self, import_set: ImportSet):
         return self.toplevel.add_import(import_set)
@@ -707,8 +716,7 @@ class LocalEnvironment(Environment):
         return self.toplevel.add_define(sym, kind)
 
     def add_macro(self, name, transformer):
-        # only top-level macros can be added to the library/fasl
-        assert False, 'add_macro should not be called on non-toplevel environment'
+        self.frame.add_macro(name, transformer)
 
     def add_read(self, sym: Symbol):
         return self.toplevel.add_read(sym)
@@ -1223,110 +1231,104 @@ class Compiler:
             false_code = [S('void'), S('join')]
         return cond_code + [S('sel')] + [true_code] + [false_code]
 
-    def collect_defines(self, body, env):
-        # receive the body a lambda (or let and the like).
-        # the body forms should have been macro-expanded already (not recursively)
-        # collects all initial defines (including those in begin statements)
-        # returns a pair, consisting of the list of defines, as well as the rest of the body
-
+    def compile_body(self, body, env: LocalEnvironment, full_form):
+        code = []
         defines = []
-        while not isinstance(body, Nil):
-            form = body.car
-            if not isinstance(form, Pair):
-                break
+        seen = set()
+        early_forms = []
+        while True:
+            if isinstance(body, Nil):
+                raise self._compile_error('Empty body', form=full_form)
 
-            info = env.lookup_symbol(form.car)
-            if info.is_special(SpecialForms.DEFINE):
-                defines.append((SpecialForms.DEFINE, form))
-            elif info.is_special(SpecialForms.DEFINE_MACRO):
-                defines.append((SpecialForms.DEFINE_MACRO, form))
-            elif info.is_special(SpecialForms.BEGIN):
-                begin_defines, begin_rest = self.collect_defines(form.cdr, env)
-                defines += begin_defines
-                if begin_rest != Nil():
-                    # add whatever is remaining in the begin body to the
-                    # beginngin of the main body.
-                    body = body.cdr # remove current "begin" statement from the body
-                    for i in reversed(begin_rest.to_list()):
-                        body = Pair(i, body)
+            early_forms += [body.car]
+            while early_forms:
+                form = early_forms[0]
+                form = self.macro_expand(form, env)
+
+                if not isinstance(form, Pair) or \
+                   not isinstance(form.car, Symbol):
+                    # can't be a definition
                     break
-            else:
-                break
+
+                info = self.lookup_symbol(form.car, env)
+                if info.is_special(SpecialForms.BEGIN):
+                    # replace it with its body
+                    early_forms = form.cdr.to_list() + early_forms[1:]
+                    continue
+
+                if info.is_special(SpecialForms.DEFINE):
+                    name, value = self.parse_define_form(form, 'define')
+
+                    # a name cannot be defined more than once
+                    if name in seen:
+                        raise self._compile_error(
+                            f'Duplicate definition: {name}', form=form)
+                    seen.add(name)
+
+                    # it's okay if the name already exists though, we're just
+                    # shadowing a let/letrec/lambda varaible
+                    if env.frame.get_variable(name) is None:
+                        env.frame.add_variable(name, VariableKind.NORMAL)
+                        code += [S('xp')]
+
+                    defines.append((name, value))
+                elif info.is_special(SpecialForms.DEFINE_SYNTAX):
+                    if len(form) != 3:
+                        raise self._compile_error(
+                            f'Invalid number of arguments for define-syntax',
+                            form=form)
+
+                    name = form[1]
+                    transformer_form = form[2]
+
+                    if name in seen:
+                        raise self._compile_error(
+                            f'Duplicate definition: {name}', form=form)
+                    seen.add(name)
+
+                    transformer = self.compile_transformer(
+                        transformer_form, env)
+
+                    existing = env.frame.get_variable(name)
+                    if existing is not None:
+                        # it's a variable introduced in let, lambda, etc. we
+                        # need to shadow it. we're going to change the variable
+                        # kind in the frame from NORMAL to MACRO. this means in
+                        # the run time frame there will be an unused variable
+                        # which is ideal, but at least this is pretty easy to
+                        # do!
+                        existing.kind = VariableKind.MACRO
+                        existing.value = transformer
+                    else:
+                        env.add_macro(name, transformer)
+                else:
+                    # end of defines
+                    break
+
+                early_forms = early_forms[1:]
 
             body = body.cdr
+            if early_forms:
+                break
 
-        return defines, body
+        # now that the environment has all the new variables, compile the code
+        # to set their values. this is to make sure the functions introduced
+        # using define can call each other as if in a letrec*
+        for name, define_value in defines:
+            code += self.compile_form(define_value, env)
+            code += [S('st'), env.locate_local(name)]
 
-    def macro_expand_body(self, body, env):
-        new_body = []
-        cur = body
-        changed = False
-        while not isinstance(cur, Nil):
-            expansion = self.macro_expand(cur.car, env)
-            if expansion != cur.car:
-                changed = True
-            new_body.append(expansion)
-            cur = cur.cdr
-
-        if changed:
-            new_body = List.from_list(new_body)
-            new_body.src_start = body.src_start
-            new_body.src_end = body.src_end
-            return new_body
-        else:
-            return body
-
-    def compile_body(self, body, env, full_form):
-        code = []
-
-        # first macro expand the body, since collect_defines expects that.
-        body = self.macro_expand_body(body, env)
-
-        defines, body = self.collect_defines(body, env)
-
-        # expand the environment to include the defines
-        seen = set()
-        for define_type, define_form in defines:
-            # a name cannot be defined more than once
-            name, _ = self.parse_define_form(define_form, define_type)
-            if name in seen:
-                raise self._compile_error(
-                    f'Duplicate definition: {name}', form=define_form)
-            seen.add(name)
-
-            if define_type == SpecialForms.DEFINE:
-                # it's okay if the name already exists though, we're just
-                # shadowing a let/letrec/lambda varaible
-                if not env.frame.contains(name):
-                    env.frame.add_variable(name, VariableKind.NORMAL)
-                    code += [S('xp')]
-            elif define_type == SpecialForms.DEFINE_MACRO:
-                raise self._compile_error(
-                    f'define-macro only allowed at the top-level',
-                    form=define_form)
-            else:
-                assert False, 'Unhandled define type'
-
-        # now that the environment has all the new variables, set variable
-        # values
-        for define_type, define_form in defines:
-            name, lambda_form = self.parse_define_form(define_form, define_type)
-            if define_type == SpecialForms.DEFINE:
-                code += self.compile_form(lambda_form, env)
-                code += [S('st'), env.locate_local(name)]
-            elif define_type == SpecialForms.DEFINE_MACRO:
-                assert False, 'define-macro in body'
-            else:
-                assert False, 'Unhandled define type'
-
-        if isinstance(body, Nil):
-            raise self._compile_error('Empty body', form=full_form)
+        # compile any remaining expressions in early_forms
+        for i, expr in enumerate(early_forms):
+            if i > 0:
+                code.append(S('drop'))
+            code += self.compile_form(expr, env)
 
         # compile the rest of the body normally
         for i, e in enumerate(body):
-            code += self.compile_form(e, env)
-            if i < len(body) - 1:
+            if i > 0:
                 code.append(S('drop'))
+            code += self.compile_form(e, env)
 
         return code
 
