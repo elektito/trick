@@ -256,7 +256,7 @@ class LibraryImportSet(ImportSet):
         return None
 
     def get_all_names(self):
-        return [e.external for e in self.exports]
+        return [e.external for e in self.lib.exports]
 
     def __str__(self):
         return f'<LibraryImportSet {self.lib_name}>'
@@ -605,8 +605,6 @@ class ToplevelEnvironment(Environment):
 
     def get_all_names(self):
         names = []
-        for frame in self.frames:
-            names.extend(frame.variables)
         for import_set in self.import_sets:
             names.extend(import_set.get_all_names())
         names.extend(self.defined_symbols.keys())
@@ -710,7 +708,10 @@ class LocalEnvironment(Environment):
             internal, external, source_file)
 
     def get_all_names(self):
-        return self.toplevel.get_all_names()
+        names = []
+        names.extend([v.name for v in self.frame.variables])
+        names.extend(self.parent.get_all_names())
+        return names
 
     def add_define(self, sym: Symbol, kind: VariableKind):
         return self.toplevel.add_define(sym, kind)
