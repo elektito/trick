@@ -226,6 +226,14 @@ class Environment:
     def check_for_undefined(self):
         raise NotImplementedError
 
+    def print(self):
+        env = self
+        i = 0
+        while env is not None:
+            print(f'[{i}] {env}')
+            env = env.parent
+            i += 1
+
 
 class ToplevelEnvironment(Environment):
     def __init__(self, *, lib_name=None):
