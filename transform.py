@@ -184,9 +184,12 @@ class SyntaxRulesTransformer(Transformer):
                 gensym.original = expansion.symbol
                 return gensym
             else:
-                expansion.symbol.env = self.env
-                expansion.symbol.original = expansion.symbol
-                return expansion.symbol
+                sym = Symbol(
+                    name=expansion.symbol.name,
+                    original=expansion.symbol,
+                    env=self.env,
+                )
+                return sym
         elif isinstance(expansion, Vector):
             items = []
             for i in expansion:
