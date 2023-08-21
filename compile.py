@@ -358,6 +358,9 @@ class ToplevelEnvironment(Environment):
                 raise CompileError(
                     f'Unbound variable is set: {sym}', form=sym)
 
+    def __repr__(self):
+        return '<ToplevelEnvironment>'
+
 
 class LocalEnvironment(Environment):
     def __init__(self,
@@ -439,6 +442,9 @@ class LocalEnvironment(Environment):
 
     def check_for_undefined(self):
         return self.toplevel.check_for_undefined()
+
+    def __repr__(self):
+        return f'<LocalEnvironment frame={self.frame}>'
 
 
 class Compiler:
