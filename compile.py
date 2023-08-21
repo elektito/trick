@@ -162,6 +162,9 @@ class EnvironmentFrame:
 
         return False
 
+    def __repr__(self):
+        return f'<EnvironmentFrame vars={[str(v.name) for v in self.variables]}>'
+
 
 class Environment:
     def __init__(self):
