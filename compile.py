@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
+from copy import copy
 from enum import Enum
 import io
 from pathlib import Path
-import re
 import sys
 import argparse
 
@@ -234,6 +234,18 @@ class Environment:
             env = env.parent
             i += 1
 
+    def distance_to_parent(self, parent: 'Environment'):
+        d = 0
+        env = self
+        while env != parent:
+            if isinstance(env, LocalEnvironment) and \
+               not env.frame.pure_syntax_frame:
+                d += 1
+            env = env.parent
+            if env is None:
+                raise ValueError('Not a parent environment')
+
+        return d
 
 class ToplevelEnvironment(Environment):
     def __init__(self, *, lib_name=None):
@@ -288,6 +300,9 @@ class ToplevelEnvironment(Environment):
             result = import_set.lookup(sym)
             if result is not None:
                 return result
+
+        if sym.info is not None:
+            return sym.info
 
         if self.lib_name:
             return SymbolInfo(
@@ -409,6 +424,13 @@ class LocalEnvironment(Environment):
                     local_frame_idx=local[0],
                     local_var_idx=local[1],
                 )
+
+        if sym.info is not None:
+            info = sym.info
+            if info.kind == SymbolKind.LOCAL:
+                info = copy(sym.info)
+                info.local_frame_idx += self.distance_to_parent(sym.transform_env)
+                return info
 
         return self.toplevel.lookup_symbol(sym)
 
@@ -843,10 +865,7 @@ class Compiler:
         return code
 
     def compile_symbol(self, sym: Symbol, env: Environment):
-        if sym.env is not None:
-            info = sym.env.lookup_symbol(sym)
-        else:
-            info = env.lookup_symbol(sym)
+        info = self.lookup_symbol(sym, env)
 
         if info.kind == SymbolKind.AUX:
             raise self._compile_error(
@@ -870,37 +889,7 @@ class Compiler:
             func_code += [S('ret')]
             return [S('ldf'), Integer(info.primcall_nargs), func_code]
         elif info.kind == SymbolKind.LOCAL:
-            if sym.env is None or env == sym.env:
-                return [S('ld'), [info.local_frame_idx, info.local_var_idx]]
-            else:
-                # sym.env must be a parent of current env, so we find how many
-                # levels higher it is, and then use the difference to calculate
-                # frame index at the current environment.
-                #
-                # as an example:
-                # (let ((x 10))
-                #   (let ()
-                #     (let-syntax ((foo (syntax-rules ()
-                #                         ((_) x)))))
-                #       (let ((x 20))
-                #         (print (foo))))))
-                #
-                # the transformer environment is one level higher than the
-                # expansion site environment so we should add that to the
-                # frame_idx we get from the transformer environment.
-                i = 0
-                cur_env = env
-                while cur_env != sym.env:
-                    if not cur_env.frame.pure_syntax_frame:
-                        i += 1
-                    if cur_env.parent is None:
-                        # we reached the top-level environment. this is a bug,
-                        # since it means macro injected env and current env are
-                        # unrelated, which should not be possible.
-                        assert False, 'invalid macro-injected environment'
-                    cur_env = cur_env.parent
-                frame_idx = info.local_var_idx + i
-                return [S('ld'), [Integer(frame_idx), info.local_var_idx]]
+            return [S('ld'), [info.local_frame_idx, info.local_var_idx]]
         elif info.kind == SymbolKind.FREE:
             env.add_read(sym)
             return [S('get'), info.symbol]
@@ -1590,10 +1579,7 @@ class Compiler:
                 f'Cannot compile improper list: {expr}')
 
         if isinstance(expr.car, Symbol):
-            if expr.car.env is None:
-                info = env.lookup_symbol(expr.car)
-            else:
-                info = expr.car.env.lookup_symbol(expr.car)
+            info = self.lookup_symbol(expr.car, env)
             if info.kind == SymbolKind.AUX:
                 raise self._compile_error(
                     f'Invalid use of aux keyword "{expr.car}"',

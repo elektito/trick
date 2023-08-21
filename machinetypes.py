@@ -99,13 +99,11 @@ class Integer(int, TrickType):
 class Symbol(TrickType):
     gensym_number = 0
 
-    def __init__(self, name, *, short_name=None, env=None, original=None):
+    def __init__(self, name, *, short_name=None, info=None, original=None, transform_env=None):
         assert isinstance(name, str)
         assert not short_name or isinstance(short_name, str)
 
         self.name = name
-        self.env = env
-        self.original = original
 
         # if short_name is not set and the name has the same format as a gensym
         # name, parse the short name. so for #:uuuuniiiquuueeid-12, we set the
@@ -121,6 +119,19 @@ class Symbol(TrickType):
 
         self.src_start = None
         self.src_end = None
+
+        # information added by macros
+
+        # a SymbolInfo object representing the meaning of this symbol at the
+        # transformer site
+        self.info = info
+
+        # the original symbol which this is a renaming of
+        self.original = original
+
+        # the transform environment; used by the compiler to resolve the local
+        # variables that are referenced relative to the transformer environment.
+        self.transform_env = transform_env
 
     def __eq__(self, other):
         if not isinstance(other, Symbol):

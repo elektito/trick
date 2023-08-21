@@ -162,7 +162,7 @@ class SyntaxRulesTransformer(Transformer):
 
         # convert _UserSymbol and _MacroSymbol to appropriate symbols. Expand
         # splices in-place.
-        finalized = self.fix_up(expanded)
+        finalized = self.fix_up(expanded, env)
 
         if isinstance(finalized, _List):
             finalized = finalized.to_trick_list(recursive=True)
@@ -171,25 +171,21 @@ class SyntaxRulesTransformer(Transformer):
 
         return finalized
 
-    def fix_up(self, expansion):
+    def fix_up(self, expansion, env):
         if isinstance(expansion, _UserSymbol):
             return expansion.symbol
         elif isinstance(expansion, _MacroSymbol):
-            info = self.env.lookup_symbol(expansion.symbol)
-            if info.kind == SymbolKind.FREE:
-                gensym = self.gensyms.get(expansion.symbol)
-                if gensym is None:
-                    gensym = Symbol.gensym(String(expansion.symbol.name))
-                    self.gensyms[expansion.symbol] = gensym
-                gensym.original = expansion.symbol
-                return gensym
-            else:
-                sym = Symbol(
-                    name=expansion.symbol.name,
-                    original=expansion.symbol,
-                    env=self.env,
-                )
-                return sym
+            gensym = self.gensyms.get(expansion.symbol)
+            if gensym is None:
+                gensym = Symbol.gensym(String(expansion.symbol.name))
+                self.gensyms[expansion.symbol] = gensym
+
+            gensym.original = expansion.symbol
+            gensym.info = self.env.lookup_symbol(expansion.symbol)
+            gensym.src_start = expansion.symbol.src_start
+            gensym.src_end = expansion.symbol.src_end
+            gensym.transform_env = self.env
+            return gensym
         elif isinstance(expansion, Vector):
             items = []
             for i in expansion:
@@ -198,10 +194,10 @@ class SyntaxRulesTransformer(Transformer):
                     # make sure any _SplicedList inside that is expanded, then
                     # add the results to current results.
                     i = _List(i.items, src_start=None, src_end=None)
-                    i = self.fix_up(i)
+                    i = self.fix_up(i, env)
                     items.extend(i.proper)
                 else:
-                    items.append(self.fix_up(i))
+                    items.append(self.fix_up(i, env))
             result = Vector(items)
             result.src_start = expansion.src_start
             result.src_end = expansion.src_end
@@ -214,14 +210,14 @@ class SyntaxRulesTransformer(Transformer):
                     # make sure any _SplicedList inside that is expanded, then
                     # add the results to current results.
                     i = _List(i.items, src_start=None, src_end=None)
-                    i = self.fix_up(i)
+                    i = self.fix_up(i, env)
                     proper_items.extend(i.proper)
                 else:
-                    proper_items.append(self.fix_up(i))
+                    proper_items.append(self.fix_up(i, env))
 
             tail = None
             if expansion.tail is not None:
-                tail = self.fix_up(expansion.tail)
+                tail = self.fix_up(expansion.tail, env)
 
             return _List(
                 proper=proper_items,

@@ -1510,3 +1510,36 @@ and still a comment
               (syntax-rules ()
                 ((_ ((a ...) ...) ...) '(a ... ... ...)))))
           (my-append ((1 2) (3 4)) ((5) (6 7 8)))))
+
+;; binding special keywords inside macro expansion
+(let-syntax ((foo
+              (syntax-rules ()
+                ((_ x y ...)
+                 (let ((if 1000))
+                   (set! x if)
+                   y ...)))))
+  (let ((x 10))
+    (foo x (if (> x 10) #t #f))))
+
+;; rebinding identifiers that were already defined in transformer environment
+;; inside expansion
+(let-syntax ((foo
+              (syntax-rules ()
+                ((_ x)
+                 (let ((list 1000))
+                   (set! x list))))))
+  (let ((x 10))
+    (foo x)
+    (= x 1000)))
+
+(let ((x 10) (y 0))
+  (let ((a 20) (x 100))
+    (let-syntax ((foo (syntax-rules ()
+                        ((_) (let ()
+                               (let ()
+                                 (set! x 999)))))))
+      (let ((a 999)
+            (x 200))
+        (foo)))
+    (set! y x))
+  (and (= x 10) (= y 999)))
