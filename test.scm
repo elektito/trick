@@ -1543,3 +1543,28 @@ and still a comment
         (foo)))
     (set! y x))
   (and (= x 10) (= y 999)))
+
+(let()
+  (define result (let ((x 'outer))
+                   (let-syntax ((m (syntax-rules () ((m) x))))
+                     (let ((x 'inner))
+                       (m)))))
+  (= result 'outer))
+
+(let ()
+  (define result (let-syntax ((when (syntax-rules ()
+                                      ((when test stmt1 stmt2 ...)
+                                       (if test
+                                           (begin stmt1
+                                                  stmt2 ...))))))
+                   (let ((if #t))
+                     (when if (set! if 'now))
+                     if)))
+  (eq? result 'now))
+
+(let ()
+  (define-syntax foo
+    (syntax-rules ()
+      ((_ (a . (b . (c ...))) ...)
+       '(foo (a c ... ) ...))))
+  (equal? (foo (1 2 3 4 5) (6 7 8 9 10)) '(foo (1 3 4 5) (6 8 9 10))))
