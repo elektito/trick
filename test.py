@@ -193,7 +193,7 @@ def main():
     if errors:
         print('Error(s):')
         for i, expr, err in errors:
-            print(f'    [{i}] {err}: ', end='')
+            print(f'   [{i}] {err}: ', end='')
             print(expr)
 
     if fails or errors or skips:
