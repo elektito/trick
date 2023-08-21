@@ -188,8 +188,12 @@ class SyntaxRulesTransformer(Transformer):
             items = []
             for i in expansion:
                 if isinstance(i, _SplicedList):
-                    items.extend(
-                        [self.fix_symbols(j) for j in i.items])
+                    # convert _SplicedList to a _List, recurse on that first to
+                    # make sure any _SplicedList inside that is expanded, then
+                    # add the results to current results.
+                    i = _List(i.items, src_start=None, src_end=None)
+                    i = self.fix_symbols(i)
+                    items.extend(i.proper)
                 else:
                     items.append(self.fix_symbols(i))
             result = Vector(items)
@@ -200,8 +204,12 @@ class SyntaxRulesTransformer(Transformer):
             proper_items = []
             for i in expansion.proper:
                 if isinstance(i, _SplicedList):
-                    proper_items.extend(
-                        [self.fix_symbols(j) for j in i.items])
+                    # convert _SplicedList to a _List, recurse on that first to
+                    # make sure any _SplicedList inside that is expanded, then
+                    # add the results to current results.
+                    i = _List(i.items, src_start=None, src_end=None)
+                    i = self.fix_symbols(i)
+                    proper_items.extend(i.proper)
                 else:
                     proper_items.append(self.fix_symbols(i))
 
@@ -276,27 +284,20 @@ class SyntaxRulesTransformer(Transformer):
                     proper[1], variables, no_ellipses=True)
 
             compiled_proper = []
-            i = 0
-            while i < len(proper):
-                if not no_ellipses and \
-                   i < len(proper) - 1 and \
-                   self.is_ellipsis(proper[i+1]):
-                    compiled_proper.append(
-                        RepeatedTemplate(
-                            self.compile_template(
-                                proper[i], variables,
-                                no_ellipses=no_ellipses)))
-                    i += 2
-                else:
-                    if self.is_ellipsis(proper[i]) and not no_ellipses:
+            for i in range(len(proper)):
+                if self.is_ellipsis(proper[i]) and not no_ellipses:
+                    if len(compiled_proper) == 0:
                         raise TransformError(
                             f'Lone ellipsis in transform template: {template}',
                             form=proper[i])
+                    compiled_proper[-1] = RepeatedTemplate(
+                        compiled_proper[-1])
+                else:
                     compiled_proper.append(
                         self.compile_template(
                             proper[i], variables,
                             no_ellipses=no_ellipses))
-                    i += 1
+
             compiled_tail = None
             if tail is not None:
                 compiled_tail = self.compile_template(

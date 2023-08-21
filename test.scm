@@ -1467,3 +1467,46 @@ and still a comment
 (let-syntax ((foo (syntax-rules ()
                     ((_ x ...) (... '(1 2 ... 3))))))
   (equal? '(1 2 ... 3) (foo)))
+
+;; multiple splices
+;;
+;; for a while i wasn't sure if something like this is even allowed or not. but
+;; after some discussions on reddit:
+;;
+;; https://www.reddit.com/r/scheme/comments/15sr4g9/multiple_ellipses_in_syntaxrules_pattern_language/
+;;
+;; looks like it is. what's more, i think i now understand _why_, even though i
+;; still believe the report is very vague on this point. here's a snippet from
+;; the report:
+;;
+;; > Pattern variables that occur in subpatterns followed by one or more instances
+;; > of the identifier 〈ellipsis〉 are allowed only in subtemplates that are
+;; > followed by as many instances of 〈ellipsis〉. They are replaced in the
+;; > output by all of the elements they match in the input, distributed as
+;; > indicated. It is an error if the output cannot be built up as specified.
+;;
+;; the my-append transformer down below matches the "subpatterns followed by one
+;; or more instances of the identifier <ellipsis>". the part that says
+;; "distributed as indicated" likely means that (a ... ...) is double-spliced
+;; directly in the list, while ((a ...) ...) is spliced in sub-lists.
+
+(equal? '(1 2 3 4 5 6)
+        (let-syntax
+            ((my-append
+              (syntax-rules ()
+                ((my-append (a ...) ...) '(a ... ...)))))
+          (my-append (1 2 3) (4 5 6))))
+
+(equal? '((1 2 3) (4 5 6))
+        (let-syntax
+            ((my-append
+              (syntax-rules ()
+                ((my-append (a ...) ...) '((a ...) ...)))))
+          (my-append (1 2 3) (4 5 6))))
+
+(equal? '(1 2 3 4 5 6 7 8)
+        (let-syntax
+            ((my-append
+              (syntax-rules ()
+                ((_ ((a ...) ...) ...) '(a ... ... ...)))))
+          (my-append ((1 2) (3 4)) ((5) (6 7 8)))))
