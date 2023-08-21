@@ -238,6 +238,9 @@ class ToplevelEnvironment(Environment):
         # define-library and is not a part of the environment itself.
         self.exports = []
 
+        # used for resolving #$ symbols directly
+        self._core = CoreLibrary()
+
     def locate_local(self, name: Symbol, *, _frame_idx=0):
         return None
 
@@ -245,6 +248,12 @@ class ToplevelEnvironment(Environment):
         self.import_sets.append(import_set)
 
     def lookup_symbol(self, sym: Symbol) -> SymbolInfo:
+        if sym.name.startswith('#$'):
+            info = self._core.lookup(sym)
+            if info is not None:
+                return info
+            raise CompileError(f'Invalid identifier: {sym}', form=sym)
+
         mangled_sym = sym
         if self.lib_name:
             mangled_sym = self.lib_name.mangle_symbol(sym)
