@@ -269,6 +269,8 @@ class SyntaxRulesTransformer(Transformer):
         if isinstance(template, List):
             proper, tail = template.split_improper_tail()
 
+            # (... sub-template) form allows having a template in which ellipsis
+            # is just a literal symbol
             if tail is None and len(proper) == 2 and self.is_ellipsis(proper[0]):
                 return self.compile_template(
                     proper[1], variables, no_ellipses=True)
