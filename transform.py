@@ -159,7 +159,10 @@ class SyntaxRulesTransformer(Transformer):
                 form=expr)
 
         expanded = template.expand(vars)
-        finalized = self.fix_symbols(expanded)
+
+        # convert _UserSymbol and _MacroSymbol to appropriate symbols. Expand
+        # splices in-place.
+        finalized = self.fix_up(expanded)
 
         if isinstance(finalized, _List):
             finalized = finalized.to_trick_list(recursive=True)
@@ -168,7 +171,7 @@ class SyntaxRulesTransformer(Transformer):
 
         return finalized
 
-    def fix_symbols(self, expansion):
+    def fix_up(self, expansion):
         if isinstance(expansion, _UserSymbol):
             return expansion.symbol
         elif isinstance(expansion, _MacroSymbol):
@@ -192,10 +195,10 @@ class SyntaxRulesTransformer(Transformer):
                     # make sure any _SplicedList inside that is expanded, then
                     # add the results to current results.
                     i = _List(i.items, src_start=None, src_end=None)
-                    i = self.fix_symbols(i)
+                    i = self.fix_up(i)
                     items.extend(i.proper)
                 else:
-                    items.append(self.fix_symbols(i))
+                    items.append(self.fix_up(i))
             result = Vector(items)
             result.src_start = expansion.src_start
             result.src_end = expansion.src_end
@@ -208,14 +211,14 @@ class SyntaxRulesTransformer(Transformer):
                     # make sure any _SplicedList inside that is expanded, then
                     # add the results to current results.
                     i = _List(i.items, src_start=None, src_end=None)
-                    i = self.fix_symbols(i)
+                    i = self.fix_up(i)
                     proper_items.extend(i.proper)
                 else:
-                    proper_items.append(self.fix_symbols(i))
+                    proper_items.append(self.fix_up(i))
 
             tail = None
             if expansion.tail is not None:
-                tail = self.fix_symbols(expansion.tail)
+                tail = self.fix_up(expansion.tail)
 
             return _List(
                 proper=proper_items,
