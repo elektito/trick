@@ -401,10 +401,7 @@ class LibraryImportSet(ImportSet):
         self.lib = lib
 
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
-        try:
-            return self.lib.lookup(sym)
-        except LibraryLookupError as e:
-            raise CompileError(str(e), form=e.form)
+        return self.lib.lookup(sym)
 
     def get_all_names(self):
         return self.lib.get_all_names()

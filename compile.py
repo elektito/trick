@@ -461,6 +461,8 @@ class Compiler:
     def lookup_symbol(self, sym: Symbol, env: Environment) -> SymbolInfo:
         try:
             return env.lookup_symbol(sym)
+        except LibraryLookupError as e:
+            raise self._compile_error(str(e), form=e.form)
         except CompileError as e:
             raise self._rebuild_compile_error(e)
 
