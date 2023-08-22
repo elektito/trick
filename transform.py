@@ -331,8 +331,7 @@ class SyntaxRulesTransformer(Transformer):
                 src_start=template.src_start,
                 src_end=template.src_end)
         elif isinstance(template, Symbol):
-            info = self.env.lookup_symbol(template)
-            if info.is_aux(AuxKeywords.ELLIPSIS) and not no_ellipses:
+            if not no_ellipses and self.is_ellipsis(template):
                 raise TransformError(
                     f'A single ellipsis as template is not allowed.',
                     form=template)
