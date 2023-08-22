@@ -1574,3 +1574,20 @@ and still a comment
                      #(x ELLIPSIS y ELLIPSIS)))))
   (equal? #(1 2 3 4 5 6)
           (foo 1 2 3 #(4 5 6))))
+
+
+(let ()
+  (define-syntax foo
+    (syntax-rules (abc xyz)
+      ((_ abc x ...) (list 1000 x ...))
+      ((_ xyz x ...) (list 2000 x ...))))
+  (equal? '(2000 1 2 3)
+          (foo xyz 1 2 3)))
+
+(let ()
+  (define-syntax foo
+    (syntax-rules ()
+      ((_ x ... "foo") (list 1000 x ...))
+      ((_ x ... 3) (list 2000 x ...))))
+  (equal? '(2000 1 2)
+          (foo 1 2 3)))
