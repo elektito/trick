@@ -1568,3 +1568,9 @@ and still a comment
       ((_ (a . (b . (c ...))) ...)
        '(foo (a c ... ) ...))))
   (equal? (foo (1 2 3 4 5) (6 7 8 9 10)) '(foo (1 3 4 5) (6 8 9 10))))
+
+(let-syntax ((foo (syntax-rules ELLIPSIS ()
+                    ((_ x ELLIPSIS #(y ELLIPSIS))
+                     #(x ELLIPSIS y ELLIPSIS)))))
+  (equal? #(1 2 3 4 5 6)
+          (foo 1 2 3 #(4 5 6))))
