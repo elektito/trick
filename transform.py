@@ -238,9 +238,9 @@ class SyntaxRulesTransformer(Transformer):
         if len(d) < 2:
             raise TransformError('Too few arguments for transformer')
 
-        self.custom_ellipses = None
+        self.custom_ellipsis = None
         if isinstance(d[1], Symbol):
-            self.custom_ellipses = d[1]
+            self.custom_ellipsis = d[1]
             if len(d) < 3:
                 raise TransformError('Too few arguments for transformer')
             self.literals = d[2]
@@ -410,8 +410,8 @@ class SyntaxRulesTransformer(Transformer):
             return MatchConstant(pattern)
 
     def is_ellipsis(self, sym: Symbol):
-        if self.custom_ellipses is not None:
-            return sym == self.custom_ellipses
+        if self.custom_ellipsis is not None:
+            return sym == self.custom_ellipsis
         elif isinstance(sym, Symbol):
             info = self.env.lookup_symbol(sym)
             return info.is_aux(AuxKeywords.ELLIPSIS)
