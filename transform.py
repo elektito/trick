@@ -445,7 +445,7 @@ class SyntaxRulesTransformer(Transformer):
         else:
             return MatchConstant(pattern)
 
-    def is_ellipsis(self, sym: Symbol):
+    def is_ellipsis(self, sym):
         if self.custom_ellipsis is not None:
             return sym == self.custom_ellipsis
         elif isinstance(sym, Symbol):
