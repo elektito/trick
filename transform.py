@@ -307,7 +307,13 @@ class SyntaxRulesTransformer(Transformer):
         for r in rules:
             pattern, template = r[0], r[1]
             pattern = self.compile_pattern(pattern)
+
+            # the first item in the top-level pattern list is ignored (since
+            # it's the place for the macro keyword)
+            pattern.proper[0] = MatchAll()
+
             variables = pattern.get_vars()
+
             self.check_for_duplicate_variables(variables)
             template = self.compile_template(template, variables)
             self.rules.append((pattern, template))
