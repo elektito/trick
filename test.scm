@@ -169,10 +169,18 @@ and still a comment
 (eq? (#$void) (unless #t 1 2 3))
 (eq? 3 (unless #f 1 2 3))
 
-(cond (#t #t))
+(cond (else #t))
 (= 200 (cond ((= 10 20) 50 100)
              ((= 5 5) 80 200)
              ((= 40 40) 300)))
+(= 300 (cond (#f 100)
+             (#f 200)
+             (300)
+             (else 400)))
+(= 301 (cond (#f 100)
+             (#f => (lambda (x) 200))
+             (300 => (lambda (x) (+ x 1)))
+             (else 400)))
 
 ;; regression test: putting one-armed if in a lambda just to make sure the
 ;; "join" instruction is correctly generated for the implied "false" branch.

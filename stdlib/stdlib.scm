@@ -23,6 +23,32 @@
     ((_ condition body1 body2 ...)
      (if condition (#$void) (begin body1 body2 ...)))))
 
+(define-syntax cond
+  (syntax-rules (else =>)
+    ((cond (else result1 result2 ...))
+     (begin result1 result2 ...))
+    ((cond (test => result))
+     (let ((temp test))
+       (if temp (result temp))))
+    ((cond (test => result) clause1 clause2 ...)
+     (let ((temp test))
+       (if temp
+           (result temp)
+           (cond clause1 clause2 ...))))
+    ((cond (test)) test)
+    ((cond (test) clause1 clause2 ...)
+     (let ((temp test))
+       (if temp
+           temp
+           (cond clause1 clause2 ...))))
+    ((cond (test result1 result2 ...))
+     (if test (begin result1 result2 ...)))
+    ((cond (test result1 result2 ...)
+           clause1 clause2 ...)
+     (if test
+         (begin result1 result2 ...)
+         (cond clause1 clause2 ...)))))
+
 ;; comparison
 
 (define (eqv? x y)
@@ -208,16 +234,6 @@
 (define (map func . arg-lists)
   (map1 func arg-lists '()))
 
-;; cond
-
-(define-macro (cond . arms)
-  (if (null? arms)
-      '(quote ())
-      (list 'if
-            (caar arms)
-            (cons 'begin (cdar arms))
-            (cons 'cond (cdr arms)))))
-
 ;; general comparison
 
 (define (memq obj ls)
@@ -246,7 +262,7 @@
          (and (_equal? (car x) (car y) recursed)
               (_equal? (cdr x) (cdr y) recursed)))
         ((string? x) (string=? x y))
-        (#t (eqv? x y))))
+        (else (eqv? x y))))
 
 (define (equal? x y)
   (_equal? x y '()))
@@ -262,7 +278,7 @@
          (error "Invalid number of arguments for pairwise"))
         ((eqv? (length ls) 2)
          (list (fn (car ls) (cadr ls))))
-        (#t
+        (else
          (cons (fn (car ls) (cadr ls))
                (pairwise fn (cdr ls))))))
 
@@ -273,8 +289,8 @@
          (func (car values)))
         ((null? (cddr values))
          (func (car values) (cadr values)))
-        (#t (reduce func (cons (func (car values) (cadr values))
-                               (cddr values))))))
+        (else (reduce func (cons (func (car values) (cadr values))
+                                 (cddr values))))))
 
 ;; arithmetic
 
@@ -339,18 +355,18 @@
   (cond ((atom? form) #f)
         ((null? form) #f)
         ((eq? (car form) 'unquote) #t)
-        (#t #f)))
+        (else #f)))
 
 (define (qq-is-unquote-splicing form)
   (cond ((atom? form) #f)
         ((eq? (car form) 'unquote-splicing) #t)
-        (#t #f)))
+        (else #f)))
 
 (define (qq-is-quasiquote form)
   (cond ((atom? form) #f)
         ((null? form) #f)
         ((eq? (car form) 'quasiquote) #t)
-        (#t #f)))
+        (else #f)))
 
 (define (qq-process-list-item form level)
   (cond ((vector? form)
@@ -368,7 +384,7 @@
         ((qq-is-quasiquote form)
          (list qq-list
                (qq-process-list form (+ level 1))))
-        (#t
+        (else
          (list qq-list
                (qq-process-list form level)))))
 
@@ -385,7 +401,7 @@
          (error "unquote-splicing in dotted tail"))
         ((qq-is-quasiquote form)
          (qq-process-list form (+ level 1)))
-        (#t
+        (else
          (qq-process-list form level))))
 
 (define (qq-split-improper-tail ls)
@@ -403,7 +419,7 @@
          (list (list (car ls)) (cdr ls))) ;; same as atom? case
         ((qq-is-unquote-splicing (cdr ls))
          (list (list (car ls)) (cdr ls))) ;; same as atom? case
-        (#t
+        (else
          (let ((split (qq-split-improper-tail (cdr ls))))
            (let ((rest (car split))
                  (tail (cadr split)))
@@ -436,7 +452,7 @@
          (error "unquote-splicing immediately inside quasiquote."))
         ((qq-is-quasiquote form)
          (qq-process-list form (+ level 1)))
-        (#t
+        (else
          (qq-process-list form level))))
 
 (define (qq-maptree fn x)
@@ -461,7 +477,7 @@
               (pair? (cddr x))
               (null? (cdddr x)))
          (cons 'cons (qq-maptree qq-remove-tokens (cdr x))))
-        (#t (qq-maptree qq-remove-tokens x))))
+        (else (qq-maptree qq-remove-tokens x))))
 
 (define (qq-simplify x)
   (if (atom? x)
@@ -498,9 +514,9 @@
                      (qq-attach-conses (list (list qq-quote
                                                    (caadar args)))
                                        result))
-                    (#t (qq-attach-append qq-append
-                                          (car args)
-                                          result)))))))
+                    (else (qq-attach-append qq-append
+                                            (car args)
+                                            result)))))))
 
 (define (qq-attach-conses items result)
   (cond ((and (all? (map null-or-quoted? items))
@@ -513,7 +529,7 @@
               (or (eq? (car result) qq-list)
                   (eq? (car result) qq-list*)))
          (cons (car result) (append items (cdr result))))
-        (#t (cons qq-list* (append items (list result))))))
+        (else (cons qq-list* (append items (list result))))))
 
 (define (null-or-quoted? x)
   (or (null? x) (and (pair? x) (eq? (car x) qq-quote))))
@@ -541,7 +557,7 @@
          (if (qq-splicing-frob? item) (list op item) item))
         ((and (pair? result) (eq? (car result) op))
          (list* (car result) item (cdr result)))
-        (#t (list op item result))))
+        (else (list op item result))))
 
 (define-macro (quasiquote form)
   (let ((raw-result (qq-process form 1)))
@@ -591,7 +607,7 @@
            #t)
           ((null? tail)
            `(= ,(length formals) (length args)))
-          (#t
+          (else
            `(and (>= (proper-length args)
                      ,(length rest)))))))
 
@@ -608,7 +624,7 @@
   `(lambda args
      (apply
       (cond ,@(map create-case-lambda-clause clauses)
-            (#t (lambda x (error "Argument list does not match any case-lambda clause"))))
+            (else (lambda x (error "Argument list does not match any case-lambda clause"))))
       args)))
 
 ;;
@@ -661,7 +677,7 @@
          1)
         ((not (pair? (cdr ls)))
          (error "length: argument not a proper list"))
-        (#t (+ 1 (length (cdr ls))))))
+        (else (+ 1 (length (cdr ls))))))
 
 (define (range1 start n acc)
   (if (<= n start)
@@ -691,7 +707,7 @@
   (cond ((null? ls) '(() . ())) ;(list '() '()))
         ((atom? (cdr ls))
          (cons (list (car ls)) (cdr ls)))
-        (#t
+        (else
          (let ((split (split-improper-tail (cdr ls))))
            (let ((rest (car split))
                  (tail (cdr split)))
@@ -705,7 +721,7 @@
          1)
         ((not (pair? (cdr ls)))
          1)
-        (#t (1+ (proper-length (cdr ls))))))
+        (else (1+ (proper-length (cdr ls))))))
 
 ;; characters
 
