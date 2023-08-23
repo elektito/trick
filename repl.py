@@ -8,7 +8,7 @@ from fasl import Fasl
 from importsets import LibraryImportSet
 from libloader import LibLoader
 from libname import LibraryName
-from machinetypes import Symbol, Void
+from machinetypes import Void
 from read import ReadError, read_expr
 from runtime import TrickExitException
 from secd import Secd
