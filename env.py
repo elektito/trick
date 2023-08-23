@@ -1,6 +1,5 @@
 from copy import copy
 from enum import Enum
-from lib_loader import LibLoader
 
 from libloader import LibLoader
 from machinetypes import Integer, Symbol
