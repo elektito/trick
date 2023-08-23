@@ -40,6 +40,7 @@
           range
           reduce
           type
+          (rename #$void void)
           with-gensyms))
 
 (define-library (scheme base)

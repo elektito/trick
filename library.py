@@ -163,7 +163,10 @@ class Library(ToplevelEnvironment, Serializable):
                 primcall_code = None
                 transformer = None
                 if e.kind == ExportKind.PRIMCALL:
-                    prim = primcalls[e.internal.name]
+                    if e.internal.name.startswith('#$'):
+                        prim = primcalls[e.internal.name[2:]]
+                    else:
+                        prim = primcalls[e.internal.name]
                     primcall_nargs = prim['nargs']
                     primcall_code = prim['code']
                 if e.kind == ExportKind.MACRO:
