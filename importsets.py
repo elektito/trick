@@ -13,6 +13,9 @@ class ImportSet(Serializable):
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
         raise NotImplementedError
 
+    def lookup_internal(self, sym: Symbol) -> (SymbolInfo | None):
+        raise NotImplementedError
+
     @staticmethod
     def _get_serializable_subclasses():
         return [
@@ -38,6 +41,9 @@ class LibraryImportSet(ImportSet):
 
     def lookup(self, sym: Symbol) -> (SymbolInfo | None):
         return self._lib().lookup_external_name(sym)
+
+    def lookup_internal(self, sym: Symbol) -> (SymbolInfo | None):
+        return self._lib().lookup_internal_name(sym)
 
     def get_all_names(self):
         return self._lib().get_all_names()
@@ -77,6 +83,9 @@ class OnlyImportSet(ImportSet):
 
         return self.base_import_set.lookup(sym)
 
+    def lookup_internal(self, sym: Symbol) -> (SymbolInfo | None):
+        return self.base_import_set.lookup_internal(sym)
+
     def __str__(self):
         return f'<OnlyImportSet base={self.base_import_set} only={self.identifiers}>'
 
@@ -106,6 +115,9 @@ class ExceptImportSet(ImportSet):
             return None
 
         return self.base_import_set.lookup(sym)
+
+    def lookup_internal(self, sym: Symbol) -> (SymbolInfo | None):
+        return self.base_import_set.lookup_internal(sym)
 
     def __str__(self):
         return f'<ExceptImportSet base={self.base_import_set} except={self.identifiers}>'
@@ -141,6 +153,9 @@ class PrefixImportSet(ImportSet):
             return None
         result.symbol = no_prefix_name
         return result
+
+    def lookup_internal(self, sym: Symbol) -> (SymbolInfo | None):
+        return self.base_import_set.lookup_internal(sym)
 
     def __str__(self):
         return f'<PrefixImportSet base={self.base_import_set} prefix="{self.prefix}">'
@@ -178,6 +193,9 @@ class RenameImportSet(ImportSet):
                 # the original name is not available anymore
                 return None
         return self.base_import_set.lookup(sym)
+
+    def lookup_internal(self, sym: Symbol) -> (SymbolInfo | None):
+        return self.base_import_set.lookup_internal(sym)
 
     def __str__(self):
         renames = [f'"{f}"=>"{t}"' for f, t in self.renames]

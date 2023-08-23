@@ -132,7 +132,7 @@ class Library(ToplevelEnvironment, Serializable):
     def __repr__(self):
         return f'<Library {self.name}>'
 
-    def lookup_symbol(self, sym: Symbol, *, already_mangled=False) -> SymbolInfo:
+    def lookup_symbol(self, sym: Symbol) -> SymbolInfo:
         """
         this method looks up a name from inside the library environment. core
         names and external names are looked up as is, while internal names are
@@ -146,15 +146,33 @@ class Library(ToplevelEnvironment, Serializable):
             return sym.info
 
         for import_set in self.import_sets:
-            if info := import_set.lookup(sym):
+            info = import_set.lookup(sym)
+            if info is not None:
                 return info
 
-        if already_mangled:
-            assert sym.name.startswith('##')
-        else:
-            sym = self.name.mangle_symbol(sym)
+        sym = self.name.mangle_symbol(sym)
 
         return super().lookup_symbol(sym)
+
+    def lookup_internal_name(self, sym: Symbol) -> (SymbolInfo | None):
+        for var_name, var_info in self.defined_symbols.items():
+            if var_name == sym:
+                transformer = None
+                if var_info.value is not None:
+                    assert isinstance(var_info.value, Transformer)
+                    transformer = var_info.value
+                return SymbolInfo(
+                    symbol=var_name,
+                    kind=var_info.kind.to_symbol_kind(),
+                    transformer=transformer,
+                )
+
+        for import_set in self.import_sets:
+            info = import_set.lookup_internal(sym)
+            if info is not None:
+                return info
+
+        return None
 
     def lookup_external_name(self, sym: Symbol) -> (SymbolInfo | None):
         for e in self.exports:
@@ -170,7 +188,8 @@ class Library(ToplevelEnvironment, Serializable):
                     primcall_nargs = prim['nargs']
                     primcall_code = prim['code']
                 if e.kind == ExportKind.MACRO:
-                    var = self.lookup_symbol(e.internal, already_mangled=True)
+                    var = self.lookup_internal_name(e.internal)
+                    assert var is not None
                     assert isinstance(var.transformer, Transformer)
                     transformer = var.transformer
                 return SymbolInfo(

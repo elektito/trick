@@ -23,6 +23,13 @@ class VariableKind(Serializable, Enum):
     UNHYGIENIC_MACRO = 2
     MACRO = 3
 
+    def to_symbol_kind(self) -> SymbolKind:
+        return {
+            VariableKind.NORMAL: SymbolKind.DEFINED_NORMAL,
+            VariableKind.UNHYGIENIC_MACRO: SymbolKind.DEFINED_UNHYGIENIC_MACRO,
+            VariableKind.MACRO: SymbolKind.DEFINED_MACRO,
+        }[self]
+
     def dump(self, output):
         self._dump_uint4(self.value, output)
 
