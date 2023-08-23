@@ -49,6 +49,16 @@
          (begin result1 result2 ...)
          (cond clause1 clause2 ...)))))
 
+(define-syntax let*
+  (syntax-rules ()
+    ((let* () body1 body2 ...)
+     (let () body1 body2 ...))
+    ((let* ((name1 val1) (name2 val2) ...)
+       body1 body2 ...)
+     (let ((name1 val1))
+       (let* ((name2 val2) ...)
+         body1 body2 ...)))))
+
 ;; comparison
 
 (define (eqv? x y)
@@ -570,12 +580,6 @@
 (define-macro (with-gensyms names . body)
   `(let ,(mapcar (lambda (name) `(,name (gensym))) names)
      ,@body))
-
-(define-macro (let* bindings . body)
-  (if (null? bindings)
-      `(begin ,@body)
-      `(let (,(car bindings))
-         (let* ,(cdr bindings) ,@body))))
 
 (define-macro (do iteration-spec test-and-tail-seq . body)
   (let* ((test (car test-and-tail-seq))
