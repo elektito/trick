@@ -136,7 +136,7 @@
         map
         ;; max
         ;; member
-        ;; memq
+        memq
         ;; memv
         ;; min
         modulo
