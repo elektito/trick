@@ -59,6 +59,11 @@
        (let* ((name2 val2) ...)
          body1 body2 ...)))))
 
+(define-syntax let/cc
+  (syntax-rules ()
+    ((_ k body1 body2 ...)
+     (call/cc (lambda (k) body1 body2 ...)))))
+
 ;; comparison
 
 (define (eqv? x y)
@@ -1125,9 +1130,6 @@
     (set! winders (cdr winders))
     (out)
     (apply values ans*)))
-
-(define-macro (let/cc k . body)
-  `(call/cc (lambda (,k) ,@body)))
 
 ;; parameters
 
