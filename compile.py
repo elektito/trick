@@ -718,7 +718,7 @@ class Compiler:
         if info.kind not in (SymbolKind.DEFINED_NORMAL,
                              SymbolKind.LOCAL):
             raise self._compile_error(
-                f'Cannot set: {name}')
+                f'Cannot set undefined variable: {name}')
 
         if info.kind == SymbolKind.LOCAL:
             code += [S('st'), [info.local_frame_idx, info.local_var_idx]]
