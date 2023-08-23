@@ -252,6 +252,12 @@
       (or (eq? obj (car ls))
           (memq obj (cdr ls)))))
 
+(define (memv obj ls)
+  (if (null? ls)
+      #f
+      (or (eq? obj (car ls))
+          (memv obj (cdr ls)))))
+
 (define (_equal? x y recursed)
   (cond ((memq x recursed) ; if already checked this exact object
          #t)               ; don't compare it again

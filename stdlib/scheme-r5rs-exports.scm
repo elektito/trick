@@ -137,7 +137,7 @@
         ;; max
         ;; member
         memq
-        ;; memv
+        memv
         ;; min
         modulo
         negative?
