@@ -1560,7 +1560,8 @@ class Compiler:
                 form=e.form)
 
     def compile_transformer(self, expr, env: Environment):
-        if not isinstance(expr, Pair):
+        if not isinstance(expr, Pair) or \
+           not isinstance(expr.car, Symbol):
             raise self._compile_error(
                 f'Invalid transformer: {expr}', form=expr)
         info = self.lookup_symbol(expr.car, env)
