@@ -1,3 +1,28 @@
+;; macros
+
+(define-syntax and
+  (syntax-rules ()
+    ((_) #t)
+    ((_ x) x)
+    ((_ x y ...) (if x (and y ...) #f))))
+
+(define-syntax or
+  (syntax-rules ()
+    ((_) #f)
+    ((_ x) x)
+    ((_ x y ...) (let ((tmp x))
+                   (if tmp tmp (or y ...))))))
+
+(define-syntax when
+  (syntax-rules ()
+    ((_ condition body1 body2 ...)
+     (if condition (begin body1 body2 ...)))))
+
+(define-syntax unless
+  (syntax-rules ()
+    ((_ condition body1 body2 ...)
+     (if condition (#$void) (begin body1 body2 ...)))))
+
 ;; comparison
 
 (define (eqv? x y)
@@ -192,23 +217,6 @@
             (caar arms)
             (cons 'begin (cdar arms))
             (cons 'cond (cdr arms)))))
-
-;;
-
-(define-macro (and . forms)
-  (cond ((null? forms) '#t)
-        ((null? (cdr forms)) (car forms))
-        (#t (list 'if
-                  (car forms)
-                  (cons 'and (cdr forms))
-                  #f))))
-
-(define-macro (or . forms)
-  (cond ((null? forms) '#f)
-        ((null? (cdr forms)) (car forms))
-        (#t (let ((xcar (gensym)))
-              (list 'let (list (list xcar (car forms)))
-                    (list 'if xcar xcar (cons 'or (cdr forms))))))))
 
 ;; general comparison
 
@@ -542,12 +550,6 @@
                           raw-result))))
 
 ;; more macros now that we have quasiquote!
-
-(define-macro (when c . body)
-  `(if ,c (begin ,@body)))
-
-(define-macro (unless c . body)
-  `(if ,c (#$void) (begin ,@body)))
 
 (define-macro (with-gensyms names . body)
   `(let ,(mapcar (lambda (name) `(,name (gensym))) names)

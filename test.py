@@ -2,11 +2,13 @@
 
 import argparse
 import sys
+from env import ToplevelEnvironment
 
-from compile import ToplevelEnvironment, get_import_set
 from exceptions import CompileError, RunError
 from fasl import Fasl
-from library import CoreLibrary, LibraryImportSet, LibraryName
+from importsets import LibraryImportSet
+from libloader import LibLoader
+from libname import LibraryName
 from machinetypes import Symbol
 from read import ReadError, Reader
 from secd import Secd
@@ -82,6 +84,7 @@ def main():
         stdlib_fasl = Fasl.load(f, stdlib_fasl_filename)
 
     libs = [stdlib_fasl]
+    LibLoader().add_fasl(stdlib_fasl)
 
     f = open('test.scm')
     reader = Reader(f)
@@ -101,11 +104,12 @@ def main():
     machine = Secd(libs)
 
     env = ToplevelEnvironment()
-    env.add_import(LibraryImportSet(CoreLibrary()))
-    env.add_import(
-        get_import_set(
-            LibraryName([Symbol('trick')]),
-            libs))
+
+    lib_name = LibraryName.create('trick', 'core')
+    env.add_import(LibraryImportSet(lib_name))
+
+    lib_name = LibraryName([Symbol('trick')])
+    env.add_import(LibraryImportSet(lib_name, lazy=False))
 
     errors = []
     fails = []

@@ -2,6 +2,9 @@ import glob
 import os
 
 
+STR_ENCODING = 'utf-8'
+
+
 class OrderedSet:
     def __init__(self, values=None):
         # since python 3.7+ dictionaries retain order, we'll be using the

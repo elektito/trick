@@ -1,6 +1,6 @@
 import unittest
 
-from library import LibraryName
+from libname import LibraryName
 from machinetypes import Integer, Symbol
 
 class TestLibraryName(unittest.TestCase):

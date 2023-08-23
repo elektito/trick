@@ -1,61 +1,30 @@
 #!/usr/bin/env python3
 
-from copy import copy
-from enum import Enum
 import io
 from pathlib import Path
 import sys
 import argparse
 
+from env import Environment, EnvironmentError, LocalEnvironment, ToplevelEnvironment, VariableKind
 from exceptions import CompileError, RunError
-from library import CoreLibrary, ExceptImportSet, ExportKind, ImportSet, Library, LibraryExportedSymbol, LibraryImportSet, LibraryLookupError, LibraryName, OnlyImportSet, PrefixImportSet, RenameImportSet, SpecialForms, SymbolInfo, SymbolKind
+from importsets import ExceptImportSet, ImportSet, LibraryImportSet, OnlyImportSet, PrefixImportSet, RenameImportSet
+from libloader import LibLoader, LibraryLoadError
+from libname import LibraryName
+from library import Library, LibraryExportError, LibraryLookupError
 from program import Program
 from fasl import Fasl
 from read import Reader, ReadError
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String, Vector
 from assemble import Assembler
 from secd import Secd
-from transform import SyntaxRulesTransformer, TransformError, Transformer, UninitializedTransformer
-from utils import OrderedSet, find_shared
+from symbolinfo import SpecialForms, SymbolInfo, SymbolKind
+from transform import SyntaxRulesTransformer, TransformError, UninitializedTransformer
+from utils import find_shared
 from version import __version__
 
 
 def S(s: str) -> Symbol:
     return Symbol(s)
-
-
-def get_import_set(name: LibraryName, fasls: list[Fasl], *, local_libs=[]):
-    if name.parts == [S('trick'), S('core')]:
-        return LibraryImportSet(CoreLibrary())
-    else:
-        for lib in local_libs:
-            if lib.name == name:
-                return LibraryImportSet(lib)
-
-        for fasl in fasls:
-            lib_info = fasl.get_section('libinfo')
-            if not lib_info:
-                continue
-            for lib in lib_info.libs:
-                if name == lib.name:
-                    return LibraryImportSet(lib)
-
-    return None
-
-
-class VariableKind(Enum):
-    NORMAL = 1
-    UNHYGIENIC_MACRO = 2
-    MACRO = 3
-
-
-class DefineInfo:
-    def __init__(self, name: Symbol, kind: VariableKind):
-        self.name = name
-        self.kind = kind
-
-    def __repr__(self):
-        return f'<DefineInfo {self.name} ({self.kind.name})>'
 
 
 class SourceFile:
@@ -97,378 +66,6 @@ class SourceFile:
         return hash((self._text, self._filename))
 
 
-class Variable:
-    def __init__(self, name: Symbol, kind: VariableKind, value=None):
-        self.name = name
-        self.kind = kind
-        self.value = value
-
-    def __repr__(self):
-        return f'<Variable {self.name} ({self.kind.name})>'
-
-
-class EnvironmentFrame:
-    def __init__(self, initial_variables: list[Variable] = [],
-                 *, pure_syntax_frame=False):
-        assert all(isinstance(i, Variable) for i in initial_variables)
-        self.variables = initial_variables
-        self.macros = {}
-
-        # a pure syntax frame is one created for let-syntax/letrec-syntax and
-        # has no equivalent run-time frame.
-        self.pure_syntax_frame = pure_syntax_frame
-
-    def add_variable(self, name: Symbol, kind: VariableKind):
-        if self.get_variable(name) is not None:
-            raise CompileError(f'Duplicate variable: {name}', form=name)
-        self.variables.append(Variable(name, kind))
-
-    def add_macro(self, name: Symbol, transformer: Transformer):
-        if self.get_variable(name) is not None:
-            raise CompileError(f'Duplicate variable: {name}', form=name)
-        var = Variable(name, VariableKind.MACRO)
-        self.variables.append(var)
-        var.value = transformer
-
-    def get_variable(self, name: Symbol) -> (None | Variable):
-        for var in self.variables:
-            if var.name == name:
-                return var
-
-        return None
-
-    def get_variable_index(self, name: Symbol):
-        i = 0
-        for var in self.variables:
-            if var.kind == VariableKind.NORMAL:
-                if var.name == name:
-                    return i
-                i += 1
-
-        return None
-
-    def get_value(self, name: Symbol):
-        for var in self.variables:
-            if var.name == name:
-                return var.value
-
-        return None
-
-    def set_value(self, name: Symbol, value):
-        for var in self.variables:
-            if var.name == name:
-                var.value = value
-                return True
-
-        return False
-
-    def __repr__(self):
-        return f'<EnvironmentFrame vars={[str(v.name) for v in self.variables]}>'
-
-
-class Environment:
-    def __init__(self):
-        self.parent = None
-
-    def with_new_frame(self, variables):
-        variables = [
-            Variable(name, VariableKind.NORMAL)
-            for name in variables
-        ]
-        return LocalEnvironment(
-            parent=self,
-            frame=EnvironmentFrame(variables),
-        )
-
-    def with_new_syntax_frame(self, bindings: dict[Symbol, Transformer]):
-        variables = [
-            Variable(name, VariableKind.MACRO, transformer)
-            for name, transformer in bindings.items()
-        ]
-        return LocalEnvironment(
-            parent=self,
-            frame=EnvironmentFrame(variables, pure_syntax_frame=True),
-        )
-
-    def locate_local(self, name: Symbol, *, _frame_idx=0):
-        raise NotImplementedError
-
-    def add_import(self, import_set: ImportSet):
-        raise NotImplementedError
-
-    def lookup_symbol(self, sym: Symbol) -> SymbolInfo:
-        raise NotImplementedError
-
-    def add_export(self, sym: Symbol, source_file: (SourceFile | None)):
-        raise NotImplementedError
-
-    def add_renamed_export(self,
-                           internal: Symbol,
-                           external: Symbol,
-                           source_file: (SourceFile | None)):
-        raise NotImplementedError
-
-    def get_all_names(self):
-        raise NotImplementedError
-
-    def add_define(self, sym: Symbol, kind: VariableKind):
-        raise NotImplementedError
-
-    def add_macro(self, name: Symbol, transformer: Transformer):
-        raise NotImplementedError
-
-    def add_read(self, sym: Symbol):
-        raise NotImplementedError
-
-    def add_write(self, sym: Symbol):
-        raise NotImplementedError
-
-    def check_for_undefined(self):
-        raise NotImplementedError
-
-    def print(self):
-        env = self
-        i = 0
-        while env is not None:
-            print(f'[{i}] {env}')
-            env = env.parent
-            i += 1
-
-    def distance_to_parent(self, parent: 'Environment'):
-        d = 0
-        env = self
-        while env != parent:
-            if isinstance(env, LocalEnvironment) and \
-               not env.frame.pure_syntax_frame:
-                d += 1
-            env = env.parent
-            if env is None:
-                raise ValueError('Not a parent environment')
-
-        return d
-
-class ToplevelEnvironment(Environment):
-    def __init__(self, *, lib_name=None):
-        self.parent = None
-        self.import_sets = []
-        self.lib_name = lib_name
-        self.defined_symbols = {}
-        self.macros = {}
-        self.written_free_symbols = []
-        self.read_free_symbols = OrderedSet()
-
-        # this is only used for collecting exports when processing a
-        # define-library and is not a part of the environment itself.
-        self.exports = []
-
-        # used for resolving #$ symbols directly
-        self._core = CoreLibrary()
-
-    def locate_local(self, name: Symbol, *, _frame_idx=0):
-        return None
-
-    def add_import(self, import_set: ImportSet):
-        self.import_sets.append(import_set)
-
-    def lookup_symbol(self, sym: Symbol) -> SymbolInfo:
-        if sym.name.startswith('#$'):
-            info = self._core.lookup(sym)
-            if info is not None:
-                return info
-            raise CompileError(f'Invalid identifier: {sym}', form=sym)
-
-        mangled_sym = sym
-        if self.lib_name:
-            mangled_sym = self.lib_name.mangle_symbol(sym)
-        define_info = self.defined_symbols.get(mangled_sym)
-        if define_info:
-            kind = SymbolKind.DEFINED_NORMAL
-            transformer = None
-            if define_info.kind == VariableKind.UNHYGIENIC_MACRO:
-                kind = SymbolKind.DEFINED_UNHYGIENIC_MACRO
-            elif define_info.kind == VariableKind.MACRO:
-                kind = SymbolKind.DEFINED_MACRO
-                transformer = self.macros[mangled_sym]
-            info = SymbolInfo(
-                symbol=mangled_sym,
-                kind=kind,
-                transformer=transformer,
-            )
-            return info
-
-        for import_set in self.import_sets:
-            result = import_set.lookup(sym)
-            if result is not None:
-                return result
-
-        if sym.info is not None:
-            return sym.info
-
-        if self.lib_name:
-            return SymbolInfo(
-                symbol=self.lib_name.mangle_symbol(sym),
-                kind=SymbolKind.FREE,
-            )
-        else:
-            return SymbolInfo(
-                symbol=sym,
-                kind=SymbolKind.FREE,
-            )
-
-    def add_export(self, sym: Symbol, source_file: (SourceFile | None)):
-        self.exports.append(
-            LibraryExportedSymbol(
-                sym, sym,
-                export_source_file=source_file))
-
-    def add_renamed_export(self,
-                           internal: Symbol,
-                           external: Symbol,
-                           source_file: (SourceFile | None)):
-        self.exports.append(
-            LibraryExportedSymbol(
-                internal, external,
-                export_source_file=source_file))
-
-    def get_all_names(self):
-        names = []
-        for import_set in self.import_sets:
-            names.extend(import_set.get_all_names())
-        names.extend(self.defined_symbols.keys())
-        return names
-
-    def add_define(self, sym: Symbol, kind: VariableKind):
-        if self.lib_name:
-            sym = self.lib_name.mangle_symbol(sym)
-        self.defined_symbols[sym] = DefineInfo(sym, kind)
-
-    def add_macro(self, name: Symbol, transformer: Transformer):
-        if self.lib_name:
-            name = self.lib_name.mangle_symbol(name)
-        self.defined_symbols[name] = DefineInfo(name, VariableKind.MACRO)
-        self.macros[name] = transformer
-
-    def add_read(self, sym: Symbol):
-        assert not sym.name.startswith('##'), \
-            'add_read is supposed to be called with external names ' \
-            'but has been passesd a mangled name instead.'
-        self.read_free_symbols.add(sym)
-
-    def add_write(self, sym: Symbol):
-        assert not sym.name.startswith('##'), \
-            'add_write is supposed to be called with external names ' \
-            'but has been passesd a mangled name instead.'
-        self.written_free_symbols.append(sym)
-
-    def check_for_undefined(self):
-        for sym in self.read_free_symbols:
-            info = self.lookup_symbol(sym)
-            if info.kind == SymbolKind.FREE:
-                raise CompileError(
-                    f'Unbound variable is read: {sym}', form=sym)
-
-        for sym in self.written_free_symbols:
-            info = self.lookup_symbol(sym)
-            if info.kind == SymbolKind.FREE:
-                raise CompileError(
-                    f'Unbound variable is set: {sym}', form=sym)
-
-    def __repr__(self):
-        return '<ToplevelEnvironment>'
-
-
-class LocalEnvironment(Environment):
-    def __init__(self,
-                 parent: Environment,
-                 frame: EnvironmentFrame):
-        self.parent = parent
-        self.frame = frame
-
-        if isinstance(parent, ToplevelEnvironment):
-            self.toplevel = parent
-        else:
-            self.toplevel = parent.toplevel
-
-    def locate_local(self, name: Symbol, *, _frame_idx=0):
-        var = self.frame.get_variable(name)
-        if var is None:
-            return self.parent.locate_local(
-                    name, _frame_idx=_frame_idx+1)
-
-        if var.kind == VariableKind.MACRO:
-            return var.value
-        elif var.kind == VariableKind.NORMAL:
-            return [
-                Integer(_frame_idx),
-                Integer(self.frame.get_variable_index(name))
-            ]
-        else:
-            assert False, f'unhandled case for {var.kind}'
-
-    def add_import(self, import_set: ImportSet):
-        return self.toplevel.add_import(import_set)
-
-    def lookup_symbol(self, sym: Symbol) -> SymbolInfo:
-        local = self.locate_local(sym)
-        if local:
-            if isinstance(local, Transformer):
-                return SymbolInfo(
-                    symbol=sym,
-                    kind=SymbolKind.LOCAL_MACRO,
-                    transformer=local,
-                )
-            else:
-                return SymbolInfo(
-                    symbol=sym,
-                    kind=SymbolKind.LOCAL,
-                    local_frame_idx=local[0],
-                    local_var_idx=local[1],
-                )
-
-        if sym.info is not None:
-            info = sym.info
-            if info.kind == SymbolKind.LOCAL:
-                info = copy(sym.info)
-                info.local_frame_idx += self.distance_to_parent(sym.transform_env)
-                return info
-
-        return self.toplevel.lookup_symbol(sym)
-
-    def add_export(self, sym: Symbol, source_file: (SourceFile | None)):
-        return self.toplevel.add_export(sym, source_file)
-
-    def add_renamed_export(self,
-                           internal: Symbol,
-                           external: Symbol,
-                           source_file: (SourceFile | None)):
-        return self.toplevel.add_renamed_export(
-            internal, external, source_file)
-
-    def get_all_names(self):
-        names = []
-        names.extend([v.name for v in self.frame.variables])
-        names.extend(self.parent.get_all_names())
-        return names
-
-    def add_define(self, sym: Symbol, kind: VariableKind):
-        return self.toplevel.add_define(sym, kind)
-
-    def add_macro(self, name, transformer):
-        self.frame.add_macro(name, transformer)
-
-    def add_read(self, sym: Symbol):
-        return self.toplevel.add_read(sym)
-
-    def add_write(self, sym: Symbol):
-        return self.toplevel.add_write(sym)
-
-    def check_for_undefined(self):
-        return self.toplevel.check_for_undefined()
-
-    def __repr__(self):
-        return f'<LocalEnvironment frame={self.frame}>'
-
-
 class Compiler:
     def __init__(self, libs: list[Fasl], debug_info=False):
         self.assembler = Assembler()
@@ -483,6 +80,9 @@ class Compiler:
 
         # for now, we'll treat everything as a library
         self.compiling_library = True
+
+        for fasl in self.lib_fasls:
+            LibLoader().add_fasl(fasl)
 
     def _compile_error(self, msg, form=None, source=None):
         form = form if form is not None else self.current_form
@@ -502,8 +102,8 @@ class Compiler:
             return env.lookup_symbol(sym)
         except LibraryLookupError as e:
             raise self._compile_error(str(e), form=e.form)
-        except CompileError as e:
-            raise self._rebuild_compile_error(e)
+        except EnvironmentError as e:
+            raise self._compile_error(str(e), form=e.form)
 
     def macro_expand(self, form, env):
         initial_form = form
@@ -563,11 +163,12 @@ class Compiler:
             info = self.lookup_symbol(name_sym, env)
             if info.is_special(SpecialForms.QUOTE):
                 return form
-            if info.kind != SymbolKind.DEFINED_UNHYGIENIC_MACRO:
+            if info.kind not in (SymbolKind.DEFINED_UNHYGIENIC_MACRO,
+                                 SymbolKind.DEFINED_MACRO):
                 break
 
             args = form.cdr
-            form = self.expand_single_macro(name_sym, info, args, env, form)
+            form = self.macro_expand(form, env)
 
         if not isinstance(form, Pair):
             return form
@@ -670,7 +271,7 @@ class Compiler:
         if len(expr) < 3:
             raise self._compile_error('Not enough arguments for define-macro')
 
-        info = env.lookup_symbol(name)
+        info = self.lookup_symbol(name, env)
         if info.immutable:
             raise self._compile_error(
                 f'Attempting to assign immutable variable: {name}',
@@ -1527,7 +1128,7 @@ class Compiler:
         transformer_form = expr[2]
         transformer = self.compile_transformer(transformer_form, env)
 
-        info = env.lookup_symbol(name)
+        info = self.lookup_symbol(name, env)
         if info.immutable:
             raise self._compile_error(
                 f'Attempting to assign immutable variable: {name}',
@@ -1708,7 +1309,7 @@ class Compiler:
             if not isinstance(cur, List):
                 return False
 
-    def compile_library_declaration(self, declaration, env: Environment):
+    def compile_library_declaration(self, declaration, env: Library):
         # we'll be checking library declarations using symbols like import,
         # export, begin, etc, instead of looking up the symbols in env in case
         # they are renamed or not imported. my understanding of the r7rs spec is
@@ -1726,7 +1327,8 @@ class Compiler:
         elif declaration.car == S('export'):
             for export_spec in declaration.cdr:
                 if isinstance(export_spec, Symbol):
-                    env.add_export(export_spec, self.current_source)
+                    env.add_export(
+                        export_spec, declaration, self.current_source)
                 elif isinstance(export_spec, Pair):
                     if len(export_spec) != 3 or \
                        export_spec[0] != S('rename') or \
@@ -1735,7 +1337,9 @@ class Compiler:
                         raise self._compile_error(
                             f'Bad export spec: {export_spec}',
                             form=export_spec)
-                    env.add_renamed_export(export_spec[1], export_spec[2], self.current_source)
+                    env.add_renamed_export(
+                        export_spec[1], export_spec[2],
+                        declaration, self.current_source)
                 else:
                     raise self._compile_error(
                         f'Bad export spec: {export_spec}',
@@ -1777,37 +1381,29 @@ class Compiler:
                 f'Invalid library name: {lib_name}', form=lib_name)
 
         code = []
-        lib_env = ToplevelEnvironment(lib_name=lib_name)
+        lib = Library(lib_name)
         for i, declaration in enumerate(form.cdr.cdr):
             if i > 0:
                 code += [S('drop')]
-            code += self.compile_library_declaration(declaration, lib_env)
-
-        # check exports add more information to them
-        for export in lib_env.exports:
-            info = lib_env.lookup_symbol(export.internal)
-            export.kind = ExportKind.from_symbol_kind(info.kind)
-            export.special_type = info.special_type
-            export.aux_type = info.aux_type
-            if info.kind in (SymbolKind.DEFINED_NORMAL,
-                             SymbolKind.DEFINED_UNHYGIENIC_MACRO,
-                             SymbolKind.DEFINED_MACRO):
-                export.internal = info.symbol
-            if info.kind == SymbolKind.FREE:
-                raise self._compile_error(
-                    f'No such identifier to export: {export.internal}',
-                    form=export.internal,
-                    source=export.export_source_file)
+            code += self.compile_library_declaration(declaration, lib)
 
         try:
-            lib_env.check_for_undefined()
-        except CompileError as e:
-            raise self._rebuild_compile_error(e)
+            lib.finalize_exports()
+        except LibraryExportError as e:
+            raise self._compile_error(
+                str(e), form=e.form, source=e.source)
+
+        try:
+            lib.check_for_undefined()
+        except EnvironmentError as e:
+            raise self._compile_error(str(e), form=e.form)
 
         # add library to available_libs so that it becomes immediately available
         # to libraries defined later
-        self.defined_libs.append(
-            Library(lib_name, lib_env.exports, lib_env.macros))
+        LibLoader().add_lib(lib)
+
+        # also add it to our list of libraries so it will be written to the FASL
+        self.defined_libs.append(lib)
 
         return code
 
@@ -1857,7 +1453,7 @@ class Compiler:
         elif info and info.is_special(SpecialForms.DEFINE):
             name_sym, lambda_form = self.parse_define_form(form, 'define')
 
-            info = env.lookup_symbol(name_sym)
+            info = self.lookup_symbol(name_sym, env)
             if info.immutable:
                 raise self._compile_error(
                     f'Attempting to assign immutable variable: {name_sym}',
@@ -1964,13 +1560,12 @@ class Compiler:
                         form=rename[0])
             return RenameImportSet(base_set, renames)
         else:
-            result = get_import_set(
-                LibraryName(import_set.to_list()),
-                self.lib_fasls,
-                local_libs=self.defined_libs)
-            if result is None:
-                raise self._compile_error(
-                    f'Unknown library: {import_set}', form=import_set)
+            lib_name = import_set.to_list()
+            lib_name = LibraryName(lib_name)
+            try:
+                result = LibraryImportSet(lib_name, lazy=False)
+            except LibraryLoadError as e:
+                raise self._compile_error(str(e), form=import_set)
             return result
 
     def process_import(self, form: Pair, env: Environment):
@@ -2040,8 +1635,8 @@ class Compiler:
 
         try:
             env.check_for_undefined()
-        except CompileError as e:
-            raise self._rebuild_compile_error(e)
+        except EnvironmentError as e:
+            raise self._compile_error(str(e), form=e.form)
 
         program = Program(
             code=code,

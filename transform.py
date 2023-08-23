@@ -1,5 +1,6 @@
-from library import AuxKeywords, SymbolKind
 from machinetypes import Bool, Char, Integer, List, Nil, Pair, String, Symbol, TrickType, Vector
+from serialization import Serializable
+from symbolinfo import AuxKeywords
 
 
 class _List:
@@ -135,16 +136,52 @@ class TransformError(Exception):
         return self.msg
 
 
-class Transformer:
+class Transformer(Serializable):
     def transform(self, expr, env):
         raise NotImplementedError
 
+    @staticmethod
+    def _get_serializable_subclasses():
+        return [
+            SyntaxRulesTransformer,
+        ]
+
 
 class SyntaxRulesTransformer(Transformer):
-    def __init__(self, definition, env):
+    serialization_id = 1
+
+    def __init__(self, definition, env, *, _loading=False):
+        if _loading:
+            return
+
         self.definition = definition
         self.env = env
         self.compile()
+
+    def _dump(self, output):
+        # the only things that we need to serialize are the compiled patterns
+        # and templates. We won't need the custom ellipsis and the literals,
+        # because they will be compiled into the patterns and templates. env is
+        # also not needed anymore. it's only used when expanding, and whoever
+        # loads the transformer should associated with the library's top-level
+        # environment (local transformers cannot be serialized).
+        self._dump_uint4(len(self.rules), output)
+        for p, t in self.rules:
+            p.dump(output)
+            t.dump(output)
+
+    @classmethod
+    def _load(cls, input):
+        nrules = cls._load_uint4(input)
+        rules = [
+            (Matcher.load(input), Template.load(input))
+            for _ in range(nrules)
+        ]
+        t = SyntaxRulesTransformer(None, None, _loading=True)
+        t.definition = 'unavailable'
+        t.env = 'must-be-set-later-to-lib-toplevel-env'
+        t.rules = rules
+        return t
 
     def transform(self, expr, env):
         # use a new gensyms table on each expansion
@@ -432,20 +469,46 @@ class UninitializedTransformer(Transformer):
             f'Use of uninitialized transformer')
 
 
-class Matcher:
+class Matcher(Serializable):
     def get_vars(self):
         return []
 
+    @staticmethod
+    def _get_serializable_subclasses():
+        return [
+            MatchAll,
+            MatchLiteral,
+            MatchVariable,
+            MatchList,
+            MatchListWithEllipsis,
+            MatchVector,
+            MatchVectorWithEllipsis,
+            MatchRepeated,
+            MatchConstant,
+        ]
+
 
 class MatchAll(Matcher):
+    serialization_id = 1
+
     def match(self, value):
         return True, {}
 
     def __repr__(self):
         return '<MatchAll>'
 
+    def _dump(self, output):
+        # no state to serialize
+        pass
+
+    @classmethod
+    def _load(cls, input):
+        return MatchAll()
+
 
 class MatchLiteral(Matcher):
+    serialization_id = 2
+
     def __init__(self, literal: Symbol):
         self.literal = literal
 
@@ -455,8 +518,18 @@ class MatchLiteral(Matcher):
     def __repr__(self):
         return f'<MatchLiteral {self.literal}>'
 
+    def _dump(self, output):
+        self._dump_string(self.literal.name, output)
+
+    @classmethod
+    def _load(cls, input):
+        literal = Symbol(cls._load_string(input))
+        return MatchLiteral(literal)
+
 
 class MatchVariable(Matcher):
+    serialization_id = 3
+
     def __init__(self, variable: Symbol):
         self.variable = variable
 
@@ -469,8 +542,18 @@ class MatchVariable(Matcher):
     def __repr__(self):
         return f'<MatchVariable {self.variable}>'
 
+    def _dump(self, output):
+        self._dump_string(self.variable.name, output)
+
+    @classmethod
+    def _load(cls, input):
+        var = Symbol(cls._load_string(input))
+        return MatchVariable(var)
+
 
 class MatchList(Matcher):
+    serialization_id = 4
+
     def __init__(self, proper, tail):
         assert is_valid_matcher(proper)
         assert tail is None or is_valid_matcher(tail)
@@ -520,8 +603,20 @@ class MatchList(Matcher):
         else:
             return f'<MatchList {self.proper}>'
 
+    def _dump(self, output):
+        self._dump_list(self.proper, output)
+        self._dump_optional(self.tail, output)
+
+    @classmethod
+    def _load(cls, input):
+        proper = cls._load_list(Matcher, input)
+        tail = cls._load_optional(Matcher, input)
+        return MatchList(proper, tail)
+
 
 class MatchListWithEllipsis(Matcher):
+    serialization_id = 5
+
     def __init__(self, proper, tail, repeated_idx):
         assert is_valid_matcher(proper)
         assert tail is None or is_valid_matcher(tail)
@@ -585,8 +680,22 @@ class MatchListWithEllipsis(Matcher):
         else:
             return f'<MatchList... {self.proper}>'
 
+    def _dump(self, output):
+        self._dump_list(self.proper, output)
+        self._dump_optional(self.tail, output)
+        self._dump_uint4(self.repeated_idx, output)
+
+    @classmethod
+    def _load(cls, input):
+        proper = cls._load_list(Matcher, input)
+        tail = cls._load_optional(Matcher, input)
+        repeated_idx = cls._load_uint4(input)
+        return MatchListWithEllipsis(proper, tail, repeated_idx)
+
 
 class MatchVector(Matcher):
+    serialization_id = 6
+
     def __init__(self, items):
         assert is_valid_matcher(items)
 
@@ -614,8 +723,17 @@ class MatchVector(Matcher):
     def __repr__(self):
         return f'<MatchVector {self.items}>'
 
+    def _dump(self, output):
+        self._dump_list(self.items, output)
+
+    @classmethod
+    def _load(cls, input):
+        return MatchVector(cls._load_list(Matcher, input))
+
 
 class MatchVectorWithEllipsis(Matcher):
+    serialization_id = 7
+
     def __init__(self, items, repeated_idx):
         assert is_valid_matcher(items)
 
@@ -657,8 +775,20 @@ class MatchVectorWithEllipsis(Matcher):
     def __repr__(self):
         return f'<MatchVector... {self.items}>'
 
+    def _dump(self, output):
+        self._dump_list(self.items, output)
+        self._dump_uint4(self.repeated_idx, output)
+
+    @classmethod
+    def _load(cls, input):
+        items = cls._load_list(Matcher, input)
+        repeated_idx = cls._load_uint4(input)
+        return MatchVectorWithEllipsis(items, repeated_idx)
+
 
 class MatchRepeated(Matcher):
+    serialization_id = 8
+
     def __init__(self, matcher):
         assert is_valid_matcher(matcher)
         self.matcher = matcher
@@ -680,8 +810,17 @@ class MatchRepeated(Matcher):
     def __repr__(self):
         return f'<MatchRepeated {self.matcher}>'
 
+    def _dump(self, output):
+        self.matcher.dump(output)
+
+    @classmethod
+    def _load(cls, input):
+        return MatchRepeated(Matcher.load(input))
+
 
 class MatchConstant(Matcher):
+    serialization_id = 9
+
     def __init__(self, constant):
         assert isinstance(constant, TrickType) and \
             not isinstance(constant, (List, Vector))
@@ -693,16 +832,35 @@ class MatchConstant(Matcher):
     def __repr__(self):
         return f'<MatchConstant {self.constant}>'
 
+    def _dump(self, output):
+        self.constant.dump(output)
 
-class Template:
+    @classmethod
+    def _load(cls, input):
+        return MatchConstant(TrickType.load(input))
+
+
+class Template(Serializable):
     def expand(self, vars: dict):
         raise NotImplementedError
 
     def get_vars(self) -> list[Symbol]:
         raise NotImplementedError
 
+    @staticmethod
+    def _get_serializable_subclasses():
+        return [
+            ConstantTemplate,
+            VariableTemplate,
+            SymbolTemplate,
+            ListTemplate,
+            VectorTemplate,
+            RepeatedTemplate,
+        ]
 
 class ConstantTemplate(Template):
+    serialization_id = 1
+
     def __init__(self, constant):
         assert isinstance(constant, TrickType)
         assert not isinstance(constant, (List, Vector))
@@ -717,8 +875,17 @@ class ConstantTemplate(Template):
     def __repr__(self):
         return f'<ConstantTemplate {self.constant}>'
 
+    def _dump(self, output):
+        self.constant.dump(output)
+
+    @classmethod
+    def _load(cls, input):
+        return ConstantTemplate(TrickType.load(input))
+
 
 class VariableTemplate(Template):
+    serialization_id = 2
+
     def __init__(self, variable: Symbol):
         assert isinstance(variable, Symbol)
         self.variable = variable
@@ -758,8 +925,18 @@ class VariableTemplate(Template):
     def __repr__(self):
         return f'<VariableTemplate {self.variable}>'
 
+    def _dump(self, output):
+        self.variable.dump(output)
+
+    @classmethod
+    def _load(cls, input):
+        var = Symbol.load(input)
+        return VariableTemplate(var)
+
 
 class SymbolTemplate(Template):
+    serialization_id = 3
+
     def __init__(self, symbol: Symbol):
         assert isinstance(symbol, Symbol)
         self.symbol = symbol
@@ -773,8 +950,18 @@ class SymbolTemplate(Template):
     def __repr__(self):
         return f'<SymbolTemplate {self.symbol}>'
 
+    def _dump(self, output):
+        self.symbol.dump(output)
+
+    @classmethod
+    def _load(cls, input):
+        sym = Symbol.load(input)
+        return SymbolTemplate(sym)
+
 
 class ListTemplate(Template):
+    serialization_id = 4
+
     def __init__(self,
                  proper: list[Template],
                  tail: (None | Template),
@@ -808,8 +995,20 @@ class ListTemplate(Template):
         else:
             return f'<ListTemplate {self.proper} . {self.tail}>'
 
+    def _dump(self, output):
+        self._dump_list(self.proper, output)
+        self._dump_optional(self.tail, output)
+
+    @classmethod
+    def _load(cls, input):
+        proper = cls._load_list(Template, input)
+        tail = cls._load_optional(Template, input)
+        return ListTemplate(proper, tail, src_start=None, src_end=None)
+
 
 class VectorTemplate(Template):
+    serialization_id = 5
+
     def __init__(self, items: list[Template], *, src_start=None, src_end=None):
         assert is_valid_template(items)
         self.items = items
@@ -828,8 +1027,17 @@ class VectorTemplate(Template):
     def __repr__(self):
         return f'<VectorTemplate {self.items}>'
 
+    def _dump(self, output):
+        self._dump_list(self.items, output)
+
+    @classmethod
+    def _load(cls, input):
+        return VectorTemplate(cls._load_list(Template, input))
+
 
 class RepeatedTemplate(Template):
+    serialization_id = 6
+
     def __init__(self, template: Template):
         assert isinstance(template, Template)
         self.template = template
@@ -882,6 +1090,13 @@ class RepeatedTemplate(Template):
 
     def __repr__(self):
         return f'<RepeatedTemplate {self.template}>'
+
+    def _dump(self, output):
+        self.template.dump(output)
+
+    @classmethod
+    def _load(cls, input):
+        return RepeatedTemplate(cls.load(input))
 
 
 def merge_vars(old, new):

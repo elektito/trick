@@ -1,11 +1,23 @@
 from uuid import uuid4
+from serialization import Serializable
+
+from utils import STR_ENCODING
 
 
-DEFAULT_ENCODING = 'utf-8'
-
-
-class TrickType:
-    pass
+class TrickType(Serializable):
+    @staticmethod
+    def _get_serializable_subclasses():
+        return [
+            Void,
+            Integer,
+            Symbol,
+            Bool,
+            Char,
+            String,
+            Nil,
+            Pair,
+            Vector,
+        ]
 
 
 class Reference:
@@ -30,6 +42,7 @@ class Reference:
 
 
 class Void(TrickType):
+    serialization_id = 1
     _instance = None
 
     def __new__(klass, *args, **kwargs):
@@ -45,8 +58,18 @@ class Void(TrickType):
     def __repr__(self):
         return '#<void>'
 
+    def _dump(self, output):
+        # nothing to serialize!
+        pass
+
+    @staticmethod
+    def _load(input):
+        return Void()
+
 
 class Integer(int, TrickType):
+    serialization_id = 2
+
     def __new__(cls, n, *args, **kwargs):
         obj = super().__new__(cls, n, *args, **kwargs)
         obj.src_start = None
@@ -95,8 +118,16 @@ class Integer(int, TrickType):
     def __pos__(self):
         return self
 
+    def _dump(self, output):
+        self._dump_int8(self, output)
+
+    @classmethod
+    def _load(cls, input):
+        return Integer(cls._load_int8(input))
+
 
 class Symbol(TrickType):
+    serialization_id = 3
     gensym_number = 0
 
     def __init__(self, name, *, short_name=None, info=None, original=None, transform_env=None):
@@ -202,8 +233,17 @@ class Symbol(TrickType):
 
         return Symbol(full_name, short_name=short_name)
 
+    def _dump(self, output):
+        self._dump_string(self.name, output)
+
+    @classmethod
+    def _load(cls, input):
+        return Symbol(cls._load_string(input))
+
 
 class Bool(TrickType):
+    serialization_id = 4
+
     def __init__(self, value: bool):
         if not isinstance(value, bool):
             raise TypeError('Invalid boolean value')
@@ -233,8 +273,18 @@ class Bool(TrickType):
             return False
         return self.value == other.value
 
+    def _dump(self, output):
+        self._dump_byte(1 if self.value else 0, output)
+
+    @classmethod
+    def _load(cls, input):
+        value = cls._load_byte(input)
+        return Bool(value != 0)
+
 
 class Char(TrickType):
+    serialization_id = 5
+
     name_to_code = {
         'alarm': 0x07,
         'backspace': 0x08,
@@ -288,8 +338,17 @@ class Char(TrickType):
     def __repr__(self):
         return f'<Char {self}>'
 
+    def _dump(self, output):
+        self._dump_uint4(self.char_code, output)
+
+    @classmethod
+    def _load(cls, input):
+        return Char(cls._load_uint4(input))
+
 
 class String(TrickType):
+    serialization_id = 6
+
     def __init__(self, value: str):
         assert isinstance(value, str)
         self.value = value
@@ -327,12 +386,19 @@ class String(TrickType):
     def __repr__(self):
         return f'<String {self}>'
 
-    def encode(self, encoding=DEFAULT_ENCODING):
+    def encode(self, encoding=STR_ENCODING):
         return self.value.encode(encoding)
 
     @staticmethod
     def from_bytes(b: bytes) -> 'String':
-        return String(b.decode(DEFAULT_ENCODING))
+        return String(b.decode(STR_ENCODING))
+
+    def _dump(self, output):
+        self._dump_string(self.value, output)
+
+    @classmethod
+    def _load(cls, input):
+        return String(cls._load_string(input))
 
 
 class Procedure(TrickType):
@@ -409,6 +475,7 @@ class List(TrickType):
 
 
 class Nil(List):
+    serialization_id = 7
     _instance = None
 
     def __new__(klass, *args, **kwargs):
@@ -452,8 +519,18 @@ class Nil(List):
     def split_improper_tail(self):
         return self, None
 
+    def _dump(self, output):
+        # nothing to serialize!
+        pass
+
+    @classmethod
+    def _load(cls, input):
+        return Nil()
+
 
 class Pair(List):
+    serialization_id = 8
+
     class Iterator:
         def __init__(self, start):
             self.cur = start
@@ -676,6 +753,29 @@ class Pair(List):
 
             return start
 
+    def _dump(self, output):
+        # FIXME this does not work with shared/cyclic lists
+        #       low-prio since we're not using it for now!
+        proper, tail = self.split_improper_tail()
+        self._dump_list(proper, output)
+        self._dump_optional(tail, output)
+
+    @classmethod
+    def _load(cls, input):
+        # FIXME this does not work with shared/cyclic lists
+        #       low-prio since we're not using it for now!
+        proper = cls._load_list(TrickType, input)
+        tail = cls._load_optional(TrickType, input)
+        ls = Pair.from_list(proper)
+        if tail is not None:
+            cur = ls
+            while isinstance(cur, Pair):
+                prev = cur
+                cur = cur.cdr
+            prev.cdr = tail
+        return ls
+
+
 
 class Values(TrickType):
     def __init__(self, values):
@@ -702,6 +802,8 @@ class Values(TrickType):
 
 
 class Vector(TrickType):
+    serialization_id = 9
+
     class Iterator:
         def __init__(self, vector):
             self._vector = vector
@@ -752,6 +854,15 @@ class Vector(TrickType):
             Vector.from_list_recursive(e) if isinstance(e, list) else e
             for e in ls
         ])
+
+    def _dump(self, output):
+        self._dump_uint4(len(self._elements), output)
+        for e in self._elements:
+            e.dump(output)
+
+    @classmethod
+    def _load(cls, input):
+        return Vector(cls._load_list(TrickType, input))
 
 
 class Port(TrickType):

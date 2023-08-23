@@ -1,10 +1,12 @@
 import argparse
 import io
 import struct
+from libname import LibraryName
 
-from library import AuxKeywords, ExportKind, Library, LibraryExportedSymbol, LibraryName, SpecialForms
-from machinetypes import List, String, Symbol, DEFAULT_ENCODING
+from library import ExportKind, Library
+from machinetypes import List, String, Symbol
 from snippet import show_snippet
+from utils import STR_ENCODING
 
 
 FASL_MAGIC = b'TRCKFASL'
@@ -274,25 +276,9 @@ class FaslLibInfoSection(FaslSection):
         s = b''
         s += struct.pack('<I', len(self.libs))
         for lib in self.libs:
-            s += serialize_string(lib.name.mangle())
-            s += struct.pack('<I', len(lib.exports))
-            for export in lib.exports:
-                s += serialize_string(export.internal.name)
-                s += serialize_string(export.external.name)
-
-                s += struct.pack('<I', export.kind.value)
-
-                if export.special_type is None:
-                    special_idx = -1
-                else:
-                    special_idx = list(SpecialForms).index(export.special_type)
-                s += struct.pack('<i', special_idx)
-
-                if export.aux_type is None:
-                    aux_idx = -1
-                else:
-                    aux_idx = list(AuxKeywords).index(export.aux_type)
-                s += struct.pack('<i', aux_idx)
+            out = io.BytesIO()
+            lib.dump(out)
+            s += out.getvalue()
 
         return s
 
@@ -302,45 +288,10 @@ class FaslLibInfoSection(FaslSection):
         offset = 4
         section = FaslLibInfoSection()
         for _ in range(nlibs):
-            mangled_name, offset = deserialize_string(s, offset)
-            lib_name = LibraryName.unmangle(mangled_name)
-
-            exports = []
-            nexports, = struct.unpack('<I', s[offset:offset+4])
-            offset += 4
-            for _ in range(nexports):
-                internal, offset = deserialize_string(s, offset)
-                external, offset = deserialize_string(s, offset)
-                internal = Symbol(internal)
-                external = Symbol(external)
-
-                kind_int, = struct.unpack('<I', s[offset:offset+4])
-                kind = ExportKind(kind_int)
-                offset += 4
-
-                special_idx, = struct.unpack('<i', s[offset:offset+4])
-                offset += 4
-                if special_idx < 0:
-                    special_type = None
-                else:
-                    special_type = list(SpecialForms)[special_idx]
-
-                aux_idx, = struct.unpack('<i', s[offset:offset+4])
-                offset += 4
-                if aux_idx < 0:
-                    aux_type = None
-                else:
-                    aux_type = list(AuxKeywords)[aux_idx]
-
-                exports.append(
-                    LibraryExportedSymbol(
-                        internal, external,
-                        kind=kind,
-                        special_type=special_type,
-                        aux_type=aux_type))
-            # FIXME last argument to Library is empty because we don't support
-            # loading macros from a FASL yet.
-            section.add_library(Library(lib_name, exports, {}))
+            inp = io.BytesIO(s[offset:])
+            lib = Library.load(inp)
+            offset += inp.tell()
+            section.add_library(lib)
 
         return section
 
@@ -440,7 +391,7 @@ class Fasl:
 
         for i in range(nstrs):
             size, = struct.unpack('<I', input.read(4))
-            string = input.read(size).decode(DEFAULT_ENCODING)
+            string = input.read(size).decode(STR_ENCODING)
             fasl.strtab.append(String(string))
 
         for i in range(nsyms):
@@ -460,7 +411,7 @@ class Fasl:
 
 def serialize_string(string: str) -> bytes:
     result = struct.pack('<I', len(string))
-    result += string.encode(DEFAULT_ENCODING)
+    result += string.encode(STR_ENCODING)
     return result
 
 
@@ -469,7 +420,7 @@ def deserialize_string(data: bytes, offset: int) -> tuple[str, int]:
     offset += 4
     string_bytes = data[offset:offset+length]
     offset += length
-    string = string_bytes.decode(DEFAULT_ENCODING)
+    string = string_bytes.decode(STR_ENCODING)
     return string, offset
 
 

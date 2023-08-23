@@ -3,13 +3,16 @@ import unittest
 
 from compile import Compiler, ToplevelEnvironment
 from exceptions import CompileError
-from library import CoreLibrary, LibraryImportSet
+from importsets import LibraryImportSet
+from libname import LibraryName
 from read import Reader
 
 class TestCompiler(unittest.TestCase):
     def setUp(self):
         self.env = ToplevelEnvironment()
-        self.env.add_import(LibraryImportSet(CoreLibrary()))
+
+        lib_name = LibraryName.create('trick', 'core')
+        self.env.add_import(LibraryImportSet(lib_name))
 
     def _test_toplevel_error(self, source, error=None):
         c = Compiler([])

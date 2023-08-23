@@ -8,8 +8,9 @@ import compile
 import assemble
 from exceptions import RunError
 import fasl
-from library import CoreLibrary, LibraryImportSet, LibraryName
-from machinetypes import Symbol
+from importsets import LibraryImportSet
+from libloader import LibLoader
+from libname import LibraryName
 from read import ReadError, read_expr
 import secd
 import repl
@@ -112,12 +113,15 @@ def main():
         lib_fasls += [stdlib_fasl]
 
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
+
         env = compile.ToplevelEnvironment()
-        env.add_import(LibraryImportSet(CoreLibrary()))
-        env.add_import(
-            compile.get_import_set(
-                LibraryName([Symbol('trick')]),
-                lib_fasls))
+
+        lib_name = LibraryName.create('trick', 'core')
+        env.add_import(LibraryImportSet(lib_name))
+
+        lib_name = LibraryName.create('trick')
+        env.add_import(LibraryImportSet(lib_name, lazy=False))
+
         try:
             program = compiler.compile_program(args.compile_expr, env)
         except compile.CompileError as e:
@@ -142,13 +146,15 @@ def main():
         with open('stdlib.fasl', 'rb') as f:
             stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
         lib_fasls += [stdlib_fasl]
+        LibLoader().add_fasl(stdlib_fasl)
 
         env = compile.ToplevelEnvironment()
-        env.add_import(LibraryImportSet(CoreLibrary()))
-        env.add_import(
-            compile.get_import_set(
-                LibraryName([Symbol('trick')]),
-                lib_fasls))
+
+        lib_name = LibraryName.create('trick', 'core')
+        env.add_import(LibraryImportSet(lib_name))
+
+        lib_name = LibraryName.create('trick')
+        env.add_import(LibraryImportSet(lib_name, lazy=False))
 
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         try:
@@ -171,13 +177,15 @@ def main():
         with open('stdlib.fasl', 'rb') as f:
             stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
         lib_fasls += [stdlib_fasl]
+        LibLoader().add_fasl(stdlib_fasl)
 
         env = compile.ToplevelEnvironment()
-        env.add_import(LibraryImportSet(CoreLibrary()))
-        env.add_import(
-            compile.get_import_set(
-                LibraryName([Symbol('trick')]),
-                lib_fasls))
+
+        lib_name = LibraryName.create('trick', 'core')
+        env.add_import(LibraryImportSet(lib_name))
+
+        lib_name = LibraryName.create('trick')
+        env.add_import(LibraryImportSet(lib_name, lazy=False))
 
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
         try:
@@ -194,13 +202,15 @@ def main():
         with open('stdlib.fasl', 'rb') as f:
             stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
         lib_fasls += [stdlib_fasl]
+        LibLoader().add_fasl(stdlib_fasl)
 
         env = compile.ToplevelEnvironment()
-        env.add_import(LibraryImportSet(CoreLibrary()))
-        env.add_import(
-            compile.get_import_set(
-                LibraryName([Symbol('trick')]),
-                lib_fasls))
+
+        lib_name = LibraryName.create('trick', 'core')
+        env.add_import(LibraryImportSet(lib_name))
+
+        lib_name = LibraryName.create('trick')
+        env.add_import(LibraryImportSet(lib_name, lazy=False))
 
         try:
             expr = read_expr(args.eval_expr)

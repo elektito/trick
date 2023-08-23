@@ -2,10 +2,12 @@ import os
 import atexit
 import argparse
 import readline
-from compile import ToplevelEnvironment, get_import_set
+from env import ToplevelEnvironment
 from exceptions import CompileError, RunError
 from fasl import Fasl
-from library import CoreLibrary, LibraryImportSet, LibraryName
+from importsets import LibraryImportSet
+from libloader import LibLoader
+from libname import LibraryName
 from machinetypes import Symbol, Void
 from read import ReadError, read_expr
 from runtime import TrickExitException
@@ -58,13 +60,15 @@ def main(args):
         stdlib_fasl = Fasl.load(f, stdlib_fasl_filename)
 
     libs = [stdlib_fasl]
+    LibLoader().add_fasl(stdlib_fasl)
 
     env = ToplevelEnvironment()
-    env.add_import(LibraryImportSet(CoreLibrary()))
-    env.add_import(
-        get_import_set(
-            LibraryName([Symbol('trick')]),
-            libs))
+
+    lib_name = LibraryName.create('trick', 'core')
+    env.add_import(LibraryImportSet(lib_name))
+
+    lib_name = LibraryName.create('trick')
+    env.add_import(LibraryImportSet(lib_name, lazy=False))
 
     readline.set_auto_history(True)
     read_history()
