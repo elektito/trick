@@ -1,5 +1,6 @@
 from copy import copy
 from enum import Enum
+from lib_loader import LibLoader
 
 from libloader import LibLoader
 from machinetypes import Integer, Symbol
@@ -199,8 +200,6 @@ class Environment:
 
 class ToplevelEnvironment(Environment):
     def __init__(self):
-        from library import CoreLibrary  # avoid circular dependency
-
         super().__init__()
 
         self.import_sets = []
@@ -215,7 +214,7 @@ class ToplevelEnvironment(Environment):
         self.exports = []
 
         # used for resolving #$ symbols directly
-        self._core = CoreLibrary()
+        self._core = LibLoader().get_core()
 
     def locate_local(self, name: Symbol, *, _frame_idx=0):
         return None

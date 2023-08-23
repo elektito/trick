@@ -25,8 +25,11 @@ class LibLoader:
         self.loading_in_progress = set()
         self.fasls = []
 
-        core = CoreLibrary()
-        self.libs[core.name] = core
+        self._core = CoreLibrary()
+        self.libs[self._core.name] = self._core
+
+    def get_core(self):
+        return self._core
 
     def load_lib(self, lib_name):
         if lib_name in self.libs:
