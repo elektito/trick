@@ -109,7 +109,8 @@ class LibraryName:
 
     def _mangle_name_part(self, part: (Symbol | Integer)):
         if isinstance(part, Symbol):
-            if len(part.name) < 10:
+            if len(part.name) < 10 and \
+               (len(part.name) == 0 or not part.name[0].isnumeric()):
                 return f'{len(part.name)}{part.name}'
             else:
                 return f'[{len(part.name)}]{part.name}'

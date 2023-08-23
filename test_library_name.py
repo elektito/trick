@@ -47,3 +47,11 @@ class TestLibraryName(unittest.TestCase):
         lib_name, sym = LibraryName.unmangle_symbol('##0-')
         self.assertEqual(lib_name, LibraryName([]))
         self.assertEqual(sym, Symbol(''))
+
+    def test_mangle_numeric_symbol1(self):
+        mangled = LibraryName.create('5bar').mangle()
+        self.assertEqual('##1-[4]5bar', mangled)
+
+    def test_mangle_numeric_symbol2(self):
+        mangled = LibraryName.create('99').mangle()
+        self.assertEqual('##1-[2]99', mangled)
