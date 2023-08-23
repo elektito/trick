@@ -135,7 +135,7 @@ class PrefixImportSet(ImportSet):
         if not sym.name.startswith(self.prefix):
             return None
 
-        no_prefix_name = S(sym.name[len(self.prefix):])
+        no_prefix_name = Symbol(sym.name[len(self.prefix):])
         result = self.base_import_set.lookup(no_prefix_name)
         if result is None:
             return None
