@@ -317,8 +317,11 @@ class LocalEnvironment(Environment):
     def locate_local(self, name: Symbol, *, _frame_idx=0):
         var = self.frame.get_variable(name)
         if var is None:
+            new_frame_idx = _frame_idx
+            if not self.frame.pure_syntax_frame:
+                new_frame_idx += 1
             return self.parent.locate_local(
-                    name, _frame_idx=_frame_idx+1)
+                    name, _frame_idx=new_frame_idx)
 
         if var.kind == VariableKind.MACRO:
             return var.value
