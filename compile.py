@@ -1246,11 +1246,12 @@ class Compiler:
         if self.detect_cycle(expr):
             raise self._compile_error(
                 f'Cannot compile cyclic list: {expr}')
+
+        expr = self.macro_expand(expr, env)
+
         if isinstance(expr, Pair) and not expr.is_proper():
             raise self._compile_error(
                 f'Cannot compile improper list: {expr}')
-
-        expr = self.macro_expand(expr, env)
 
         secd_code = []
         if self.debug_info and expr.src_start is not None and expr.src_end is not None:
@@ -1422,13 +1423,13 @@ class Compiler:
             raise self._compile_error(
                 'Empty list is not a valid form', form=form)
 
-        if isinstance(form, Pair) and not form.is_proper():
-            raise self._compile_error(
-                f'Cannot compile improper list: {form}')
-
         form = self.macro_expand(form, env)
         if not isinstance(form, Pair):
             return self.compile_form(form, env)
+
+        if isinstance(form, Pair) and not form.is_proper():
+            raise self._compile_error(
+                f'Cannot compile improper list: {form}')
 
         info = None
         if isinstance(form.car, Symbol):
