@@ -492,7 +492,7 @@ class Compiler:
         elif info.kind == SymbolKind.LOCAL:
             return [S('ld'), [info.local_frame_idx, info.local_var_idx]]
         elif info.kind == SymbolKind.FREE:
-            env.add_read(sym)
+            env.add_read(sym, self.current_source)
             return [S('get'), info.symbol]
         elif info.kind == SymbolKind.DEFINED_NORMAL:
             return [S('get'), info.symbol]
@@ -1396,7 +1396,7 @@ class Compiler:
         try:
             lib.check_for_undefined()
         except EnvironmentError as e:
-            raise self._compile_error(str(e), form=e.form)
+            raise self._compile_error(str(e), form=e.form, source=e.source)
 
         # add library to available_libs so that it becomes immediately available
         # to libraries defined later

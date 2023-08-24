@@ -10,9 +10,10 @@ from utils import OrderedSet
 
 
 class EnvironmentError(Exception):
-    def __init__(self, msg: str, form=None):
+    def __init__(self, msg: str, form=None, source=None):
         self.msg = msg
         self.form = form
+        self.source = source
 
     def __repr__(self):
         return self.msg
@@ -176,10 +177,10 @@ class Environment:
     def add_macro(self, name: Symbol, transformer: Transformer):
         raise NotImplementedError
 
-    def add_read(self, sym: Symbol):
+    def add_read(self, sym: Symbol, source_file):
         raise NotImplementedError
 
-    def add_write(self, sym: Symbol):
+    def add_write(self, sym: Symbol, source_file):
         raise NotImplementedError
 
     def check_for_undefined(self):
@@ -285,34 +286,36 @@ class ToplevelEnvironment(Environment):
             name, VariableKind.MACRO,
             value=transformer)
 
-    def add_read(self, sym: Symbol):
+    def add_read(self, sym: Symbol, source_file):
         assert not sym.name.startswith('##'), \
             'add_read is supposed to be called with external names ' \
             'but has been passesd a mangled name instead.'
-        self.read_free_symbols.add(sym)
+        self.read_free_symbols.add((sym, source_file))
 
-    def add_write(self, sym: Symbol):
+    def add_write(self, sym: Symbol, source_file):
         assert not sym.name.startswith('##'), \
             'add_write is supposed to be called with external names ' \
             'but has been passesd a mangled name instead.'
-        self.written_free_symbols.append(sym)
+        self.written_free_symbols.append((sym, source_file))
 
     def check_for_undefined(self):
-        for sym in self.read_free_symbols:
+        for sym, source_file in self.read_free_symbols:
             info = self.lookup_symbol(sym)
             if info.kind == SymbolKind.FREE:
                 if sym.original:
                     sym = sym.original
                 raise EnvironmentError(
-                    f'Unbound variable is read: {sym}', form=sym)
+                    f'Unbound variable is read: {sym}',
+                    form=sym, source=source_file)
 
-        for sym in self.written_free_symbols:
+        for sym, source_file in self.written_free_symbols:
             info = self.lookup_symbol(sym)
             if info.kind == SymbolKind.FREE:
                 if sym.original:
                     sym = sym.original
                 raise EnvironmentError(
-                    f'Unbound variable is set: {sym}', form=sym)
+                    f'Unbound variable is set: {sym}',
+                    form=sym, source=source_file)
 
     def __repr__(self):
         return '<ToplevelEnvironment>'
@@ -387,11 +390,11 @@ class LocalEnvironment(Environment):
     def add_macro(self, name, transformer):
         self.frame.add_macro(name, transformer)
 
-    def add_read(self, sym: Symbol):
-        return self.toplevel.add_read(sym)
+    def add_read(self, sym: Symbol, source_file):
+        return self.toplevel.add_read(sym, source_file)
 
-    def add_write(self, sym: Symbol):
-        return self.toplevel.add_write(sym)
+    def add_write(self, sym: Symbol, source_file):
+        return self.toplevel.add_write(sym, source_file)
 
     def check_for_undefined(self):
         return self.toplevel.check_for_undefined()
