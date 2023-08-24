@@ -575,28 +575,26 @@ class MatchList(Matcher):
             return False, {}
 
         vars = {}
-        value_proper, value_tail = value.split_improper_tail()
-
-        if len(value_proper) != len(self.proper):
-            return False, {}
-
-        if (value_tail is not None and self.tail is None) or \
-           (value_tail is None and self.tail is not None):
-            return False, {}
-
-        for p, v in zip(self.proper, value):
-            result, p_vars = p.match(v)
+        cur = value
+        i = 0
+        while isinstance(cur, Pair) and i < len(self.proper):
+            result, p_vars = self.proper[i].match(cur.car)
             if not result:
                 return False, {}
             merge_vars(vars, p_vars)
+            i += 1
+            cur = cur.cdr
 
-        if self.tail is not None:
-            result, tail_vars = self.tail.match(value_tail)
-            if not result:
-                return False, {}
-            merge_vars(vars, tail_vars)
+        if i != len(self.proper):
+            return False, {}
 
-        return True, vars
+        if self.tail is None:
+            result = isinstance(cur, Nil)
+        else:
+            result, p_vars  = self.tail.match(cur)
+            merge_vars(vars, p_vars)
+
+        return result, vars if result else {}
 
     def get_vars(self):
         vars = []
