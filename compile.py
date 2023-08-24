@@ -129,6 +129,7 @@ class Compiler:
 
     def macro_expand_unhygienic(self, form, env):
         while isinstance(form, Pair) and \
+              form.is_proper() and \
               len(form) > 0 and \
               isinstance(form[0], Symbol):
             name_sym = form[0]
@@ -157,6 +158,7 @@ class Compiler:
 
     def macro_expand_full(self, form, env):
         while isinstance(form, Pair) and \
+              len(form) > 0 and \
               len(form) > 0 and \
               isinstance(form[0], Symbol):
             name_sym = form[0]
