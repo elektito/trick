@@ -1599,3 +1599,51 @@ and still a comment
       ((_ x ... 3) (list 2000 x ...))))
   (equal? '(2000 1 2)
           (foo 1 2 3)))
+
+(let ()
+  (define-syntax foo
+    (syntax-rules ()
+      ((_ x . y)
+       '("X" x "Y" y))))
+  (equal? '("X" 1 "Y" (2 3 4))
+          (foo 1 2 3 4)))
+
+(let ()
+  (define-syntax foo
+    (syntax-rules ()
+      ((_ x . y)
+       '("X" x "Y" . y))))
+  (equal? '("X" 1 "Y" 2 3 4)
+          (foo 1 2 3 4)))
+
+(let ()
+  (define-syntax foo
+    (syntax-rules ()
+      ((_ x . y)
+       '("X" x "Y" y))))
+  (equal? '("X" 1 "Y" (2 3 . 4))
+          (foo 1 2 3 . 4)))
+
+(let ()
+  (define-syntax foo
+    (syntax-rules ()
+      ((_ x . y)
+       '("X" x "Y" . y))))
+  (equal? '("X" 1 "Y" 2 3 . 4)
+          (foo 1 2 3 . 4)))
+
+(let ()
+  (define-syntax foo
+    (syntax-rules ()
+      ((_ x . y)
+       '("X" x "Y" y))))
+  (equal? '("X" 1 "Y" 2)
+          (foo 1 . 2)))
+
+(let ()
+  (define-syntax foo
+    (syntax-rules ()
+      ((_ x . y)
+       '("X" x "Y" . y))))
+  (equal? '("X" 1 "Y" . 2)
+          (foo 1 . 2)))
