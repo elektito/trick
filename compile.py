@@ -1201,7 +1201,6 @@ class Compiler:
                 SpecialForms.INCLUDE: self.compile_include_local,
                 SpecialForms.INCLUDE_CI: self.compile_include_ci_local,
                 SpecialForms.COND_EXPAND: self.compile_cond_expand_local,
-                SpecialForms.SYNTAX_RULES: self.compile_syntax_rules,
             }
 
             if info.kind == SymbolKind.SPECIAL:
