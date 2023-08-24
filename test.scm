@@ -1647,3 +1647,13 @@ and still a comment
        '("X" x "Y" . y))))
   (equal? '("X" 1 "Y" . 2)
           (foo 1 . 2)))
+
+(let ()
+  ;; referring to a symbol (x) that will be defined later
+  (define-syntax m
+      (syntax-rules ()
+        ((_) x)))
+  (define (foo) (m))
+  (define x 100)
+
+  (= (foo) 100))
