@@ -235,10 +235,17 @@ class ToplevelEnvironment(Environment):
                 return info
             raise EnvironmentError(f'Invalid identifier: {sym}', form=sym)
 
-        if sym.info is not None:
+        if sym.info is not None and sym.info.kind != SymbolKind.FREE:
             return sym.info
 
-        define_info = self.defined_symbols.get(sym)
+        if sym.info:
+            # the symbol was FREE when it was defined, but maybe it's been
+            # defined since then. we'll use the original symbol here for the
+            # lookup.
+            define_info = self.defined_symbols.get(sym.info.symbol)
+        else:
+            define_info = self.defined_symbols.get(sym)
+
         if define_info:
             kind = SymbolKind.DEFINED_NORMAL
             transformer = None
@@ -259,7 +266,10 @@ class ToplevelEnvironment(Environment):
             if result is not None:
                 return result
 
-        if sym.info is not None:
+        if sym.info:
+            # if it was free at the time a macro attached info to sym, and it's
+            # still free, we'll return the original sym.info, so the proper name
+            # is used.
             return sym.info
 
         return SymbolInfo(

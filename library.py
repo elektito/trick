@@ -142,15 +142,26 @@ class Library(ToplevelEnvironment, Serializable):
             if info := self._core.lookup_external_name(sym):
                 return info
 
-        if sym.info is not None:
+        if sym.info is not None and sym.info.kind != SymbolKind.FREE:
+            # if the symbol as attached SymbolInfo, added by a macro, and it was
+            # not FREE at the time, just return that meaning.
             return sym.info
+        elif sym.info is None:
+            # we won't lookup the symbol in the import sets if it has symbol
+            # info attached to it, even though it was FREE at the time the
+            # symbol info was attached. that's because we already have the
+            # internal name of the symbol in sym.info.symbol
 
-        for import_set in self.import_sets:
-            info = import_set.lookup(sym)
-            if info is not None:
-                return info
+            for import_set in self.import_sets:
+                info = import_set.lookup(sym)
+                if info is not None:
+                    return info
 
-        sym = self.name.mangle_symbol(sym)
+            sym = self.name.mangle_symbol(sym)
+        else:
+            # no mangling required; we already know the internal name of the
+            # symbol.
+            sym = sym.info.symbol
 
         return super().lookup_symbol(sym)
 
