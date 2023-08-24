@@ -180,9 +180,6 @@ class Environment:
     def add_read(self, sym: Symbol, source_file):
         raise NotImplementedError
 
-    def add_write(self, sym: Symbol, source_file):
-        raise NotImplementedError
-
     def check_for_undefined(self):
         raise NotImplementedError
 
@@ -216,7 +213,6 @@ class ToplevelEnvironment(Environment):
         self.defined_symbols: dict[Symbol, Variable] = {}
 
         # for checking undefined symbols
-        self.written_free_symbols = []
         self.read_free_symbols = OrderedSet()
 
         # this is only used for collecting exports when processing a
@@ -292,12 +288,6 @@ class ToplevelEnvironment(Environment):
             'but has been passesd a mangled name instead.'
         self.read_free_symbols.add((sym, source_file))
 
-    def add_write(self, sym: Symbol, source_file):
-        assert not sym.name.startswith('##'), \
-            'add_write is supposed to be called with external names ' \
-            'but has been passesd a mangled name instead.'
-        self.written_free_symbols.append((sym, source_file))
-
     def check_for_undefined(self):
         for sym, source_file in self.read_free_symbols:
             info = self.lookup_symbol(sym)
@@ -306,15 +296,6 @@ class ToplevelEnvironment(Environment):
                     sym = sym.original
                 raise EnvironmentError(
                     f'Unbound variable is read: {sym}',
-                    form=sym, source=source_file)
-
-        for sym, source_file in self.written_free_symbols:
-            info = self.lookup_symbol(sym)
-            if info.kind == SymbolKind.FREE:
-                if sym.original:
-                    sym = sym.original
-                raise EnvironmentError(
-                    f'Unbound variable is set: {sym}',
                     form=sym, source=source_file)
 
     def __repr__(self):
@@ -392,9 +373,6 @@ class LocalEnvironment(Environment):
 
     def add_read(self, sym: Symbol, source_file):
         return self.toplevel.add_read(sym, source_file)
-
-    def add_write(self, sym: Symbol, source_file):
-        return self.toplevel.add_write(sym, source_file)
 
     def check_for_undefined(self):
         return self.toplevel.check_for_undefined()
