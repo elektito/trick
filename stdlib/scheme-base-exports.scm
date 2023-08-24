@@ -58,6 +58,7 @@
         current-input-port
         current-output-port
         define
+        define-library
         define-record-type
         define-syntax
         ;; define-values
