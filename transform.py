@@ -214,7 +214,7 @@ class SyntaxRulesTransformer(Transformer):
         elif isinstance(expansion, _MacroSymbol):
             gensym = self.gensyms.get(expansion.symbol)
             if gensym is None:
-                gensym = Symbol.gensym(String(expansion.symbol.name))
+                gensym = Symbol.gensym(expansion.symbol)
                 self.gensyms[expansion.symbol] = gensym
 
             gensym.original = expansion.symbol

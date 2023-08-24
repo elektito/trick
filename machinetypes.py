@@ -223,8 +223,20 @@ class Symbol(TrickType):
         uid = str(uuid4()).replace('-', '')
 
         if isinstance(short_name, String):
-            full_name = f'#:{uid}-{short_name.value}'
-            short_name = f'#:{short_name.value}'
+            short_name = short_name.value
+        elif isinstance(short_name, Symbol):
+            if short_name.short_name:
+                short_name = short_name.short_name
+                if short_name.startswith('#:'):
+                    short_name = short_name[2:]
+            else:
+                short_name = short_name.name
+        else:
+            short_name = None
+
+        if short_name is not None:
+            full_name = f'#:{uid}-{short_name}'
+            short_name = f'#:{short_name}'
         else:
             Symbol.gensym_number += 1
             gensym_number = Symbol.gensym_number
