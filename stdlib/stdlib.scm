@@ -64,6 +64,33 @@
     ((_ k body1 body2 ...)
      (call/cc (lambda (k) body1 body2 ...)))))
 
+(define-syntax case-lambda
+  (syntax-rules ()
+    ((_ (params body0 ...) ...)
+     (lambda args
+       (let ((len (length args)))
+         (letrec-syntax
+             ((cl (syntax-rules ::: ()
+                    ((cl)
+                     (error "no matching clause" args))
+                    ((cl ((p :::) . body) . rest)
+                     (if (= len (length '(p :::)))
+                         (apply (lambda (p :::)
+                                  . body)
+                                args)
+                         (cl . rest)))
+                    ((cl ((p ::: . tail) . body)
+                         . rest)
+                     (if (>= len (length '(p :::)))
+                         (apply
+                          (lambda (p ::: . tail)
+                            . body)
+                          args)
+                         (cl . rest)))
+                    ((cl (p . body) . rest)
+                     (apply (lambda p . body) args)))))
+           (cl (params body0 ...) ...)))))))
+
 ;; comparison
 
 (define (eqv? x y)
@@ -611,36 +638,6 @@
                  (,exit-gc (begin ,@tail-seq)))
                ,@body
                (,let-gc ,@nexts)))))))
-
-;; case-lambda
-
-(define (create-case-lambda-matcher formals)
-  (let* ((rest/tail (split-improper-tail formals))
-         (rest (car rest/tail))
-         (tail (cdr rest/tail)))
-    (cond ((symbol? formals)
-           #t)
-          ((null? tail)
-           `(= ,(length formals) (length args)))
-          (else
-           `(and (>= (proper-length args)
-                     ,(length rest)))))))
-
-(define (create-case-lambda-clause c)
-  (let ((formals (car c))
-        (body (cdr c)))
-    (if (symbol? formals)
-        `(#t (lambda ,formals ,@body))
-        `(,(create-case-lambda-matcher formals)
-          (lambda ,formals
-            ,@body)))))
-
-(define-macro (case-lambda . clauses)
-  `(lambda args
-     (apply
-      (cond ,@(map create-case-lambda-clause clauses)
-            (else (lambda x (error "Argument list does not match any case-lambda clause"))))
-      args)))
 
 ;;
 
