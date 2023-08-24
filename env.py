@@ -128,7 +128,10 @@ class EnvironmentFrame:
         return False
 
     def __repr__(self):
-        return f'<EnvironmentFrame vars={[str(v.name) for v in self.variables]}>'
+        remark = ''
+        if self.pure_syntax_frame:
+            remark = ' [SYNTAX]'
+        return f'<EnvironmentFrame{remark} vars={[str(v.name) for v in self.variables]}>'
 
 
 class Environment:
