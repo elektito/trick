@@ -298,12 +298,16 @@ class ToplevelEnvironment(Environment):
         for sym in self.read_free_symbols:
             info = self.lookup_symbol(sym)
             if info.kind == SymbolKind.FREE:
+                if sym.original:
+                    sym = sym.original
                 raise EnvironmentError(
                     f'Unbound variable is read: {sym}', form=sym)
 
         for sym in self.written_free_symbols:
             info = self.lookup_symbol(sym)
             if info.kind == SymbolKind.FREE:
+                if sym.original:
+                    sym = sym.original
                 raise EnvironmentError(
                     f'Unbound variable is set: {sym}', form=sym)
 

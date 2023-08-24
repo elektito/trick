@@ -217,7 +217,10 @@ class SyntaxRulesTransformer(Transformer):
                 gensym = Symbol.gensym(expansion.symbol)
                 self.gensyms[expansion.symbol] = gensym
 
-            gensym.original = expansion.symbol
+            if expansion.symbol.original:
+                gensym.original = expansion.symbol.original
+            else:
+                gensym.original = expansion.symbol
             gensym.info = self.env.lookup_symbol(expansion.symbol)
             gensym.src_start = expansion.symbol.src_start
             gensym.src_end = expansion.symbol.src_end
