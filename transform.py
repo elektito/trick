@@ -249,6 +249,8 @@ class SyntaxRulesTransformer(Transformer):
                     # convert _SplicedList to a _List, recurse on that first to
                     # make sure any _SplicedList inside that is expanded, then
                     # add the results to current results.
+                    if any(isinstance(j, list) for j in i.items):
+                        raise TransformError('Variable not fully expanded')
                     i = _List(i.items, src_start=None, src_end=None)
                     i = self.fix_up(i, env)
                     proper_items.extend(i.proper)
@@ -265,6 +267,8 @@ class SyntaxRulesTransformer(Transformer):
                 src_start=expansion.src_start,
                 src_end=expansion.src_end,
             )
+        elif isinstance(expansion, list):
+            raise TransformError('Variable not fully expanded')
         else:
             return expansion
 
@@ -633,16 +637,16 @@ class MatchListWithEllipsis(Matcher):
         self.repeated_idx = repeated_idx
 
         # number of patterns before the pattern with ellipsis
-        self.n_before = repeated_idx - 1
+        self.n_before = repeated_idx
 
         # number of patterns after ellipsis
-        self.n_after = len(proper) - repeated_idx
+        self.n_after = len(proper) - repeated_idx - 1
 
     def match(self, value):
         if not isinstance(value, List):
             return False, {}
 
-        vars = {}
+        vars = {v: [] for v in self.get_vars()}
         value_proper, value_tail = value.split_improper_tail()
 
         if len(value_proper) < self.n_before + self.n_after:
@@ -659,10 +663,19 @@ class MatchListWithEllipsis(Matcher):
                 return False, {}
             merge_vars(vars, p_vars)
 
-            if j <= self.n_before and j >= len(value_proper) - self.n_after:
+            if j < self.n_before and j >= len(value_proper) - self.n_after - 1:
+                # since the repeated pattern is being skipped, make sure all
+                # variables in it are initialized to an empty list. the python
+                # list is used as a value for repeated variables, and in this
+                # case, an empty list means no values collected.
+                p_vars = self.proper[i+1].get_vars()
+                merge_vars(vars, {
+                    v: [] for v in p_vars
+                })
+
                 # empty match on repeated. proceed to the next pattern.
                 i += 2
-            elif j <= self.n_before or j >= len(value_proper) - self.n_after:
+            elif j < self.n_before or j >= len(value_proper) - self.n_after - 1:
                 i += 1
 
         if self.tail is not None:
@@ -899,10 +912,6 @@ class VariableTemplate(Template):
 
     def expand(self, vars):
         value = vars[self.variable]
-        if isinstance(value, list):
-            raise TransformError(
-                f'Expanding repeated variable without ellipsis: {self.variable}',
-                form=self.variable)
         return self.convert_to_user_env(value)
 
     def convert_to_user_env(self, value):
@@ -1050,15 +1059,7 @@ class RepeatedTemplate(Template):
         self.template = template
 
     def expand(self, vars):
-        # find all variables used in base template
-        used_vars = self.template.get_vars()
-
-        # of those, find the ones that are lists, that is repeated. notice that
-        # any missing variables are repeated, because only repeated patterns can
-        # never be matched (zero repetitions).
-        repeated_vars = [
-            i for i in used_vars
-            if isinstance(vars.get(i, []), list)]
+        repeated_vars = self.find_repeated_vars(self.template, 1, vars)
         non_repeated_vars = [i for i in vars if i not in repeated_vars]
 
         # make sure there's at least one repeated variable
@@ -1095,6 +1096,48 @@ class RepeatedTemplate(Template):
     def get_vars(self):
         return self.template.get_vars()
 
+    def find_repeated_vars(self, template, level, vars):
+        if isinstance(template, RepeatedTemplate):
+            return self.find_repeated_vars(
+                template.template, level + 1, vars)
+        elif isinstance(template, VariableTemplate):
+            value = vars.get(template.variable, [])
+            if not isinstance(value, list):
+                return []
+            depth = self.get_list_depth(value)
+            if depth >= level:
+                return [template.variable]
+            else:
+                return []
+        elif isinstance(template, SymbolTemplate):
+            return []
+        elif isinstance(template, ListTemplate):
+            return \
+                sum((self.find_repeated_vars(t, level, vars)
+                     for t in template.proper), []) + \
+                self.find_repeated_vars(template.tail, level, vars)
+        elif isinstance(template, VectorTemplate):
+            return \
+                sum((self.find_repeated_vars(t, level, vars)
+                     for t in template.items), [])
+        else:
+            return []
+
+    def get_list_depth(self, l: list):
+        if l == []:
+            return 1
+
+        depth = 0
+        while True:
+            if not isinstance(l, list):
+                break
+            depth += 1
+            if l == []:
+                break
+            l = l[0]
+
+        return depth
+
     def __repr__(self):
         return f'<RepeatedTemplate {self.template}>'
 
@@ -1114,7 +1157,7 @@ def merge_vars(old, new):
             else:
                 old[name] = value
         else:
-            assert name not in old
+            assert name not in old or old[name] == []
             old[name] = value
 
 

@@ -1657,3 +1657,39 @@ and still a comment
   (define x 100)
 
   (= (foo) 100))
+
+(let ()
+  (define-syntax foo
+    (syntax-rules ()
+      ((_ "A" (x y) ...)
+       '(AAA (x y) ...))
+      ((_ "B" (x y) ...)
+       '(BBB (x y ...) ...))))
+  (and (equal? '(AAA (a 10) (b 20) (c 30))
+               (foo "A" (a 10) (b 20) (c 30)))
+       (equal? '(BBB (a 10 20 30) (b 10 20 30) (c 10 20 30))
+               (foo "B" (a 10) (b 20) (c 30)))))
+
+(let ()
+  (define-syntax bar
+    (syntax-rules ()
+      ((_ (x y z ...) ...)
+       '(AA (100 200 z ...) ...))))
+  (equal? '(AA (100 200 3) (100 200) (100 200 c))
+          (bar (1 2 3) (10 20) (a b c))))
+
+(let ()
+  (define-syntax foo
+    (syntax-rules ()
+      ((_ (x y ... z) ...)
+       '(AA (100 x (y ...) z) ...))))
+  (equal? '(AA (100 1 (2) 3) (100 a () b) (100 v (w x y) z))
+          (foo (1 2 3) (a b) (v w x y z))))
+
+(let ()
+  (define-syntax foo
+    (syntax-rules (xx)
+      ((_ xx (x ...) ...)
+       '(XX #(x) ... ...))))
+  (equal? (foo xx (1 2 3) (a b))
+          '(XX #(1) #(2) #(3) #(a) #(b))))
