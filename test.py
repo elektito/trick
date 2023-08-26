@@ -151,6 +151,7 @@ def main():
                     errors.append((i, expr, 'Expression did not leave anything on the stack'))
                 else:
                     errors.append((i, expr, f'Expression left more than one value on the stack ({machine.s})'))
+                    machine.s.clear()
                 if args.verbose:
                     print('Error')
                 else:

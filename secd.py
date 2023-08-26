@@ -154,6 +154,9 @@ class Stack:
     def copy(self):
         return Stack([i for i in self.s])
 
+    def clear(self):
+        self.s = []
+
 
 class Secd:
     def __init__(self, fasls=None):
