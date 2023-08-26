@@ -91,6 +91,30 @@
                      (apply (lambda p . body) args)))))
            (cl (params body0 ...) ...)))))))
 
+(define-syntax do-step
+  (syntax-rules ()
+    ((_ x) x)
+    ((_ x y) y)))
+
+(define-syntax do
+  (syntax-rules ()
+    ((do ((var init step ...) ...)
+         (test expr ...)
+       command ...)
+     (letrec
+         ((loop
+           (lambda (var ...)
+             (if test
+                 (begin
+                   (#$void)
+                   expr ...)
+                 (begin
+                   command
+                   ...
+                   (loop (do-step var step ...)
+                         ...))))))
+       (loop init ...)))))
+
 ;; comparison
 
 (define (eqv? x y)
@@ -618,26 +642,6 @@
 (define-macro (with-gensyms names . body)
   `(let ,(mapcar (lambda (name) `(,name (gensym))) names)
      ,@body))
-
-(define-macro (do iteration-spec test-and-tail-seq . body)
-  (let* ((test (car test-and-tail-seq))
-         (tail-seq (cdr test-and-tail-seq))
-         (var-names (map car iteration-spec))
-         (var-inits (map cadr iteration-spec))
-         (nexts (map (lambda (x)
-                       (if (>= (length x) 3)
-                           (caddr x)
-                           (car x)))
-                     iteration-spec))
-         (bindings (map list var-names var-inits)))
-    (with-gensyms (exit-gc let-gc)
-      `(call/cc
-        (lambda (,exit-gc)
-          (let ,let-gc ,bindings
-               (when ,test
-                 (,exit-gc (begin ,@tail-seq)))
-               ,@body
-               (,let-gc ,@nexts)))))))
 
 ;;
 
