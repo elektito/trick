@@ -182,6 +182,18 @@
        ((param value) ...)
        body))))
 
+(define-syntax with-gensyms
+  (syntax-rules ()
+    ((_ (name1 name2 ...) b1 b2 ...)
+     (with-gensyms "gen-bindings" (name1 name2 ...) (b1 b2 ...)))
+
+    ((_ "with-bindings" bindings . body)
+     (let bindings . body))
+
+    ((_ "gen-bindings" (name ...) (b1 b2 ...))
+     (with-gensyms "with-bindings" ((name (gensym (symbol->string 'name))) ...)
+                   b1 b2 ...))))
+
 ;; comparison
 
 (define (eqv? x y)
@@ -703,12 +715,6 @@
     (qq-remove-tokens (if qq-simplify-enabled
                           (qq-simplify raw-result)
                           raw-result))))
-
-;; more macros now that we have quasiquote!
-
-(define-macro (with-gensyms names . body)
-  `(let ,(mapcar (lambda (name) `(,name (gensym))) names)
-     ,@body))
 
 ;;
 
