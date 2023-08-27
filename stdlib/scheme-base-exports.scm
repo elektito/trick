@@ -34,7 +34,7 @@
         call-with-values
         call/cc
         car
-        ;; case
+        case
         cdar
         cddr
         cdr

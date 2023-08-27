@@ -39,7 +39,7 @@
         ;; call-with-output-file
         call-with-values
         car
-        ;; case
+        case
         cdaaar
         cdaadr
         cdaar

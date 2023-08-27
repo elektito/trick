@@ -182,6 +182,34 @@ and still a comment
              (300 => (lambda (x) (+ x 1)))
              (else 400)))
 
+(eq? 'composite
+     (case (* 2 3)
+       ((2 3 5 7) 'prime)
+       ((1 4 6 8 9) 'composite)))
+
+(eq? 'c
+     (case (car '(c d))
+       ((a e i o u) 'foo 'vowel)
+       ((w y) 'bar 'semivowel)
+       (else => (lambda (x) x))))
+
+(= 200
+   (case (* 2 3)
+     ((2 3) 50 100)
+     ((6 7 8) 60 200)))
+
+(= 777
+   (case (* 2 3)
+     ((2 3) 100)
+     ((7 8) => (lambda (x) (+ x 10)))
+     (else 666 777)))
+
+(= 600
+   (case (* 2 3)
+     ((2 3) 100)
+     ((7 8) 200)
+     (else => (lambda (x) (* x 100)))))
+
 ;; regression test: putting one-armed if in a lambda just to make sure the
 ;; "join" instruction is correctly generated for the implied "false" branch.
 (eq? (#$void) ((lambda () (if #f 100))))
