@@ -155,6 +155,33 @@
        (let*-values (binding1 ...)
          body0 body1 ...)))))
 
+(define-syntax parameterize
+  (syntax-rules ()
+    ((parameterize ("step")
+       ((param value p old new) ...)
+       ()
+       body)
+     (let ((p param) ...)
+       (let ((old (p)) ...
+             (new value) ...)
+         (dynamic-wind
+             (lambda () (p new) ...)
+             (lambda () . body)
+             (lambda () (p old #t) ...)))))
+    ((parameterize ("step")
+       args
+       ((param value) . rest)
+       body)
+     (parameterize ("step")
+       ((param value p old new) . args)
+       rest
+       body))
+    ((parameterize ((param value) ...) . body)
+     (parameterize ("step")
+       ()
+       ((param value) ...)
+       body))))
+
 ;; comparison
 
 (define (eqv? x y)
@@ -1138,24 +1165,6 @@
                         ((new-value dont-convert) (if dont-convert
                                                       (set! value new-value)
                                                       (set! value (converter new-value)))))))))
-
-(define-macro (parameterize bindings . body)
-  (let* ((gensyms (map (lambda (x) (gensym)) bindings))
-         (old-bindings (map (lambda (g b)
-                              `(,g (,(car b))))
-                            gensyms bindings))
-         (set-new-bindings (map (lambda (g b)
-                                  `((,(car b) ,(cadr b))))
-                                gensyms bindings))
-         (set-new-bindings (apply append set-new-bindings))
-         (set-old-bindings (map (lambda (g b)
-                                  `(,(car b) ,g #t))
-                                gensyms bindings)))
-    `(let (,@old-bindings)
-       (dynamic-wind
-           (lambda () ,@set-new-bindings)
-           (lambda () ,@body)
-           (lambda () ,@set-old-bindings)))))
 
 ;; io
 
