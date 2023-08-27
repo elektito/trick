@@ -65,7 +65,7 @@
         ;; denominator
         do
         dynamic-wind
-        ;; else
+        else
         ;; eof-object
         ;; eof-object?
         eq?

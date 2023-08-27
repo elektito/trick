@@ -91,6 +91,7 @@
         display
         do
         dynamic-wind
+        else
         ;; eof-object?
         eq?
         equal?
