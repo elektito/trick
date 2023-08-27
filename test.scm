@@ -1693,3 +1693,38 @@ and still a comment
        '(XX #(x) ... ...))))
   (equal? (foo xx (1 2 3) (a b))
           '(XX #(1) #(2) #(3) #(a) #(b))))
+
+;; from: https://www.scheme.com/tspl4/further.html
+(let ()
+  (define in-range?
+    (lambda (x n y)
+      (and (>= n x) (< n y))))
+
+  (define-syntax range-case
+    (syntax-rules (- else)
+      [(_ expr ((x - y) e1 e2 ...) ... [else ee1 ee2 ...])
+       (let ([tmp expr])
+         (cond
+          [(in-range? x tmp y) e1 e2 ...]
+          ...
+          [else ee1 ee2 ...]))]
+      [(_ expr ((x - y) e1 e2 ...) ...)
+       (let ([tmp expr])
+         (cond
+          [(in-range? x tmp y) e1 e2 ...]
+          ...))]))
+
+  (define gpa->grade
+    (lambda (x)
+      (range-case x
+        [(0 - 5) 'f]
+        [(5 - 15) 'd]
+        [(15 - 25) 'c]
+        [(25 - 35) 'b]
+        [else 'a])))
+
+  (and (eq? 'f (gpa->grade 3))
+       (eq? 'd (gpa->grade 10))
+       (eq? 'c (gpa->grade 22))
+       (eq? 'b (gpa->grade 34))
+       (eq? 'a (gpa->grade 38))))

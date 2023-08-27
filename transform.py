@@ -214,7 +214,9 @@ class SyntaxRulesTransformer(Transformer):
         elif isinstance(expansion, _MacroSymbol):
             gensym = self.gensyms.get(expansion.symbol)
             if gensym is None:
-                gensym = Symbol.gensym(expansion.symbol)
+                gensym = Symbol.gensym(
+                    expansion.symbol,
+                    no_shortname_prefix=True)
                 self.gensyms[expansion.symbol] = gensym
 
             if expansion.symbol.original:
@@ -526,7 +528,10 @@ class MatchLiteral(Matcher):
         self.literal = literal
 
     def match(self, value):
-        return value == self.literal, {}
+        if not isinstance(value, Symbol):
+            return False, {}
+
+        return value.short_name == self.literal.short_name, {}
 
     def __repr__(self):
         return f'<MatchLiteral {self.literal}>'
