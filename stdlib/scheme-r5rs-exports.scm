@@ -14,7 +14,7 @@
         append
         apply
         ;; asin
-        ;; assoc
+        assoc
         assq
         assv
         ;; atan

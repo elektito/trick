@@ -1071,6 +1071,28 @@ and still a comment
 (equal? #f (assv 40 '((10 . a) (20 . b) (30 . c))))
 (equal? #f (assv 10 '()))
 
+(equal? '((b "bar") . 20)
+        (assoc '(b "bar") '(((a "foo") . 10)
+                            ((b "bar") . 20)
+                            ((c "spam") . 30)
+                            ((d "eggs") . 40))))
+
+(equal? '((b "bar") . 20)
+        (assoc '(b "bar")
+               '(((a "foo") . 10)
+                 ((b "bar") . 20)
+                 ((c "spam") . 30)
+                 ((d "eggs") . 40))
+               equal?))
+
+(equal? #f
+        (assoc '(b "bar")
+               '(((a "foo") . 10)
+                 ((b "bar") . 20)
+                 ((c "spam") . 30)
+                 ((d "eggs") . 40))
+               eqv?))
+
 ;; values
 
 (equal? '(4 5)

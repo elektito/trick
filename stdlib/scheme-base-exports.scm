@@ -12,7 +12,7 @@
         and
         append
         apply
-        ;; assoc
+        assoc
         assq
         assv
         begin

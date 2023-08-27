@@ -732,15 +732,21 @@
        (apply proc (mapcar car arg-lists))
        (loop (mapcar cdr arg-lists))))))
 
+(define assoc
+  (case-lambda
+   ((obj alist) (assoc obj alist equal?))
+   ((obj alist compare)
+    (if (null? alist)
+        #f
+        (if (compare obj (caar alist))
+            (car alist)
+            (assoc obj (cdr alist) compare))))))
+
 (define (assq obj alist)
-  (if (null? alist)
-      #f
-      (if (eq? obj (caar alist))
-          (car alist)
-          (assq obj (cdr alist)))))
+  (assoc obj alist eq?))
 
 (define (assv obj alist)
-  (assq obj alist))
+  (assoc obj alist eqv?))
 
 ;; looks up obj in the given property list, using eq?
 ;; if obj is not found, #f is returned
