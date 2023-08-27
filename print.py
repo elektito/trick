@@ -75,10 +75,13 @@ class Printer:
             Symbol('unquote'): ',',
             Symbol('unquote-splicing'): ',@',
         }
-        if pair.car in special and \
+        if (pair.car in special or (isinstance(pair.car, Symbol) and pair.car.original in special)) and \
            isinstance(pair.cdr, Pair) and \
            isinstance(pair.cdr.cdr, Nil):
-            s = special[pair.car]
+            if isinstance(pair.car, Symbol) and pair.car.original in special:
+                s = special[pair.car.original]
+            else:
+                s = special[pair.car]
             if pair.cdr.car in self._shared:
                 n = self._labels.get(pair.cdr.car)
                 if n is None:
