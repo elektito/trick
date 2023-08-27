@@ -28,8 +28,6 @@ class _List:
                                                  _List,
                                                  _UserSymbol,
                                                  _MacroSymbol))
-        assert proper != [] or tail is None
-
         self.proper = proper
         self.tail = tail
         self.src_start = src_start

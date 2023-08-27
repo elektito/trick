@@ -1728,3 +1728,11 @@ and still a comment
        (eq? 'c (gpa->grade 22))
        (eq? 'b (gpa->grade 34))
        (eq? 'a (gpa->grade 38))))
+
+(let ()
+  (define-syntax foo
+    (syntax-rules ()
+      ((_ x ...) '(x ... . 10))))
+
+  (and (equal? '(1 2 . 10) (foo 1 2))
+       (equal? 10 (foo))))
