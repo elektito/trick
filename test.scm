@@ -1736,3 +1736,29 @@ and still a comment
 
   (and (equal? '(1 2 . 10) (foo 1 2))
        (equal? 10 (foo))))
+
+;; http://petrofsky.org/src/primer.txt
+;; (use wayback machine)
+(let ((a 1))
+  (letrec-syntax
+      ((foo (syntax-rules ()
+              ((_ b)
+               (bar a b))))
+       (bar (syntax-rules ()
+              ((_ c d)
+               (cons c (let ((c 3))
+                         (list d c 'c)))))))
+    (let ((a 2))
+      (equal? '(1 2 3 a)
+              (foo a)))))
+
+;; http://petrofsky.org/src/primer.txt
+;; (use wayback machine)
+(let ((x 1))
+  (let-syntax
+      ((foo (syntax-rules ()
+              ((_ y) (let-syntax
+                         ((bar (syntax-rules ()
+                                 ((_) (let ((x 2)) y)))))
+                       (bar))))))
+    (= 1 (foo x))))
