@@ -450,6 +450,14 @@
          (and (_equal? (car x) (car y) recursed)
               (_equal? (cdr x) (cdr y) recursed)))
         ((string? x) (string=? x y))
+        ((bytevector? x)
+         (let/cc return
+          (do ((i 0 (1+ i)))
+              ((= i (bytevector-length x)) #t)
+            (unless (_equal? (bytevector-u8-ref x i)
+                             (bytevector-u8-ref y i)
+                             recursed)
+              (return #f)))))
         (else (eqv? x y))))
 
 (define (equal? x y)
@@ -1143,12 +1151,65 @@
 
 ;; bytevectors
 
+(define (make-bytevector . args)
+  (if (null? (cdr args))
+      (#$make-bytevector (car args) 0)
+      (#$make-bytevector (car args) (cadr args))))
+
 (define (bytevector-u8-set! bv k obj)
   ;; this is needed because the SECD instruction issued for #$bytevector-set!
   ;; has a different order of arguments that vector-set! should. We _could_
   ;; change the instruction, but then the code generation for vector literals
   ;; would become rather awkward, involving some stack juggling with "swap".
   (#$bytevector-u8-set! obj k bv))
+
+(define (bytevector . objs)
+  (let ((bv (make-bytevector (length objs))))
+    (do ((i 0 (1+ i))
+         (objs objs (cdr objs)))
+        ((null? objs) bv)
+      (bytevector-u8-set! bv i (car objs)))))
+
+(define (_bv-copy bv start end)
+  (let ((n (- end start)))
+    (do ((r (make-bytevector n))
+         (vidx start (1+ vidx))
+         (ridx 0 (1+ ridx)))
+        ((= ridx n) r)
+      (bytevector-u8-set! r ridx (bytevector-u8-ref bv vidx)))))
+
+(define bytevector-copy
+  (case-lambda
+   ((bv) (_bv-copy bv 0 (bytevector-length bv)))
+   ((bv start) (_bv-copy bv start (bytevector-length bv)))
+   ((bv start end) (_bv-copy bv start end))))
+
+(define (_bv-copy! to at from start end)
+  (let ((n (- end start)))
+    (do ((from-idx start (1+ from-idx))
+         (to-idx at (1+ to-idx)))
+        ((= from-idx end) to)
+      (bytevector-u8-set! to to-idx (bytevector-u8-ref from from-idx)))))
+
+(define bytevector-copy!
+  (case-lambda
+   ((to at from) (_bv-copy! to at from 0 (bytevector-length from)))
+   ((to at from start) (_bv-copy! to at from start (bytevector-length from)))
+   ((to at from start end) (_bv-copy! to at from start end))))
+
+(define (_bv-append bv1 bv2)
+  (let ((result (make-bytevector (+ (bytevector-length bv1)
+                                    (bytevector-length bv2)))))
+    (bytevector-copy! result 0 bv1)
+    (bytevector-copy! result (bytevector-length bv1) bv2)))
+
+(define bytevector-append
+  (case-lambda
+   (() #u8())
+   ((bv) (bytevector-copy bv))
+   ((bv1 bv2) (_bv-append bv1 bv2))
+   ((bv1 bv2 . rest) (_bv-append (_bv-append bv1 bv2)
+                                 (apply bytevector-append rest)))))
 
 ;; values
 

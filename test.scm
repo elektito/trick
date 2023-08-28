@@ -1015,6 +1015,52 @@ and still a comment
        (equal? #(1 2) a)))
 (equal? #(1 2 3 4 5 6) (vector-append #(1 2) #() #(3 4 5 6)))
 
+;; bytevectors
+
+(atom? #u8(1 2 3))
+(bytevector? #u8(1 2 3))
+
+(equal? '#u8(1 2 3) #u8(1 2 3))
+
+(equal? #u8(9 9 9 9 9) (make-bytevector 5 9))
+(= 5 (bytevector-length (make-bytevector 5)))
+
+(= 0 (bytevector-length #u8()))
+(= 3 (bytevector-length #u8(1 2 3)))
+
+(= 2 (bytevector-u8-ref #u8(1 2 3) 1))
+
+(let ((v #u8(1 2 3 4)))
+  (bytevector-u8-set! v 1 20)
+  (equal? #u8(1 20 3 4) v))
+
+(equal? #u8() (bytevector))
+(equal? #u8(10 20 30) (bytevector 10 20 30))
+
+(let* ((bv #u8(1 2))
+       (r (bytevector-copy bv)))
+  (and (not (eq? bv r))
+       (equal? bv r)))
+(equal? #u8(3 4 5) (bytevector-copy #u8(1 2 3 4 5) 2))
+(equal? #u8(3 4) (bytevector-copy #u8(1 2 3 4 5) 2 4))
+
+(let ((bv #u8(1 2 3 4 5 6 7)))
+  (bytevector-copy! bv 2 #u8(10 20))
+  (equal? bv #u8(1 2 10 20 5 6 7)))
+(let ((bv #u8(1 2 3 4 5 6 7)))
+  (bytevector-copy! bv 2 #u8(10 20 30 40 50) 3)
+  (equal? bv #u8(1 2 40 50 5 6 7)))
+(let ((bv #u8(1 2 3 4 5 6 7)))
+  (bytevector-copy! bv 3 #u8(10 20 30 40 50) 2 4)
+  (equal? bv #u8(1 2 3 30 40 6 7)))
+
+(equal? #u8() (bytevector-append))
+(let* ((bv #u8(1 2))
+       (a (bytevector-append bv)))
+  (and (not (eq? bv a)) ;; the return value should be a newly allocated bytevector
+       (equal? #u8(1 2) a)))
+(equal? #u8(1 2 3 4 5 6) (bytevector-append #u8(1 2) #u8() #u8(3 4 5 6)))
+
 ;; case-lambda
 
 (let ((f (case-lambda
