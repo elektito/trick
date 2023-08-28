@@ -1484,6 +1484,19 @@
 (define (flush-output-port port)
   (#$/io/flush port))
 
+(define (call-with-port port proc)
+  (let ((result (proc port)))
+    (close-port port)
+    result))
+
+(define (call-with-input-file filename proc)
+  (let ((port (open-input-file filename)))
+    (call-with-port port proc)))
+
+(define (call-with-output-file filename proc)
+  (let ((port (open-output-file filename)))
+    (call-with-port port proc)))
+
 ;; record types
 
 (define-macro (define-record-type name constructor pred . fields)

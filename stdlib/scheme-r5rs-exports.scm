@@ -35,8 +35,8 @@
         caddr
         cadr
         call-with-current-continuation
-        ;; call-with-input-file
-        ;; call-with-output-file
+        call-with-input-file
+        call-with-output-file
         call-with-values
         car
         case
