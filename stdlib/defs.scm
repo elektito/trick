@@ -68,9 +68,9 @@
 ;;   (import (trick))
 ;;   (include-library-declarations "scheme-eval-exports.scm"))
 
-;; (define-library (scheme file)
-;;   (import (trick))
-;;   (include-library-declarations "scheme-file-exports.scm"))
+(define-library (scheme file)
+  (import (trick))
+  (include-library-declarations "scheme-file-exports.scm"))
 
 ;; (define-library (scheme inexact)
 ;;   (import (trick))
