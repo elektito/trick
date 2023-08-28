@@ -1507,6 +1507,18 @@
   (let ((port (open-output-file filename)))
     (call-with-port port proc)))
 
+(define (with-input-from-file filename thunk)
+  (let ((port (open-input-file filename)))
+    (parameterize ((current-input-port port))
+      (thunk)
+      (close-input-port port))))
+
+(define (with-output-to-file filename thunk)
+  (let ((port (open-output-file filename)))
+    (parameterize ((current-output-port port))
+      (thunk)
+      (close-output-port port))))
+
 ;; record types
 
 (define-macro (define-record-type name constructor pred . fields)

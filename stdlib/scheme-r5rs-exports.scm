@@ -210,8 +210,8 @@
         vector-ref
         vector-set!
         vector?
-        ;; with-input-from-file
-        ;; with-output-to-file
+        with-input-from-file
+        with-output-to-file
         write
         write-char
         zero?)
