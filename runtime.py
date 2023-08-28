@@ -1,4 +1,5 @@
 import inspect
+import io
 import sys
 import traceback
 
@@ -233,6 +234,81 @@ class Io(RuntimeModule):
             raise self._file_error(str(e))
 
         return String(s)
+
+    @proc(opcode=0x0e)
+    def openistr(self, s: String) -> Port:
+        file = io.StringIO(s.value)
+        return Port(
+            file=file,
+            mode='text',
+            dir='input',
+            filename=None,
+        )
+
+    @proc(opcode=0x0f)
+    def openibv(self, bv: Bytevector) -> Port:
+        file = io.BytesIO(bv.bytes)
+        return Port(
+            file=file,
+            mode='binary',
+            dir='input',
+            filename=None,
+        )
+
+    @proc(opcode=0x10)
+    def openostr(self) -> Port:
+        file = io.StringIO()
+        return Port(
+            file=file,
+            mode='text',
+            dir='output',
+            filename=None,
+        )
+
+    @proc(opcode=0x11)
+    def openobv(self) -> Port:
+        file = io.BytesIO()
+        return Port(
+            file=file,
+            mode='binary',
+            dir='output',
+            filename=None,
+        )
+
+    @proc(opcode=0x12)
+    def portstr(self, port: Port) -> String:
+        if not isinstance(port.file, io.StringIO):
+            raise self._runtime_error(
+                f'Port not created using open-output-string: {port}')
+
+        return String(port.file.getvalue())
+
+    @proc(opcode=0x13)
+    def portbv(self, port: Port) -> Bytevector:
+        if not isinstance(port.file, io.BytesIO):
+            raise self._runtime_error(
+                f'Port not created using open-output-string: {port}')
+
+        return Bytevector([Integer(i) for i in port.file.getvalue()])
+
+    @proc(opcode=0x14)
+    def writebv(self, bv: Bytevector, port: Port) -> TrickType:
+        # writing on a closed file doesn't throw OSError (but ValueError), so
+        # let's check for closed files first.
+        if port.file.closed:
+            raise self._file_error(
+                f'Cannot write to closed port: {port}')
+
+        if not port.is_binary():
+            raise self._file_error(
+                f'Cannot write bytes to textual port: {port}')
+
+        try:
+            port.file.write(bv.bytes)
+        except OSError as e:
+            raise self._file_error(str(e))
+
+        return Void()
 
 @module(opcode=0x02)
 class Str(RuntimeModule):

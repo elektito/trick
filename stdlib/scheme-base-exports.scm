@@ -90,8 +90,8 @@
         flush-output-port
         for-each
         ;; gcd
-        ;; get-output-bytevector
-        ;; get-output-string
+        get-output-bytevector
+        get-output-string
         ;; guard
         if
         include
@@ -141,10 +141,10 @@
         ;; number?
         ;; numerator
         ;; odd?
-        ;; open-input-bytevector
-        ;; open-input-string
-        ;; open-output-bytevector
-        ;; open-output-string
+        open-input-bytevector
+        open-input-string
+        open-output-bytevector
+        open-output-string
         or
         ;; output-port-open?
         output-port?
@@ -230,7 +230,7 @@
         vector?
         when
         with-exception-handler
-        ;; write-bytevector
+        write-bytevector
         write-char
         write-string
         ;; write-u8

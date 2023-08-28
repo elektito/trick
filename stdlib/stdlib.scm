@@ -1315,6 +1315,13 @@
    ((str port start) (write-string str port start (string-length str)))
    ((str port start end) (#$/io/write (substring str start end) port))))
 
+(define write-bytevector
+  (case-lambda
+   ((bv) (write-bytevector bv (current-output-port) 0 (bytevector-length bv)))
+   ((bv port) (write-bytevector bv port 0 (bytevector-length bv)))
+   ((bv port start) (write-bytevector bv port start (bytevector-length bv)))
+   ((bv port start end) (#$/io/writebv (bytevector-copy bv start end) port))))
+
 (define write
   (case-lambda
    ((obj) (write obj (current-output-port)))
@@ -1370,6 +1377,24 @@
 
 (define (open-binary-output-file filename)
   (#$/io/open filename "wb"))
+
+(define (open-input-string s)
+  (#$/io/openistr s))
+
+(define (open-input-bytevector bv)
+  (#$/io/openibv bv))
+
+(define (open-output-string)
+  (#$/io/openostr))
+
+(define (open-output-bytevector)
+  (#$/io/openobv))
+
+(define (get-output-string port)
+  (#$/io/portstr port))
+
+(define (get-output-bytevector port)
+  (#$/io/portbv port))
 
 (define read-string
   (case-lambda
