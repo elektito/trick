@@ -348,6 +348,30 @@ class Reader:
             except ValueError:
                 raise ReadError(f'Invalid hex literal: "#x{token}"')
             return number
+        elif char == 'o': #o (octal literal)
+            first_char = self._read_one_char('End-of-file in octal literal')
+            token = self._read_token(first_char)
+            try:
+                number = Integer(token, 8)
+            except ValueError:
+                raise ReadError(f'Invalid octal literal: "#o{token}"')
+            return number
+        elif char == 'b': #b (binary literal)
+            first_char = self._read_one_char('End-of-file in binary literal')
+            token = self._read_token(first_char)
+            try:
+                number = Integer(token, 2)
+            except ValueError:
+                raise ReadError(f'Invalid binary literal: "#b{token}"')
+            return number
+        elif char == 'd': #d (decimal literal with explicit prefix)
+            first_char = self._read_one_char('End-of-file in decimal literal')
+            token = self._read_token(first_char)
+            try:
+                number = Integer(token, 10)
+            except ValueError:
+                raise ReadError(f'Invalid decimal literal: "#d{token}"')
+            return number
         elif char.isnumeric(): #<n>= or #<n># (label or reference)
             value = self._read_label_or_reference(start_char=char)
             if isinstance(value, Label):

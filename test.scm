@@ -430,6 +430,9 @@ and still a comment
 (integer? 0)
 (integer? 1)
 (integer? #x10)
+(integer? #o10)
+(integer? #b10)
+(integer? #d10)
 (not (integer? 'foo))
 (not (integer? "foo"))
 (not (integer? '()))
@@ -1868,3 +1871,10 @@ and still a comment
                                  ((_) (let ((x 2)) y)))))
                        (bar))))))
     (= 1 (foo x))))
+
+;; numbers
+
+(= #x10 16)
+(= #d10 10)
+(= #o10 8)
+(= #b10 2)
