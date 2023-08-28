@@ -1211,6 +1211,18 @@
    ((bv1 bv2 . rest) (_bv-append (_bv-append bv1 bv2)
                                  (apply bytevector-append rest)))))
 
+(define utf8->string
+  (case-lambda
+   ((bv) (#$/str/fromutf8 bv 0 (bytevector-length bv)))
+   ((bv start) (#$/str/fromutf8 bv start (bytevector-length bv)))
+   ((bv start end) (#$/str/fromutf8 bv start end))))
+
+(define string->utf8
+  (case-lambda
+   ((s) (#$/str/toutf8 s 0 (string-length s)))
+   ((s start) (#$/str/toutf8 s start (string-length s)))
+   ((s start end) (#$/str/toutf8 s start end))))
+
 ;; values
 
 (define (values . things)

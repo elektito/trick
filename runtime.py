@@ -3,7 +3,7 @@ import sys
 import traceback
 
 from exceptions import RunError
-from machinetypes import Integer, Port, String, Symbol, TrickType, Void
+from machinetypes import Bytevector, Integer, Port, String, Symbol, TrickType, Void
 from print import PrintMode, PrintStyle, Printer
 
 
@@ -197,6 +197,32 @@ class Str(RuntimeModule):
         string = printer.print()
 
         return String(string)
+
+    @proc(opcode=0x02)
+    def fromutf8(self, bv: Bytevector, start: Integer, end: Integer) -> String:
+        if start < 0 or end > len(bv):
+            raise self._runtime_error(
+                f'Invalid bytevector range: {start}-{end}')
+
+        try:
+            s = bv.bytes[start:end].decode('utf-8')
+        except UnicodeDecodeError as e:
+            raise self._runtime_error(str(e), kind=Symbol('unicode'))
+
+        return String(s)
+
+    @proc(opcode=0x03)
+    def toutf8(self, s: String, start: Integer, end: Integer) -> Bytevector:
+        if start < 0 or end > len(s):
+            raise self._runtime_error(
+                f'Invalid bytevector range: {start}-{end}')
+
+        try:
+            bv = s.value[start:end].encode('utf-8')
+        except UnicodeEncodeError as e:
+            raise self._runtime_error(str(e), kind=Symbol('unicode'))
+
+        return Bytevector([Integer(b) for b in bv])
 
 
 @module(opcode=0x03)

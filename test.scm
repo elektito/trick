@@ -1061,6 +1061,16 @@ and still a comment
        (equal? #u8(1 2) a)))
 (equal? #u8(1 2 3 4 5 6) (bytevector-append #u8(1 2) #u8() #u8(3 4 5 6)))
 
+(equal? "ABCDE" (utf8->string #u8(#x41 #x42 #x43 #x44 #x45)))
+(equal? "CDE" (utf8->string #u8(#x41 #x42 #x43 #x44 #x45) 2))
+(equal? "BCD" (utf8->string #u8(#x41 #x42 #x43 #x44 #x45) 1 4))
+(equal? #u8(#xCE #xBB) (string->utf8 "λ"))
+(equal? #u8(216 167 216 179 218 169 219 140 217 133) (string->utf8 "اسکیم"))
+(equal? #u8(218 169 219 140 217 133) (string->utf8 "اسکیم"
+                                                        2))
+(equal? #u8(216 179 218 169 219 140) (string->utf8 "اسکیم"
+                                                   1 4))
+
 ;; case-lambda
 
 (let ((f (case-lambda

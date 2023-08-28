@@ -181,7 +181,7 @@
         string->list
         ;; string->number
         string->symbol
-        ;; string->utf8
+        string->utf8
         string->vector
         string-append
         string-copy
@@ -213,7 +213,7 @@
         unless
         unquote
         unquote-splicing
-        ;; utf8->string
+        utf8->string
         values
         vector
         vector->list
