@@ -1,10 +1,12 @@
 (export *
         +
         -
+        ...
         /
         <
         <=
         =
+        =>
         >
         >=
         ;; abs
@@ -200,6 +202,7 @@
         substring
         symbol->string
         symbol?
+        syntax-rules
         ;; tan
         ;; truncate
         values
