@@ -1373,8 +1373,11 @@
 
 (define read-string
   (case-lambda
-   ((n-bytes) (read-string n-bytes (current-input-port)))
-   ((n-bytes port) (#$/io/read port n-bytes))))
+   ((n) (read-string n (current-input-port)))
+   ((n port) (let ((r (#$/io/read port n)))
+               (if (and (positive? n) (not (string=? "" r)))
+                   r
+                   (eof-object))))))
 
 (define (input-port? port)
   (eq? 'input (#$/io/portdir port)))
@@ -1557,3 +1560,9 @@
 
 (define (file-error msg . irritants)
   (raise (make-error msg irritants 'file)))
+
+;; eof object
+
+(define-record-type eof
+  (eof-object)
+  eof-object?)
