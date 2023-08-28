@@ -164,7 +164,7 @@
         ;; rationalize
         read-bytevector
         read-bytevector!
-        ;; read-char
+        read-char
         ;; read-error?
         ;; read-line
         read-string

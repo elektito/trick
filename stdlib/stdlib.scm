@@ -1408,6 +1408,14 @@
                                 (bytevector-copy! bv start r 0 (bytevector-length r))
                                 (bytevector-length r)))))))
 
+(define read-char
+  (case-lambda
+   (() (read-char (current-input-port)))
+   ((port) (let ((r (#$/io/read port 1)))
+             (if (string=? r "")
+                 (eof-object)
+                 (string-ref r 0))))))
+
 (define (input-port? port)
   (eq? 'input (#$/io/portdir port)))
 

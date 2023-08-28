@@ -164,7 +164,7 @@
         ;; rational?
         ;; rationalize
         ;; read
-        ;; read-char
+        read-char
         ;; real-part
         ;; real?
         remainder
