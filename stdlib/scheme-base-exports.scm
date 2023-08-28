@@ -98,7 +98,7 @@
         include-ci
         ;; inexact
         ;; inexact?
-        ;; input-port-open?
+        input-port-open?
         input-port?
         integer->char
         integer?
@@ -146,7 +146,7 @@
         open-output-bytevector
         open-output-string
         or
-        ;; output-port-open?
+        output-port-open?
         output-port?
         pair?
         parameterize

@@ -4,7 +4,7 @@ import sys
 import traceback
 
 from exceptions import RunError
-from machinetypes import Bytevector, Integer, Port, String, Symbol, TrickType, Void
+from machinetypes import Bool, Bytevector, Integer, Port, String, Symbol, TrickType, Void
 from print import PrintMode, PrintStyle, Printer
 
 
@@ -309,6 +309,11 @@ class Io(RuntimeModule):
             raise self._file_error(str(e))
 
         return Void()
+
+    @proc(opcode=0x15)
+    def isopen(self, port: Port) -> Bool:
+        return Bool(not port.file.closed)
+
 
 @module(opcode=0x02)
 class Str(RuntimeModule):

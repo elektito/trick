@@ -1481,6 +1481,16 @@
 (define (close-port port)
   (#$/io/close port))
 
+(define (input-port-open? port)
+  (if (input-port? port)
+      (#$/io/isopen port)
+      #f))
+
+(define (output-port-open? port)
+  (if (output-port? port)
+      (#$/io/isopen port)
+      #f))
+
 (define (flush-output-port port)
   (#$/io/flush port))
 
