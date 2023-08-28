@@ -926,6 +926,7 @@ class Port(TrickType):
     def __init__(self, file, mode: str, dir: str, *, filename=None):
         assert mode in ['text', 'binary']
         assert dir in ['input', 'output']
+        assert filename is None or isinstance(filename, str)
         self.file = file
         self.mode = mode
         self.dir = dir
@@ -933,7 +934,7 @@ class Port(TrickType):
 
     def __repr__(self):
         if self.filename:
-            return f'#<{self.mode} port "{self.filename.value}">'
+            return f'#<{self.mode} port "{self.filename}">'
         else:
             return f'#<{self.mode} port>'
 

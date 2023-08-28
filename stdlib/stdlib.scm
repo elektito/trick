@@ -1387,6 +1387,27 @@
                  (eof-object)
                  r)))))
 
+(define read-bytevector
+  (case-lambda
+   ((n) (read-bytevector n (current-input-port)))
+   ((n port) (let ((r (#$/io/readbv port n)))
+               (if (and (positive? n) (zero? (bytevector-length r)))
+                   (eof-object)
+                   r)))))
+
+(define read-bytevector!
+  (case-lambda
+   ((bv) (read-bytevector! bv (current-input-port) 0 (bytevector-length bv)))
+   ((bv port) (read-bytevector! bv port 0 (bytevector-length bv)))
+   ((bv port start) (read-bytevector! bv port start (bytevector-length bv)))
+   ((bv port start end) (let* ((n (- end start))
+                               (r (#$/io/readbv port n)))
+                          (if (and (positive? n) (zero? (bytevector-length r)))
+                              (eof-object)
+                              (begin
+                                (bytevector-copy! bv start r 0 (bytevector-length r))
+                                (bytevector-length r)))))))
+
 (define (input-port? port)
   (eq? 'input (#$/io/portdir port)))
 

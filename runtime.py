@@ -128,7 +128,7 @@ class Io(RuntimeModule):
             file=file,
             mode='text' if mode.value in ('r', 'w') else 'binary',
             dir='input' if mode.value in ('r', 'rb') else 'output',
-            filename=filename,
+            filename=filename.value,
         )
 
     @proc(opcode=0x07)
@@ -195,6 +195,25 @@ class Io(RuntimeModule):
             return Integer(-1)
 
         return Integer(s[0])
+
+    @proc(opcode=0x0c)
+    def readbv(self, port: Port, n: Integer) -> Bytevector:
+        # reading from closed file doesn't throw OSError (but ValueError), so
+        # let's check for closed files first.
+        if port.file.closed:
+            raise self._file_error(
+                f'Cannot read from closed port: {port}')
+
+        if not port.is_binary():
+            raise self._file_error(
+                f'Cannot read bytes from textual file: {port}')
+
+        try:
+            s = port.file.read(n)
+        except OSError as e:
+            raise self._file_error(str(e))
+
+        return Bytevector([Integer(i) for i in s])
 
 
 @module(opcode=0x02)

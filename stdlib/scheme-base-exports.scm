@@ -162,8 +162,8 @@
         raise-continuable
         ;; rational?
         ;; rationalize
-        ;; read-bytevector
-        ;; read-bytevector!
+        read-bytevector
+        read-bytevector!
         ;; read-char
         ;; read-error?
         ;; read-line
