@@ -870,9 +870,7 @@ class Vector(TrickType):
         ])
 
     def _dump(self, output):
-        self._dump_uint4(len(self._elements), output)
-        for e in self._elements:
-            e.dump(output)
+        self._dump_list(self._elements, output)
 
     @classmethod
     def _load(cls, input):
