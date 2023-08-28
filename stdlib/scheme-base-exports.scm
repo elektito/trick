@@ -165,7 +165,7 @@
         read-bytevector
         read-bytevector!
         read-char
-        ;; read-error?
+        read-error?
         read-line
         read-string
         read-u8

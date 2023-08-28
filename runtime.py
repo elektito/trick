@@ -7,6 +7,7 @@ import traceback
 from exceptions import RunError
 from machinetypes import Bool, Bytevector, Integer, Port, String, Symbol, TrickType, Void
 from print import PrintMode, PrintStyle, Printer
+from read import ReadError, Reader
 
 
 modules = {}
@@ -385,6 +386,34 @@ class Sys(RuntimeModule):
     @proc(opcode=0x01)
     def exit(self, exit_code: Integer) -> Void:
         raise TrickExitException(self, 'exit', exit_code)
+
+
+@module(opcode=0x04)
+class Read(RuntimeModule):
+    @proc(opcode=0x01)
+    def read(self, port: Port) -> TrickType:
+        # reading from closed file doesn't throw OSError (but ValueError), so
+        # let's check for closed files first.
+        if port.file.closed:
+            raise self._file_error(
+                f'Cannot read from closed port: {port}')
+
+        if not port.is_text():
+            raise self._file_error(
+                f'Cannot read text from binary file: {port}')
+
+        try:
+            reader = Reader(port.file)
+            result = reader.read()
+        except ReadError as e:
+            raise self._runtime_error(str(e), kind=Symbol('read'))
+        except OSError as e:
+            raise self._file_error(str(e))
+
+        if result is None:
+            return Void()
+
+        return result
 
 
 @module(opcode=0x99)

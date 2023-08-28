@@ -277,6 +277,8 @@
   (eq? (#$type v) 'bytevector))
 (define (port? v)
   (eq? (#$type v) 'port))
+(define (void? v)
+  (eq? (#$type v) 'void))
 
 ;; booleans
 
@@ -1525,6 +1527,16 @@
 (define (delete-file filename)
   (#$/io/delete filename))
 
+;; read
+
+(define read
+  (case-lambda
+   (() (read (current-input-port)))
+   ((port) (let ((r (#$/read/read port)))
+             (if (void? r)
+                 (eof-object)
+                 r)))))
+
 ;; record types
 
 (define-macro (define-record-type name constructor pred . fields)
@@ -1678,6 +1690,10 @@
 
 (define (file-error msg . irritants)
   (raise (make-error msg irritants 'file)))
+
+(define (read-error? obj)
+  (and (error-object? obj)
+       (eq? 'read (error-object-kind obj))))
 
 ;; eof object
 

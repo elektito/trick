@@ -18,7 +18,7 @@
   ;;(include-library-declarations "scheme-lazy-exports.scm")
   ;;(include-library-declarations "scheme-load-exports.scm")
   (include-library-declarations "scheme-process-context-exports.scm")
-  ;;(include-library-declarations "scheme-read-exports.scm")
+  (include-library-declarations "scheme-read-exports.scm")
   ;;(include-library-declarations "scheme-repl-exports.scm")
   ;;(include-library-declarations "scheme-time-exports.scm")
   (include-library-declarations "scheme-write-exports.scm")
@@ -42,6 +42,7 @@
           reduce
           type
           (rename #$void void)
+          void?
           with-gensyms))
 
 (define-library (scheme base)
@@ -84,9 +85,9 @@
   (import (trick))
   (include-library-declarations "scheme-process-context-exports.scm"))
 
-;; (define-library (scheme read)
-;;   (import (trick))
-;;   (include-library-declarations "scheme-read-exports.scm"))
+(define-library (scheme read)
+  (import (trick))
+  (include-library-declarations "scheme-read-exports.scm"))
 
 ;; (define-library (scheme repl)
 ;;   (import (trick))
