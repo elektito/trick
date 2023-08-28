@@ -1,8 +1,15 @@
+from machinetypes import Symbol
 from snippet import show_snippet
 
 
 class RunError(Exception):
-    pass
+    def __init__(self, msg, kind=None):
+        assert kind is None or isinstance(kind, Symbol)
+        self.msg = msg
+        self.kind = kind
+
+    def __repr__(self):
+        return self.msg
 
 
 class CompileError(Exception):

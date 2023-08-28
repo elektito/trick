@@ -16,7 +16,7 @@
         assq
         assv
         begin
-        ;; binary-port?
+        binary-port?
         boolean=?
         boolean?
         ;; bytevector
@@ -47,9 +47,9 @@
         char>=?
         char>?
         char?
-        ;; close-input-port
-        ;; close-output-port
-        ;; close-port
+        close-input-port
+        close-output-port
+        close-port
         ;; complex?
         cond
         cond-expand
@@ -82,12 +82,12 @@
         ;; exact?
         ;; expt
         features
-        ;; file-error?
+        file-error?
         ;; floor
         ;; floor-quotient
         ;; floor-remainder
         ;; floor/
-        ;; flush-output-port
+        flush-output-port
         for-each
         ;; gcd
         ;; get-output-bytevector
@@ -99,7 +99,7 @@
         ;; inexact
         ;; inexact?
         ;; input-port-open?
-        ;; input-port?
+        input-port?
         integer->char
         integer?
         lambda
@@ -147,12 +147,12 @@
         ;; open-output-string
         or
         ;; output-port-open?
-        ;; output-port?
+        output-port?
         pair?
         parameterize
         ;; peek-char
         ;; peek-u8
-        ;; port?
+        port?
         positive?
         procedure?
         quasiquote
@@ -167,7 +167,7 @@
         ;; read-char
         ;; read-error?
         ;; read-line
-        ;; read-string
+        read-string
         ;; read-u8
         ;; real?
         remainder
@@ -204,7 +204,7 @@
         symbol?
         ;; syntax-error
         syntax-rules
-        ;; textual-port?
+        textual-port?
         ;; truncate
         ;; truncate-quotient
         ;; truncate-remainder

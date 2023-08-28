@@ -76,8 +76,8 @@
         char>=?
         char>?
         char?
-        ;; close-input-port
-        ;; close-output-port
+        close-input-port
+        close-output-port
         ;; complex?
         cond
         cons
@@ -109,7 +109,7 @@
         if
         ;; imag-part
         ;; (rename exact inexact->exact)
-        ;; input-port?
+        input-port?
         integer->char
         integer?
         ;; interaction-environment
@@ -150,10 +150,10 @@
         ;; number?
         ;; numerator
         ;; odd?
-        ;; open-input-file
-        ;; open-output-file
+        open-input-file
+        open-output-file
         or
-        ;; output-port?
+        output-port?
         pair?
         ;; peek-char
         positive?

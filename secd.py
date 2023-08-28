@@ -10,7 +10,7 @@ from exceptions import RunError
 from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from snippet import show_snippet
 from machinetypes import (
-    Bool, Char, Integer, List, Nil, Pair, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
+    Bool, Char, Integer, List, Nil, Pair, Port, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
 )
 
 
@@ -466,7 +466,10 @@ class Secd:
                 if self.exception_handler:
                     msg = String(str(e))
                     continuation = self.create_continuation()
-                    args = List.from_list([msg, continuation])
+                    kind = Bool(False)
+                    if e.kind is not None:
+                        kind = e.kind
+                    args = List.from_list([msg, kind, continuation])
                     self.s.push(args)
                     self.s.push(self.exception_handler)
 
@@ -864,6 +867,8 @@ class Secd:
             result = self.intern('char')
         elif isinstance(v, Vector):
             result = self.intern('vector')
+        elif isinstance(v, Port):
+            result = self.intern('port')
         elif isinstance(v, Void):
             result = self.intern('void')
         elif isinstance(v, WrappedValue):
@@ -1151,8 +1156,8 @@ class Secd:
         elif proc == Bool(True):
             raise RunError('Invalid exception handler: #t')
         else:
-            if not proc.accepts_argument_count(2):
-                raise RunError('Exception handler must accept two arguments (message and irritants)')
+            if not proc.accepts_argument_count(3):
+                raise RunError('Exception handler must accept three arguments (message, kind, and continuation)')
             self.exception_handler = proc
         if self.debug: print(f'seh: {proc}')
 

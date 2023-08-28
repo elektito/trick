@@ -273,6 +273,8 @@
           #f)))
 (define (vector? v)
   (eq? (#$type v) 'vector))
+(define (port? v)
+  (eq? (#$type v) 'port))
 
 ;; booleans
 
@@ -1273,6 +1275,51 @@
       ((null? objs) (newline))
     (write (car objs))))
 
+(define (open-input-file filename)
+  (#$/io/open filename "r"))
+
+(define (open-binary-input-file filename)
+  (#$/io/open filename "rb"))
+
+(define (open-output-file filename)
+  (#$/io/open filename "w"))
+
+(define (open-binary-output-file filename)
+  (#$/io/open filename "wb"))
+
+(define read-string
+  (case-lambda
+   ((n-bytes) (read-string n-bytes (current-input-port)))
+   ((n-bytes port) (#$/io/read port n-bytes))))
+
+(define (input-port? port)
+  (eq? 'input (#$/io/portdir port)))
+
+(define (output-port? port)
+  (eq? 'output (#$/io/portdir port)))
+
+(define (textual-port? port)
+  (eq? 'text (#$/io/portmode port)))
+
+(define (binary-port? port)
+  (eq? 'binary (#$/io/portmode port)))
+
+(define (close-input-port port)
+  (unless (input-port? port)
+    (raise (file-error "Not an input port")))
+  (close-port port))
+
+(define (close-output-port port)
+  (unless (output-port? port)
+    (raise (file-error "Not an output port")))
+  (close-port port))
+
+(define (close-port port)
+  (#$/io/close port))
+
+(define (flush-output-port port)
+  (#$/io/flush port))
+
 ;; record types
 
 (define-macro (define-record-type name constructor pred . fields)
@@ -1329,10 +1376,10 @@
 ;; environment in which the exception happened. we convert the passed arguments
 ;; into an error object and raise that.
 (#$set-system-exception-handler
- (lambda (msg continuation)
-   (error msg
-          'context 'system
-          'continuation continuation)))
+ (lambda (msg kind continuation)
+   (define irritants (list 'context 'system
+                           'continuation continuation))
+   (raise (make-error msg irritants kind))))
 
 (define exception-handlers '())
 
@@ -1411,10 +1458,18 @@
         (set! exception-handlers (cdr exception-handlers)))))
 
 (define-record-type error
-  (make-error message irritants)
+  (make-error message irritants kind)
   error-object?
   (message error-object-message)
-  (irritants error-object-irritants))
+  (irritants error-object-irritants)
+  (kind error-object-kind))
 
 (define (error msg . irritants)
-  (raise (make-error msg irritants)))
+  (raise (make-error msg irritants 'normal)))
+
+(define (file-error? obj)
+  (and (error-object? obj)
+       (eq? 'file (error-object-kind obj))))
+
+(define (file-error msg . irritants)
+  (raise (make-error msg irritants 'file)))

@@ -12,11 +12,12 @@ _proc_methods = []
 
 
 class TrickRuntimeError(RunError):
-    def __init__(self, module, proc_name, msg):
+    def __init__(self, module, proc_name, msg, *, kind=None):
         self.module = module
         self.module_name = type(module).__name__.lower()
         self.proc_name = proc_name
         self.msg = msg
+        self.kind = kind
 
     def __str__(self):
         return f'{self.module_name}/{self.proc_name}: {self.msg}'
@@ -32,12 +33,15 @@ class TrickExitException(TrickRuntimeError):
 
 
 class RuntimeModule:
-    def _runtime_error(self, msg):
+    def _runtime_error(self, msg, kind=None):
         # get the name of the function that called _runtime_error
         stack = traceback.extract_stack()
         proc_name = stack[-2].name
 
-        return TrickRuntimeError(self, proc_name, msg)
+        return TrickRuntimeError(self, proc_name, msg, kind=kind)
+
+    def _file_error(self, msg):
+        return self._runtime_error(msg, kind=Symbol('file'))
 
 
 def module(opcode):
@@ -63,9 +67,9 @@ def proc(*, opcode):
 @module(opcode=0x01)
 class Io(RuntimeModule):
     def __init__(self):
-        self._stdin = Port(sys.stdin, 'text', filename='<stdin>')
-        self._stdout = Port(sys.stdout, 'text', filename='<stdout>')
-        self._stderr = Port(sys.stderr, 'text', filename='<stderr>')
+        self._stdin = Port(sys.stdin, 'text', 'input', filename='<stdin>')
+        self._stdout = Port(sys.stdout, 'text', 'output', filename='<stdout>')
+        self._stderr = Port(sys.stderr, 'text', 'output', filename='<stderr>')
 
     @proc(opcode=0x01)
     def stdin(self) -> Port:
@@ -81,12 +85,92 @@ class Io(RuntimeModule):
 
     @proc(opcode=0x04)
     def write(self, text: String, port: Port) -> TrickType:
-        port.write(text)
+        # writing on a closed file doesn't throw OSError (but ValueError), so
+        # let's check for closed files first.
+        if port.file.closed:
+            raise self._file_error(
+                f'Cannot write to closed file: {port.filename}')
+
+        if not port.is_text():
+            raise self._file_error(
+                f'Cannot write text to binary file: {port.filename}')
+
+        try:
+            port.file.write(text.value)
+        except OSError as e:
+            raise self._file_error(str(e))
+
         return Void()
 
     @proc(opcode=0x05)
     def flush(self, port: Port) -> TrickType:
-        port.file.flush()
+        # operating on a closed file doesn't throw OSError (but ValueError), so
+        # let's check for closed files first.
+        if port.file.closed:
+            raise self._file_error(
+                f'Cannot flush closed file: {port.filename}')
+
+        try:
+            port.file.flush()
+        except OSError as e:
+            raise self._file_error(str(e))
+
+        return Void()
+
+    @proc(opcode=0x06)
+    def open(self, filename: String, mode: String) -> Port:
+        try:
+            file = open(filename.value, mode.value)
+        except OSError as e:
+            raise self._file_error(str(e))
+
+        return Port(
+            file=file,
+            mode='text' if mode.value in ('r', 'w') else 'binary',
+            dir='input' if mode.value in ('r', 'rb') else 'output',
+            filename=filename,
+        )
+
+    @proc(opcode=0x07)
+    def read(self, port: Port, n: Integer) -> String:
+        # reading from closed file doesn't throw OSError (but ValueError), so
+        # let's check for closed files first.
+        if port.file.closed:
+            raise self._file_error(
+                f'Cannot read from closed file: {port.filename}')
+
+        if not port.is_text():
+            raise self._file_error(
+                f'Cannot read text from binary file: {port.filename}')
+
+        try:
+            s = port.file.read(n)
+        except OSError as e:
+            raise self._file_error(str(e))
+
+        return String(s)
+
+    @proc(opcode=0x08)
+    def portmode(self, port: Port) -> Symbol:
+        if port.is_text():
+            return Symbol('text')
+        else:
+            return Symbol('binary')
+
+    @proc(opcode=0x09)
+    def portdir(self, port: Port) -> Symbol:
+        if port.is_input():
+            return Symbol('input')
+        else:
+            return Symbol('output')
+
+    @proc(opcode=0x0a)
+    def close(self, port: Port) -> Void:
+        try:
+            port.file.close()
+        except OSError as e:
+            raise self._file_error(str(e))
+
         return Void()
 
 

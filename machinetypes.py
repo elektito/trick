@@ -880,20 +880,31 @@ class Vector(TrickType):
 
 
 class Port(TrickType):
-    def __init__(self, file, mode: str, *, filename=None):
+    def __init__(self, file, mode: str, dir: str, *, filename=None):
         assert mode in ['text', 'binary']
+        assert dir in ['input', 'output']
         self.file = file
         self.mode = mode
+        self.dir = dir
         self.filename = filename
 
-    def __str__(self):
+    def __repr__(self):
         if self.filename:
-            return f'#<{self.mode} port "{self.filename}">'
+            return f'#<{self.mode} port "{self.filename.value}">'
         else:
             return f'#<{self.mode} port>'
 
-    def write(self, text: String):
-        self.file.write(text.value)
+    def is_text(self):
+        return self.mode == 'text'
+
+    def is_binary(self):
+        return self.mode == 'binary'
+
+    def is_input(self):
+        return self.dir == 'input'
+
+    def is_output(self):
+        return self.dir == 'output'
 
 
 class WrappedValue(TrickType):
