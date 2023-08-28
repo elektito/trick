@@ -89,11 +89,11 @@ class Io(RuntimeModule):
         # let's check for closed files first.
         if port.file.closed:
             raise self._file_error(
-                f'Cannot write to closed file: {port.filename}')
+                f'Cannot write to closed port: {port}')
 
         if not port.is_text():
             raise self._file_error(
-                f'Cannot write text to binary file: {port.filename}')
+                f'Cannot write text to binary port: {port}')
 
         try:
             port.file.write(text.value)
@@ -108,7 +108,7 @@ class Io(RuntimeModule):
         # let's check for closed files first.
         if port.file.closed:
             raise self._file_error(
-                f'Cannot flush closed file: {port.filename}')
+                f'Cannot flush closed port: {port}')
 
         try:
             port.file.flush()
@@ -137,11 +137,11 @@ class Io(RuntimeModule):
         # let's check for closed files first.
         if port.file.closed:
             raise self._file_error(
-                f'Cannot read from closed file: {port.filename}')
+                f'Cannot read from closed port: {port}')
 
         if not port.is_text():
             raise self._file_error(
-                f'Cannot read text from binary file: {port.filename}')
+                f'Cannot read text from binary file: {port}')
 
         try:
             s = port.file.read(n)
