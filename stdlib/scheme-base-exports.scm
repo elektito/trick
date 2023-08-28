@@ -168,7 +168,7 @@
         ;; read-error?
         ;; read-line
         read-string
-        ;; read-u8
+        read-u8
         ;; real?
         remainder
         reverse

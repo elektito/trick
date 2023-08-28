@@ -173,6 +173,29 @@ class Io(RuntimeModule):
 
         return Void()
 
+    @proc(opcode=0x0b)
+    def readbyte(self, port: Port) -> Integer:
+        # reading from closed file doesn't throw OSError (but ValueError), so
+        # let's check for closed files first.
+        if port.file.closed:
+            raise self._file_error(
+                f'Cannot read from closed port: {port}')
+
+        if not port.is_binary():
+            raise self._file_error(
+                f'Cannot read a byte from textual port: {port}')
+
+        try:
+            s = port.file.read(1)
+        except OSError as e:
+            raise self._file_error(str(e))
+
+        if len(s) == 0:
+            # EOF
+            return Integer(-1)
+
+        return Integer(s[0])
+
 
 @module(opcode=0x02)
 class Str(RuntimeModule):

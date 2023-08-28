@@ -1379,6 +1379,14 @@
                    r
                    (eof-object))))))
 
+(define read-u8
+  (case-lambda
+   (() (read-u8 (current-input-port)))
+   ((port) (let ((r (#$/io/readbyte port)))
+             (if (negative? r)
+                 (eof-object)
+                 r)))))
+
 (define (input-port? port)
   (eq? 'input (#$/io/portdir port)))
 
