@@ -1308,6 +1308,11 @@
    ((char) (write-char char (current-output-port)))
    ((char port) (#$/io/write (#$/str/format 'simple 'display char) port))))
 
+(define write-u8
+  (case-lambda
+   ((byte) (write-u8 byte (current-output-port)))
+   ((byte port) (#$/io/writebv (bytevector byte) port))))
+
 (define write-string
   (case-lambda
    ((str) (write-string str (current-output-port) 0 (string-length str)))

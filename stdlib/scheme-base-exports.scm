@@ -233,5 +233,5 @@
         write-bytevector
         write-char
         write-string
-        ;; write-u8
+        write-u8
         zero?)
