@@ -163,7 +163,7 @@ class Assembler:
                 i += 1
                 if not isinstance(value, int):
                     raise AssembleError(f'Invalid argument for ldc: {value}')
-                code += bytes([0x40])
+                code += bytes([0x80])
                 code += value.to_bytes(length=4, byteorder='little', signed=True)
             elif instr == 'ld':
                 if not isinstance(expr[i], list) or \
@@ -173,7 +173,7 @@ class Assembler:
                     raise AssembleError(f'Invalid argument for ld: {expr[i]}')
                 frame, index = expr[i]
                 i += 1
-                code += bytes([0x41])
+                code += bytes([0x81])
                 code += frame.to_bytes(length=2, byteorder='little', signed=False)
                 code += index.to_bytes(length=2, byteorder='little', signed=False)
             elif instr == 'sel':
@@ -182,7 +182,7 @@ class Assembler:
                 if not isinstance(expr[i + 1], list):
                     raise AssembleError(f'Invalid second argument for sel: {expr[i+1]}')
 
-                code += bytes([0x42])
+                code += bytes([0x82])
 
                 true_body = self._assemble(
                     expr[i], fasl, offset + len(code) + 8, dbg_records)
@@ -205,7 +205,7 @@ class Assembler:
                 nargs = expr[i]
                 body = expr[i + 1]
                 i += 2
-                code += bytes([0x43])
+                code += bytes([0x83])
                 code += nargs.to_bytes(length=4, byteorder='little', signed=True)
                 body_code = self._assemble(
                     body, fasl, offset + len(code) + 4, dbg_records)
@@ -219,7 +219,7 @@ class Assembler:
                     raise AssembleError(f'Invalid argument for st: {expr[i]}')
                 frame, index = expr[i]
                 i += 1
-                code += bytes([0x44])
+                code += bytes([0x84])
                 code += frame.to_bytes(length=2, byteorder='little', signed=False)
                 code += index.to_bytes(length=2, byteorder='little', signed=False)
             elif instr == 'trap':
@@ -231,7 +231,7 @@ class Assembler:
                 proc_desc = runtime.find_proc(module_name, proc_name)
                 if proc_desc is None:
                     raise AssembleError(f'Unknown runtime procedure: {module_name}/{proc_name}')
-                code += bytes([0x45])
+                code += bytes([0x85])
                 code += bytes([proc_desc['module_opcode']])
                 code += bytes([proc_desc['opcode']])
             elif instr == 'ldstr':
@@ -240,7 +240,7 @@ class Assembler:
                 if not isinstance(s, String):
                     raise AssembleError(f'Invalid argument for ldstr: {s}')
                 strnum = fasl.add_string(s)
-                code += bytes([0x46])
+                code += bytes([0x86])
                 code += strnum.to_bytes(length=4, byteorder='little', signed=True)
             elif instr == 'ldsym':
                 sym = expr[i]
@@ -248,7 +248,7 @@ class Assembler:
                 if not isinstance(sym, Symbol):
                     raise AssembleError(f'Invalid argument for ldstr: {sym}')
                 symnum = fasl.add_symbol(sym)
-                code += bytes([0x48])
+                code += bytes([0x88])
                 code += symnum.to_bytes(length=4, byteorder='little', signed=True)
             elif instr == 'set':
                 sym = expr[i]
@@ -256,7 +256,7 @@ class Assembler:
                 if not isinstance(sym, Symbol):
                     raise AssembleError(f'Invalid argument type for set: {sym}')
                 symnum = fasl.add_symbol(sym)
-                code += bytes([0x4a])
+                code += bytes([0x8a])
                 code += symnum.to_bytes(length=4, byteorder='little', signed=False)
             elif instr == 'get':
                 sym = expr[i]
@@ -264,7 +264,7 @@ class Assembler:
                 if not isinstance(sym, Symbol):
                     raise AssembleError(f'Invalid argument type for get: {sym}')
                 symnum = fasl.add_symbol(sym)
-                code += bytes([0x4b])
+                code += bytes([0x8b])
                 code += symnum.to_bytes(length=4, byteorder='little', signed=False)
             elif instr == 'unset':
                 sym = expr[i]
@@ -272,7 +272,7 @@ class Assembler:
                 if not isinstance(sym, Symbol):
                     raise AssembleError(f'Invalid argument type for unset: {sym}')
                 symnum = fasl.add_symbol(sym)
-                code += bytes([0x4c])
+                code += bytes([0x8c])
                 code += symnum.to_bytes(length=4, byteorder='little', signed=False)
             else:
                 raise AssembleError(f'Unknown instruction: {instr}')
