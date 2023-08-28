@@ -1519,6 +1519,12 @@
       (thunk)
       (close-output-port port))))
 
+(define (file-exists? filename)
+  (#$/io/exists filename))
+
+(define (delete-file filename)
+  (#$/io/delete filename))
+
 ;; record types
 
 (define-macro (define-record-type name constructor pred . fields)

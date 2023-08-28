@@ -1,5 +1,6 @@
 import inspect
 import io
+import os
 import sys
 import traceback
 
@@ -313,6 +314,19 @@ class Io(RuntimeModule):
     @proc(opcode=0x15)
     def isopen(self, port: Port) -> Bool:
         return Bool(not port.file.closed)
+
+    @proc(opcode=0x16)
+    def exists(self, filename: String) -> Bool:
+        return Bool(os.path.exists(filename.value))
+
+    @proc(opcode=0x17)
+    def delete(self, filename: String) -> Void:
+        try:
+            os.unlink(filename.value)
+        except OSError as e:
+            raise self._file_error(str(e))
+
+        return Void()
 
 
 @module(opcode=0x02)
