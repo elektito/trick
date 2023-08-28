@@ -1416,6 +1416,16 @@
                  (eof-object)
                  (string-ref r 0))))))
 
+(define read-line
+  (case-lambda
+   (() (read-line (current-input-port)))
+   ((port) (let ((r (#$/io/readline port)))
+             (if (string=? r "")
+                 (eof-object)
+                 (if (eqv? #\newline (string-ref r (1- (string-length r))))
+                     (string-copy r 0 (1- (string-length r)))
+                     r))))))
+
 (define (input-port? port)
   (eq? 'input (#$/io/portdir port)))
 

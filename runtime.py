@@ -215,6 +215,24 @@ class Io(RuntimeModule):
 
         return Bytevector([Integer(i) for i in s])
 
+    @proc(opcode=0x0d)
+    def readline(self, port: Port) -> String:
+        # reading from closed file doesn't throw OSError (but ValueError), so
+        # let's check for closed files first.
+        if port.file.closed:
+            raise self._file_error(
+                f'Cannot read from closed port: {port}')
+
+        if not port.is_text():
+            raise self._file_error(
+                f'Cannot read text from binary file: {port}')
+
+        try:
+            s = port.file.readline()
+        except OSError as e:
+            raise self._file_error(str(e))
+
+        return String(s)
 
 @module(opcode=0x02)
 class Str(RuntimeModule):
