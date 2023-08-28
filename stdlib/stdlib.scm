@@ -273,6 +273,8 @@
           #f)))
 (define (vector? v)
   (eq? (#$type v) 'vector))
+(define (bytevector? v)
+  (eq? (#$type v) 'bytevector))
 (define (port? v)
   (eq? (#$type v) 'port))
 
@@ -1138,6 +1140,15 @@
    ((v1 v2) (_vector-append v1 v2))
    ((v1 v2 . rest) (_vector-append (_vector-append v1 v2)
                                    (apply vector-append rest)))))
+
+;; bytevectors
+
+(define (bytevector-u8-set! bv k obj)
+  ;; this is needed because the SECD instruction issued for #$bytevector-set!
+  ;; has a different order of arguments that vector-set! should. We _could_
+  ;; change the instruction, but then the code generation for vector literals
+  ;; would become rather awkward, involving some stack juggling with "swap".
+  (#$bytevector-u8-set! obj k bv))
 
 ;; values
 

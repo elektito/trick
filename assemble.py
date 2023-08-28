@@ -154,6 +154,10 @@ class Assembler:
                 'unwrap': 0x3d,
                 'seh': 0x3e,
                 'abort': 0x3f,
+                'mkbvec': 0x40,
+                'bvecset': 0x41,
+                'bvecref': 0x42,
+                'bveclen': 0x43,
             }
             opcode = single_byte_instrs.get(instr)
             if opcode is not None:

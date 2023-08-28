@@ -822,8 +822,6 @@ class Vector(TrickType):
         def __init__(self, vector):
             self._vector = vector
             self._i = 0
-            self.src_start = None
-            self.src_end = None
 
         def __next__(self):
             if self._i >= len(self._vector):
@@ -875,6 +873,53 @@ class Vector(TrickType):
     @classmethod
     def _load(cls, input):
         return Vector(cls._load_list(TrickType, input))
+
+
+class Bytevector(TrickType):
+    serialization_id = 10
+
+    class Iterator:
+        def __init__(self, bvector):
+            self._bvector = bvector
+            self._i = 0
+
+        def __next__(self):
+            if self._i >= len(self._bvector):
+                raise StopIteration
+
+            value = self._bvector[self._i]
+            self._i += 1
+            return value
+
+    def __init__(self, elements: list[Integer]):
+        self.bytes = bytes(elements)
+
+    def __iter__(self):
+        return Bytevector.Iterator(self)
+
+    def __getitem__(self, idx: int):
+        return Integer(self.bytes[idx])
+
+    def __setitem__(self, idx: int, value: Integer):
+        if value < 0 or value > 255:
+            raise ValueError('Invalid element value for bytevector')
+        self.bytes = self.bytes[:idx] + bytes([value]) + self.bytes[idx+1:]
+
+    def to_list(self) -> list[Integer]:
+        return [Integer(i) for i in self.bytes]
+
+    def __len__(self):
+        return len(self.bytes)
+
+    def __repr__(self):
+        return f'#u8({" ".join(str(i) for i in self.bytes)})'
+
+    def _dump(self, output):
+        self._dump_list([Integer(i) for i in self.bytes], output)
+
+    @classmethod
+    def _load(cls, input):
+        return Bytevector(cls._load_list(Integer, input))
 
 
 class Port(TrickType):

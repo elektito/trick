@@ -14,7 +14,7 @@ from library import Library, LibraryExportError, LibraryLookupError
 from program import Program
 from fasl import Fasl
 from read import Reader, ReadError
-from machinetypes import Bool, Char, Integer, List, Nil, Pair, Symbol, String, Vector
+from machinetypes import Bool, Bytevector, Char, Integer, List, Nil, Pair, Symbol, String, Vector
 from assemble import Assembler
 from secd import Secd
 from symbolinfo import SpecialForms, SymbolInfo, SymbolKind
@@ -290,7 +290,6 @@ class Compiler:
     def compile_int(self, expr, env):
         return [S('ldc'), Integer(expr)]
 
-
     def compile_if(self, expr, env):
         if len(expr) not in (3, 4):
             raise self._compile_error(
@@ -548,6 +547,23 @@ class Compiler:
 
     def compile_vector(self, v: Vector, env):
         return self.compile_literal(v, env)
+
+    def compile_bytevector(self, v: Bytevector, env):
+        code = [
+            S('ldc'), Integer(0),
+            S('ldc'), Integer(len(v)),
+            S('mkbvec'),
+        ]
+
+        for idx, byte in enumerate(v):
+            code += [
+                S('dup'),
+                S('ldc'), idx,
+                S('ldc'), byte,
+                S('bvecset')
+            ]
+
+        return code
 
     def check_let_bindings(self, bindings, let_name):
         if not isinstance(bindings, List):
@@ -1272,6 +1288,8 @@ class Compiler:
             secd_code += self.compile_char(expr, env)
         elif isinstance(expr, Vector):
             secd_code += self.compile_vector(expr, env)
+        elif isinstance(expr, Bytevector):
+            secd_code += self.compile_bytevector(expr, env)
         else:
             raise self._compile_error(f'Invalid value: {expr}')
 

@@ -1,5 +1,5 @@
 import io
-from machinetypes import Integer, Symbol, List, Nil, Pair, Bool, String, Char, Reference, TrickType, Vector
+from machinetypes import Bytevector, Integer, Symbol, List, Nil, Pair, Bool, String, Char, Reference, TrickType, Vector
 
 
 class ReadError(Exception):
@@ -200,6 +200,25 @@ class Reader:
             no_dot_allowed=True)
         return Vector(ls)
 
+    def _read_bytevector(self):
+        # from the prefix "#u8", the first two characters are already read.
+        c = self._read_one_char()
+        if c != '8':
+            raise ReadError(f'Expected "8" after "#u", got: {c}')
+
+        c = self._read_one_char()
+        if c != '(':
+            raise ReadError(f'Expected "(" after "#u8(", got: {c}')
+
+        ls = self._read_list(delim=')', no_dot_allowed=True)
+        for e in ls:
+            if not isinstance(e, Integer) or e < 0 or e > 255:
+                raise ReadError(
+                    f'Bytevector elements must be integers in range '
+                    f'0-255; got: {e}')
+
+        return Bytevector(ls.to_list())
+
     def _read_list(self, delim, no_dot_allowed=False):
         read_dot = False
         values = []
@@ -356,6 +375,8 @@ class Reader:
                 return Char(char_code)
         elif char == '(':  # vector
             return self._read_vector()
+        elif char == 'u':
+            return self._read_bytevector()
         else: # special symbol
             token = self._read_token(start_char=char)
             return Symbol('#' + token)

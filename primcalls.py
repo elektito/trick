@@ -261,4 +261,24 @@ primcalls = {
         'code': asm_code_for_features(),
         'exported': True,
     },
+    'make-bytevector': {
+        'nargs': 2,
+        'code': [S('mkbvec')],
+        'exported': False,
+    },
+    'bytevector-u8-ref': {
+        'nargs': 2,
+        'code': [S('bvecref')],
+        'exported': True,
+    },
+    'bytevector-u8-set!': {
+        'nargs': 3,
+        'code': [S('bvecset'), S('void')],
+        'exported': False,
+    },
+    'bytevector-length': {
+        'nargs': 1,
+        'code': [S('bveclen')],
+        'exported': True,
+    },
 }

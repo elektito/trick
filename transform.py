@@ -1,4 +1,4 @@
-from machinetypes import Bool, Char, Integer, List, Nil, Pair, String, Symbol, TrickType, Vector
+from machinetypes import Bool, Bytevector, Char, Integer, List, Nil, Pair, String, Symbol, TrickType, Vector
 from serialization import Serializable
 from symbolinfo import AuxKeywords
 
@@ -1188,6 +1188,8 @@ def equal(v1, v2):
 
     if isinstance(v1, (Integer, Symbol, Bool, Char)):
         return v1 == v2
+    elif isinstance(v1, Bytevector):
+        return v1.bytes == v2.bytes
     elif isinstance(v1, String):
         return v1.value == v2.value
     else:

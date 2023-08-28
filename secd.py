@@ -10,7 +10,7 @@ from exceptions import RunError
 from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from snippet import show_snippet
 from machinetypes import (
-    Bool, Char, Integer, List, Nil, Pair, Port, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
+    Bool, Bytevector, Char, Integer, List, Nil, Pair, Port, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
 )
 
 
@@ -240,6 +240,10 @@ class Secd:
             0x3d: self.run_unwrap,
             0x3e: self.run_seh,
             0x3f: self.run_abort,
+            0x40: self.run_mkbvec,
+            0x41: self.run_bvecset,
+            0x42: self.run_bvecref,
+            0x43: self.run_bveclen,
             0x80: self.run_ldc,
             0x81: self.run_ld,
             0x82: self.run_sel,
@@ -867,6 +871,8 @@ class Secd:
             result = self.intern('char')
         elif isinstance(v, Vector):
             result = self.intern('vector')
+        elif isinstance(v, Bytevector):
+            result = self.intern('bytevector')
         elif isinstance(v, Port):
             result = self.intern('port')
         elif isinstance(v, Void):
@@ -1008,8 +1014,8 @@ class Secd:
         if self.debug: print(f'mkstr {nchars} * {fill_char}')
 
     def run_mkvec(self):
-        n = self.s.pop(Integer, 'mkstr')
-        fill = self.s.pop(instr_name='mkstr')
+        n = self.s.pop(Integer, 'mkvec')
+        fill = self.s.pop(instr_name='mkvec')
 
         s = Vector([fill] * n)
         self.s.pushx(s)
@@ -1051,6 +1057,57 @@ class Secd:
         result = Integer(len(vector))
         self.s.pushx(result)
         if self.debug: print(f'veclen v={vector} => {result}')
+
+    def run_mkbvec(self):
+        n = self.s.pop(Integer, 'mkbvec')
+        fill = self.s.pop(Integer, instr_name='mkbvec')
+
+        if fill < 0 or fill > 255:
+            raise RunError(f'Invalid fill value for bytevector: {fill}')
+
+        s = Bytevector([fill] * n)
+        self.s.pushx(s)
+        if self.debug: print(f'mkbvec {n} * {fill}')
+
+    def run_bvecset(self):
+        value = self.s.pop(Integer, 'bvecset')
+        idx = self.s.pop(Integer, 'bvecset')
+        bvector = self.s.pop(Bytevector, 'bvecset')
+
+        if value < 0 or value > 255:
+            raise RunError(f'Invalid element value for bytevector: {value}')
+
+        if 0 <= idx < len(bvector):
+            bvector[idx] = value
+        else:
+            if len(bvector) == 0:
+                raise RunError(f'Invalid vector index: {idx} (vector is empty)')
+            else:
+                raise RunError(f'Invalid vector index: {idx} (expected: 0-{len(bvector)-1})')
+
+        if self.debug: print(f'bvecset vec={bvector} i={idx} val={value}')
+
+    def run_bvecref(self):
+        bvector = self.s.pop(Bytevector, 'bvecref')
+        idx = self.s.pop(Integer, 'bvecref')
+
+        if 0 <= idx < len(bvector):
+            value = bvector[idx]
+        else:
+            if len(bvector) == 0:
+                raise RunError(f'Invalid bytevector index: {idx} (bytevector is empty)')
+            else:
+                raise RunError(f'Invalid bytevector index: {idx} (expected: 0-{len(bvector)-1})')
+
+        self.s.pushx(value)
+
+        if self.debug: print(f'bvecref v={bvector} i={idx} => {value}')
+
+    def run_bveclen(self):
+        bvector = self.s.pop(Bytevector, 'bveclen')
+        result = Integer(len(bvector))
+        self.s.pushx(result)
+        if self.debug: print(f'bveclen v={bvector} => {result}')
 
     def run_strref(self):
         s = self.s.pop(String, 'strref')
