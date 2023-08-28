@@ -197,7 +197,7 @@ class Reader:
     def _read_vector(self):
         ls = self._read_list(
             delim=')',
-            no_dot_allowed=False)
+            no_dot_allowed=True)
         return Vector(ls)
 
     def _read_list(self, delim, no_dot_allowed=False):
