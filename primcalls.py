@@ -76,6 +76,16 @@ primcalls = {
         'code': [S('ile')],
         'exported': False,
     },
+    'igt': {
+        'nargs': 2,
+        'code': [S('igt')],
+        'exported': False,
+    },
+    'ige': {
+        'nargs': 2,
+        'code': [S('ige')],
+        'exported': False,
+    },
     'shr': {
         'nargs': 2,
         'code': [S('shr')],

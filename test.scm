@@ -1984,6 +1984,12 @@ and still a comment
 (< -4/5 2/3)
 (<= -4/5 2/3)
 
+(not (> +nan.0 0))
+(not (< +nan.0 0))
+(not (>= +nan.0 0))
+(not (<= +nan.0 0))
+(not (= +nan.0 0))
+
 ;; inexact numbers and exact numbers are never eqv (section 6.1), so they can't
 ;; be eq either.
 (not (eqv? #i1 1))

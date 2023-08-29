@@ -252,6 +252,8 @@ class Secd:
             0x49: self.run_cplx,
             0x4a: self.run_creal,
             0x4b: self.run_cimag,
+            0x4c: self.run_igt,
+            0x4d: self.run_ige,
             0x80: self.run_ldc,
             0x81: self.run_ld,
             0x82: self.run_sel,
@@ -839,6 +841,24 @@ class Secd:
         except ValueError as e:
             raise RunError(str(e))
         if self.debug: print(f'ile {arg1} <= {arg2}')
+
+    def run_igt(self):
+        arg1 = self.s.pop(Number, 'igt')
+        arg2 = self.s.pop(Number, 'igt')
+        try:
+            self.s.pushx(Bool(True) if arg1 > arg2 else Bool(False))
+        except ValueError as e:
+            raise RunError(str(e))
+        if self.debug: print(f'igt {arg1} > {arg2}')
+
+    def run_ige(self):
+        arg1 = self.s.pop(Number, 'ige')
+        arg2 = self.s.pop(Number, 'ige')
+        try:
+            self.s.pushx(Bool(True) if arg1 >= arg2 else Bool(False))
+        except ValueError as e:
+            raise RunError(str(e))
+        if self.debug: print(f'ige {arg1} >= {arg2}')
 
     def run_dum(self):
         self.e = [self.dummy_frame] + self.e
