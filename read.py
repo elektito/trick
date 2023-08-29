@@ -350,25 +350,25 @@ class Reader:
         complete_text = prefix + text
 
         int_prefixes = ['#x', '#o', '#b', '#d']
-        force_exact = False
-        force_inexact = False
+        force = None
 
         if prefix in int_prefixes:
             if text.startswith('#e'):
                 text = text[2:]
-                force_exact = True
+                force = 'exact'
             elif text.startswith('#i'):
                 text = text[2:]
-                force_inexact = True
+                force = 'inexact'
         elif prefix in ['#e', '#i']:
+            if prefix == '#e':
+                force = 'exact'
+            elif prefix == '#i':
+                force = 'inexact'
+
             if text[:2] in int_prefixes:
-                force_exact = (prefix == '#e')
-                force_inexact = (prefix == '#i')
                 prefix = text[:2]
                 text = text[2:]
             else:
-                force_exact = (prefix == '#e')
-                force_inexact = (prefix == '#i')
                 prefix = ''
 
         if prefix:
@@ -387,7 +387,7 @@ class Reader:
             if '/' in text:
                 number = Fraction(text)
             elif any(c in '.ed' for c in text):
-                if force_exact:
+                if force == 'exact':
                     number = Fraction(text)
                 else:
                     if 'd' in text:
@@ -399,11 +399,10 @@ class Reader:
             else:
                 number = int(text, 10)
 
-        if force_exact:
+        if force == 'exact':
             if isinstance(number, float):
                 number = Fraction(number)
-
-        if force_inexact:
+        elif force == 'inexact':
             if isinstance(number, (int, Fraction)):
                 number = float(number)
 
