@@ -52,7 +52,7 @@
         close-input-port
         close-output-port
         close-port
-        ;; complex?
+        complex?
         cond
         cond-expand
         cons
@@ -64,7 +64,7 @@
         define-record-type
         define-syntax
         ;; define-values
-        ;; denominator
+        denominator
         do
         dynamic-wind
         else
@@ -78,10 +78,10 @@
         error-object-message
         error-object?
         ;; even?
-        ;; exact
+        exact
         ;; exact-integer-sqrt
         ;; exact-integer?
-        ;; exact?
+        exact?
         ;; expt
         features
         file-error?
@@ -98,8 +98,8 @@
         if
         include
         include-ci
-        ;; inexact
-        ;; inexact?
+        inexact
+        inexact?
         input-port-open?
         input-port?
         integer->char
@@ -140,8 +140,8 @@
         not
         null?
         ;; number->string
-        ;; number?
-        ;; numerator
+        number?
+        numerator
         ;; odd?
         open-input-bytevector
         open-input-string
@@ -162,7 +162,7 @@
         ;; quotient
         raise
         raise-continuable
-        ;; rational?
+        rational?
         ;; rationalize
         read-bytevector
         read-bytevector!
@@ -171,7 +171,7 @@
         read-line
         read-string
         read-u8
-        ;; real?
+        real?
         remainder
         reverse
         ;; round

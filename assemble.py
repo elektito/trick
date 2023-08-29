@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import io
+import struct
 import sys
 import argparse
 
@@ -9,7 +10,7 @@ from exceptions import AssembleError
 from program import Program
 from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, DbgInfoSourceFileRecord, Fasl, FaslDbgInfoSection, FaslLibInfoSection
 from read import Reader, ReadError
-from machinetypes import List, String, Symbol
+from machinetypes import List, Rational, String, Symbol
 
 
 class Assembler:
@@ -158,6 +159,11 @@ class Assembler:
                 'bvecset': 0x41,
                 'bvecref': 0x42,
                 'bveclen': 0x43,
+                'f2i': 0x44,
+                'i2f': 0x45,
+                'f2q': 0x46,
+                'qnum': 0x47,
+                'qden': 0x48,
             }
             opcode = single_byte_instrs.get(instr)
             if opcode is not None:
@@ -278,6 +284,20 @@ class Assembler:
                 symnum = fasl.add_symbol(sym)
                 code += bytes([0x8c])
                 code += symnum.to_bytes(length=4, byteorder='little', signed=False)
+            elif instr == 'ldcf':
+                value = expr[i]
+                i += 1
+                if not isinstance(value, float):
+                    raise AssembleError(f'Invalid argument for ldcf: {value}')
+                code += bytes([0x8d])
+                code += struct.pack('<d', value)
+            elif instr == 'ldcq':
+                value = expr[i]
+                i += 1
+                if not isinstance(value, Rational):
+                    raise AssembleError(f'Invalid argument for ldcq: {value}')
+                code += bytes([0x8e])
+                code += struct.pack('<qQ', value.frac.numerator, value.frac.denominator)
             else:
                 raise AssembleError(f'Unknown instruction: {instr}')
 

@@ -260,7 +260,6 @@
 
 (define (symbol? v) (eq? (#$type v) 'symbol))
 (define (pair? v) (eq? (#$type v) 'pair))
-(define (integer? v) (eq? (#$type v) 'int))
 (define (string? v) (eq? (#$type v) 'string))
 (define (char? v) (eq? (#$type v) 'char))
 (define (procedure? v) (eq? (#$type v) 'procedure))
@@ -280,6 +279,26 @@
 (define (void? v)
   (eq? (#$type v) 'void))
 
+(define (integer? v)
+  (eq? (#$type v) 'int))
+(define (rational? v)
+  ;; "type" returns "rational" only for strictly rational numbers, so we need to
+  ;; check for both rational and integer here.
+  (or (eq? (#$type v) 'rational)
+      (eq? (#$type v) 'int)))
+(define (float? v)
+  (eq? (#$type v) 'float))
+(define (real? v)
+  (or (eq? (#$type v) 'rational)
+      (eq? (#$type v) 'int)
+      (eq? (#$type v) 'float)))
+(define (complex? v)
+  (or (eq? (#$type v) 'rational)
+      (eq? (#$type v) 'int)
+      (eq? (#$type v) 'float)))
+(define (number? v)
+  (complex? v))
+
 ;; booleans
 
 (define (not x)
@@ -293,7 +312,7 @@
 (define (symbol=? x y)
   (eq? x y))
 
-;; numeric comparison
+;; numbers
 
 (define (< x y)
   (#$ilt x y))
@@ -303,14 +322,35 @@
   (not (<= x y)))
 (define (>= x y)
   (not (< x y)))
-(define (zero? x) (eqv? x 0))
+(define (zero? x) (or (eqv? x 0)
+                      (eqv? x 0.0)))
 (define (negative? x) (< x 0))
 (define (positive? x) (> x 0))
 
 (define (= . numbers)
+  (define (cmp x y)
+    (eqv? (inexact x) (inexact y)))
   (if (null? (cdr numbers))
       #t
-      (all? (pairwise eqv? numbers))))
+      (all? (pairwise cmp numbers))))
+
+(define (exact n)
+  (if (float? n)
+      (float->rational n)
+      n))
+
+(define (inexact n)
+  (cond ((integer? n) (integer->float n))
+        ((rational? n) (/ (integer->float (numerator n))
+                          (integer->float (denominator n))))
+        ;; TODO handle complex numbers
+        (else n)))
+
+(define (exact? n)
+  (not (inexact? n)))
+
+(define (inexact? n)
+  (eq? (#$type n) 'float))
 
 ;; list utilities
 
@@ -439,6 +479,8 @@
          #t)
         ((eq? x y)
          #t)
+        ((and (number? x) (number? y))
+         (= x y))
         ((not (eq? (#$type x) (#$type y)))
          #f)
         ((null? x) #t)

@@ -231,7 +231,6 @@ and still a comment
 (eq? 300 (* 10 5 6))
 
 (eq? 1 (/ 1))
-(eq? 0 (/ 5))
 (eq? 2 (/ 10 5))
 (eq? 20 (/ 3000 10 5 3))
 
@@ -1666,7 +1665,7 @@ and still a comment
                    (let-syntax ((m (syntax-rules () ((m) x))))
                      (let ((x 'inner))
                        (m)))))
-  (= result 'outer))
+  (eq? result 'outer))
 
 (let ()
   (define result (let-syntax ((when (syntax-rules ()
@@ -1874,7 +1873,97 @@ and still a comment
 
 ;; numbers
 
-(= #x10 16)
-(= #d10 10)
-(= #o10 8)
-(= #b10 2)
+(rational? 1)
+(real? 1)
+(complex? 1)
+(number? 1)
+
+(rational? 1/3)
+(real? 1/3)
+(complex? 1/3)
+(number? 1/3)
+
+(not (integer? 1.0))
+(not (rational? 1.0))
+(real? 1.0)
+(complex? 1.0)
+(number? 1.0)
+
+;; section 6.2.6
+(real? +inf.0)
+(real? -inf.0)
+(real? +nan.0)
+(complex? +inf.0)
+(complex? -inf.0)
+(complex? +nan.0)
+(number? +inf.0)
+(number? -inf.0)
+(number? +nan.0)
+
+(not (= +nan.0 +nan.0))
+(not (eqv? +nan.0 +nan.0))
+(= +inf.0 +inf.0)
+(eqv? +inf.0 +inf.0)
+(= -inf.0 -inf.0)
+(eqv? -inf.0 -inf.0)
+
+(exact? 1)
+(integer? 1)
+(exact? 1/3)
+(not (integer? 1/3))
+(inexact? 1.0)
+(not (exact? 1.0))
+
+(= 9/4 2.25)
+(not (eqv? 9/4 2.25))
+(eqv? 9/4 (exact 2.25))
+
+(= 2.0 4/2)
+(not (eqv? 2.0 4/2))
+(eqv? 2.0 (inexact 4/2))
+
+(= 0 (numerator 0))
+(= 1 (denominator 0))
+(= 5 (numerator 5))
+(= 1 (denominator 5))
+(= 3 (numerator 6/14))
+(= 7 (denominator 6/14))
+
+;; inexact numbers and exact numbers are never eqv (section 6.1), so they can't
+;; be eq either.
+(not (eqv? #i1 1))
+(not (eq? #i1 1))
+(= #i1 1)
+(equal? #i1 1)
+
+(eqv? 1. #i1)
+(= 1. #i1)
+(equal? 1. #i1)
+
+(eqv? 1 2/2)
+(= 1 2/2)
+(equal? 1 2/2)
+
+(zero? 0)
+(zero? 0.0)
+(zero? 0/4)
+
+(= 16 #x10)
+(= 10 #d10)
+(=  8 #o10)
+(=  2 #b10)
+
+(= 16 #e#x10)
+(= 10 #e#d10)
+(=  8 #e#o10)
+(=  2 #e#b10)
+
+(= 16. #i#x10)
+(= 10. #i#d10)
+(=  8. #i#o10)
+(=  2. #i#b10)
+
+(= 1.0 #i1)
+(= 1 #e1.0)
+
+(= 1/5 (/ 5))

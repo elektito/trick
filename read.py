@@ -1,5 +1,6 @@
+from fractions import Fraction
 import io
-from machinetypes import Bytevector, Integer, Symbol, List, Nil, Pair, Bool, String, Char, Reference, TrickType, Vector
+from machinetypes import Bytevector, Float, Integer, Rational, Symbol, List, Nil, Pair, Bool, String, Char, Reference, TrickType, Vector
 
 
 class ReadError(Exception):
@@ -117,13 +118,20 @@ class Reader:
             case _:
                 token = self._read_token(start_char=cur_char)
                 try:
-                    value = Integer(token)
+                    value = self._parse_number(token, prefix='')
                 except ValueError:
-                    if self._fold_case:
-                        token = token.casefold()
-                    if token.startswith('|') and token.endswith('|'):
-                        token = token[1:-1]
-                    value = Symbol(token)
+                    if token.lower() == '+inf.0':
+                        value = Float('+inf')
+                    elif token.lower() == '-inf.0':
+                        value = Float('-inf')
+                    elif token.lower() == '+nan.0':
+                        value = Float('nan')
+                    else:
+                        if self._fold_case:
+                            token = token.casefold()
+                        if token.startswith('|') and token.endswith('|'):
+                            token = token[1:-1]
+                        value = Symbol(token)
 
         if value is not None:
             value.src_start = start
@@ -338,40 +346,107 @@ class Reader:
     def _is_separator(self, char):
         return char.isspace() or char in "()[]'`"
 
+    def _parse_number(self, text: str, prefix: str):
+        complete_text = prefix + text
+
+        int_prefixes = ['#x', '#o', '#b', '#d']
+        force_exact = False
+        force_inexact = False
+
+        if prefix in int_prefixes:
+            if text.startswith('#e'):
+                text = text[2:]
+                force_exact = True
+            elif text.startswith('#i'):
+                text = text[2:]
+                force_inexact = True
+        elif prefix in ['#e', '#i']:
+            if text[:2] in int_prefixes:
+                force_exact = (prefix == '#e')
+                force_inexact = (prefix == '#i')
+                prefix = text[:2]
+                text = text[2:]
+            else:
+                force_exact = (prefix == '#e')
+                force_inexact = (prefix == '#i')
+                prefix = ''
+
+        if prefix:
+            base = {
+                '#x': 16,
+                '#o': 8,
+                '#d': 10,
+                '#b': 2,
+            }[prefix]
+            try:
+                number = int(text, base)
+            except ValueError:
+                raise ReadError(
+                    f'Invalid numeric literal: {complete_text}')
+        else:
+            if '/' in text:
+                number = Fraction(text)
+            elif any(c in '.ed' for c in text):
+                if force_exact:
+                    number = Fraction(text)
+                else:
+                    if 'd' in text:
+                        # allow using "d" as exponent marker (see section 6.2.5 of
+                        # r7rs)
+                        text = text.replace('d', 'e')
+
+                    number = float(text)
+            else:
+                number = int(text, 10)
+
+        if force_exact:
+            if isinstance(number, float):
+                number = Fraction(number)
+
+        if force_inexact:
+            if isinstance(number, (int, Fraction)):
+                number = float(number)
+
+        if isinstance(number, int):
+            number = Integer(number)
+        elif isinstance(number, Fraction):
+            if number.denominator == 1:
+                number = Integer(number)
+            else:
+                number = Rational(number)
+        elif isinstance(number, float):
+            number = Float(number)
+        else:
+            assert False, 'unhandled case'
+
+        return number
+
     def _read_sharp_value(self, eof_error=None):
         char = self._read_one_char(eof_error='Invalid sharp sign at end-of-file')
         if char == 'x': #x (hex literal)
             first_char = self._read_one_char('End-of-file in hex literal')
             token = self._read_token(first_char)
-            try:
-                number = Integer(token, 16)
-            except ValueError:
-                raise ReadError(f'Invalid hex literal: "#x{token}"')
-            return number
+            return self._parse_number(token, '#x')
         elif char == 'o': #o (octal literal)
             first_char = self._read_one_char('End-of-file in octal literal')
             token = self._read_token(first_char)
-            try:
-                number = Integer(token, 8)
-            except ValueError:
-                raise ReadError(f'Invalid octal literal: "#o{token}"')
-            return number
+            return self._parse_number(token, '#o')
         elif char == 'b': #b (binary literal)
             first_char = self._read_one_char('End-of-file in binary literal')
             token = self._read_token(first_char)
-            try:
-                number = Integer(token, 2)
-            except ValueError:
-                raise ReadError(f'Invalid binary literal: "#b{token}"')
-            return number
+            return self._parse_number(token, '#b')
         elif char == 'd': #d (decimal literal with explicit prefix)
             first_char = self._read_one_char('End-of-file in decimal literal')
             token = self._read_token(first_char)
-            try:
-                number = Integer(token, 10)
-            except ValueError:
-                raise ReadError(f'Invalid decimal literal: "#d{token}"')
-            return number
+            return self._parse_number(token, '#d')
+        elif char == 'e': #e (exact number)
+            first_char = self._read_one_char('End-of-file in exact literal')
+            token = self._read_token(first_char)
+            return self._parse_number(token, '#e')
+        elif char == 'i': #i (inexact number)
+            first_char = self._read_one_char('End-of-file in inexact literal')
+            token = self._read_token(first_char)
+            return self._parse_number(token, '#i')
         elif char.isnumeric(): #<n>= or #<n># (label or reference)
             value = self._read_label_or_reference(start_char=char)
             if isinstance(value, Label):

@@ -14,7 +14,7 @@ from library import Library, LibraryExportError, LibraryLookupError
 from program import Program
 from fasl import Fasl
 from read import Reader, ReadError
-from machinetypes import Bool, Bytevector, Char, Integer, List, Nil, Pair, Symbol, String, Vector
+from machinetypes import Bool, Bytevector, Char, Float, Integer, List, Nil, Pair, Rational, Symbol, String, Vector
 from assemble import Assembler
 from secd import Secd
 from symbolinfo import SpecialForms, SymbolInfo, SymbolKind
@@ -292,6 +292,12 @@ class Compiler:
 
     def compile_int(self, expr, env):
         return [S('ldc'), Integer(expr)]
+
+    def compile_float(self, expr: Float, env: Environment):
+        return [S('ldcf'), expr]
+
+    def compile_rational(self, expr: Rational, env: Environment):
+        return [S('ldcq'), expr]
 
     def compile_if(self, expr, env):
         if len(expr) not in (3, 4):
@@ -1281,6 +1287,10 @@ class Compiler:
             secd_code += self.compile_list(expr, env)
         elif isinstance(expr, Integer):
             secd_code += self.compile_int(expr, env)
+        elif isinstance(expr, Float):
+            secd_code += self.compile_float(expr, env)
+        elif isinstance(expr, Rational):
+            secd_code += self.compile_rational(expr, env)
         elif isinstance(expr, Symbol):
             secd_code += self.compile_symbol(expr, env)
         elif isinstance(expr, String):

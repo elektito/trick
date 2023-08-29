@@ -281,4 +281,29 @@ primcalls = {
         'code': [S('bveclen')],
         'exported': True,
     },
+    'float->integer': {
+        'nargs': 1,
+        'code': [S('f2i')],
+        'exported': True,
+    },
+    'integer->float': {
+        'nargs': 1,
+        'code': [S('i2f')],
+        'exported': True,
+    },
+    'float->rational': {
+        'nargs': 1,
+        'code': [S('f2q')],
+        'exported': True,
+    },
+    'numerator': {
+        'nargs': 1,
+        'code': [S('qnum')],
+        'exported': True,
+    },
+    'denominator': {
+        'nargs': 1,
+        'code': [S('qden')],
+        'exported': True,
+    },
 }

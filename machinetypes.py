@@ -1,3 +1,5 @@
+import math
+from fractions import Fraction
 from uuid import uuid4
 from serialization import Serializable
 
@@ -10,6 +12,8 @@ class TrickType(Serializable):
         return [
             Void,
             Integer,
+            Rational,
+            Float,
             Symbol,
             Bool,
             Char,
@@ -67,23 +71,110 @@ class Void(TrickType):
         return Void()
 
 
-class Integer(int, TrickType):
+
+class Number(TrickType):
+    @staticmethod
+    def from_python_number(n):
+        if isinstance(n, int):
+            n = Integer(n)
+        elif isinstance(n, Fraction):
+            if n.denominator == 1:
+                n = Integer(n)
+            else:
+                n = Rational(n)
+        elif isinstance(n, float):
+            n = Float(n)
+        else:
+            assert False, 'unhandled case'
+
+        return n
+
+    def to_python_number(self):
+        raise NotImplementedError
+
+    def __eq__(self, other):
+        if not isinstance(other, Number):
+            return False
+
+        if self.exact != other.exact:
+            return False
+
+        return self.to_python_number() == other.to_python_number()
+
+    def __hash__(self):
+        return hash(self.to_python_number())
+
+    def __add__(self, other):
+        n1 = self.to_python_number()
+        n2 = other
+        if isinstance(other, TrickType):
+            n2 = other.to_python_number()
+
+        result = n1 + n2
+        result = Number.from_python_number(result)
+        return result
+
+    def __sub__(self, other):
+        n1 = self.to_python_number()
+        n2 = other
+        if isinstance(other, TrickType):
+            n2 = other.to_python_number()
+
+        result = n1 - n2
+        result = Number.from_python_number(result)
+        return result
+
+    def __mul__(self, other):
+        n1 = self.to_python_number()
+        n2 = other
+        if isinstance(other, TrickType):
+            n2 = other.to_python_number()
+
+        result = n1 * n2
+        result = Number.from_python_number(result)
+        return result
+
+    def __truediv__(self, other):
+        n1 = self.to_python_number()
+        n2 = other
+        if isinstance(other, TrickType):
+            n2 = other.to_python_number()
+
+        if isinstance(n1, int) and isinstance(n2, int):
+            result = Fraction(n1, n2)
+        else:
+            result = n1 / n2
+        result = Number.from_python_number(result)
+        return result
+
+
+class Rational(Number):
     serialization_id = 2
+    exact = True
+
+    def __init__(self, frac: Fraction):
+        assert isinstance(frac, Fraction)
+        self.frac = frac
+
+    def __repr__(self):
+        return str(self.frac)
+
+    def __hash__(self):
+        return hash(self.frac)
+
+    def to_python_number(self):
+        return self.frac
+
+
+class Integer(Number, int):
+    serialization_id = 3
+    exact = True
 
     def __new__(cls, n, *args, **kwargs):
         obj = super().__new__(cls, n, *args, **kwargs)
         obj.src_start = None
         obj.src_end = None
         return obj
-
-    def __add__(self, other):
-        return Integer(int(self) + other)
-
-    def __sub__(self, other):
-        return Integer(int(self) - other)
-
-    def __mul__(self, other):
-        return Integer(int(self) * other)
 
     def __floordiv__(self, other):
         return Integer(int(self) // other)
@@ -118,6 +209,9 @@ class Integer(int, TrickType):
     def __pos__(self):
         return self
 
+    def to_python_number(self):
+        return int(self)
+
     def _dump(self, output):
         self._dump_int8(self, output)
 
@@ -126,8 +220,51 @@ class Integer(int, TrickType):
         return Integer(cls._load_int8(input))
 
 
+class Float(Number, float):
+    serialization_id = 4
+    exact = False
+
+    def __new__(cls, n, *args, **kwargs):
+        obj = super().__new__(cls, n, *args, **kwargs)
+        obj.src_start = None
+        obj.src_end = None
+        return obj
+
+    def __repr__(self):
+        if math.isnan(self):
+            return '+nan.0'
+        elif float(self) == float('inf'):
+            return '+inf.0'
+        elif float(self) == float('-inf'):
+            return '-inf.0'
+        else:
+            return str(float(self))
+
+    def __mod__(self, other):
+        return Float(float(self) % other)
+
+    def __abs__(self):
+        return Float(abs(float(self)))
+
+    def __neg__(self):
+        return Float(-float(self))
+
+    def __pos__(self):
+        return self
+
+    def to_python_number(self):
+        return float(self)
+
+    def _dump(self, output):
+        self._dump_float64(self, output)
+
+    @classmethod
+    def _load(cls, input):
+        return Float(cls._load_float64(input))
+
+
 class Symbol(TrickType):
-    serialization_id = 3
+    serialization_id = 5
     gensym_number = 0
 
     def __init__(self, name, *, short_name=None, info=None, original=None, transform_env=None):
@@ -256,7 +393,7 @@ class Symbol(TrickType):
 
 
 class Bool(TrickType):
-    serialization_id = 4
+    serialization_id = 6
 
     def __init__(self, value: bool):
         if not isinstance(value, bool):
@@ -297,7 +434,7 @@ class Bool(TrickType):
 
 
 class Char(TrickType):
-    serialization_id = 5
+    serialization_id = 7
 
     name_to_code = {
         'alarm': 0x07,
@@ -333,7 +470,7 @@ class Char(TrickType):
     def __eq__(self, other):
         if not isinstance(other, Char):
             return False
-        return self.char_code == other.char_code
+        return int(self.char_code) == int(other.char_code)
 
     def __hash__(self):
         return hash(self.char_code)
@@ -361,7 +498,7 @@ class Char(TrickType):
 
 
 class String(TrickType):
-    serialization_id = 6
+    serialization_id = 8
 
     def __init__(self, value: str):
         assert isinstance(value, str)
@@ -489,7 +626,7 @@ class List(TrickType):
 
 
 class Nil(List):
-    serialization_id = 7
+    serialization_id = 9
     _instance = None
 
     def __new__(klass, *args, **kwargs):
@@ -543,7 +680,7 @@ class Nil(List):
 
 
 class Pair(List):
-    serialization_id = 8
+    serialization_id = 10
 
     class Iterator:
         def __init__(self, start):
@@ -816,7 +953,7 @@ class Values(TrickType):
 
 
 class Vector(TrickType):
-    serialization_id = 9
+    serialization_id = 11
 
     class Iterator:
         def __init__(self, vector):
@@ -876,7 +1013,7 @@ class Vector(TrickType):
 
 
 class Bytevector(TrickType):
-    serialization_id = 10
+    serialization_id = 12
 
     class Iterator:
         def __init__(self, bvector):

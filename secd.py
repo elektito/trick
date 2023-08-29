@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
+from fractions import Fraction
 import os
+import struct
 import sys
 import argparse
 import unicodedata
@@ -10,10 +12,8 @@ from exceptions import RunError
 from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from snippet import show_snippet
 from machinetypes import (
-    Bool, Bytevector, Char, Integer, List, Nil, Pair, Port, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
+    Bool, Bytevector, Char, Float, Integer, List, Nil, Number, Pair, Port, Rational, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
 )
-
-
 
 
 class AbortedException(Exception):
@@ -244,6 +244,11 @@ class Secd:
             0x41: self.run_bvecset,
             0x42: self.run_bvecref,
             0x43: self.run_bveclen,
+            0x44: self.run_f2i,
+            0x45: self.run_i2f,
+            0x46: self.run_f2q,
+            0x47: self.run_qnum,
+            0x48: self.run_qden,
             0x80: self.run_ldc,
             0x81: self.run_ld,
             0x82: self.run_sel,
@@ -255,6 +260,8 @@ class Secd:
             0x8a: self.run_set,
             0x8b: self.run_get,
             0x8c: self.run_unset,
+            0x8d: self.run_ldcf,
+            0x8e: self.run_ldcq,
         }
 
     def setup_runtime(self):
@@ -531,6 +538,21 @@ class Secd:
         self.s.pushx(Integer(value))
         if self.debug: print(f'ldc {value}')
 
+    def run_ldcf(self):
+        value = self.cur_fasl.code[self.c:self.c+8]
+        self.c += 8
+        value, = struct.unpack('<d', value)
+        self.s.pushx(Float(value))
+        if self.debug: print(f'ldcf {value}')
+
+    def run_ldcq(self):
+        value = self.cur_fasl.code[self.c:self.c+16]
+        self.c += 16
+        numerator, denominator = struct.unpack('<qQ', value)
+        frac = Fraction(numerator, denominator)
+        self.s.pushx(Rational(frac))
+        if self.debug: print(f'ldcq {value}')
+
     def run_ldstr(self):
         strnum = self.cur_fasl.code[self.c:self.c+4]
         self.c += 4
@@ -720,34 +742,34 @@ class Secd:
         if self.debug: print(f'halt {self.halt_code}')
 
     def run_iadd(self):
-        arg1 = self.s.pop(Integer, 'iadd')
-        arg2 = self.s.pop(Integer, 'iadd')
+        arg1 = self.s.pop(Number, 'iadd')
+        arg2 = self.s.pop(Number, 'iadd')
         self.s.pushx(arg2 + arg1)
         if self.debug: print(f'iadd {arg2} + {arg1}')
 
     def run_isub(self):
-        arg1 = self.s.pop(Integer, 'isub')
-        arg2 = self.s.pop(Integer, 'isub')
+        arg1 = self.s.pop(Number, 'isub')
+        arg2 = self.s.pop(Number, 'isub')
         self.s.pushx(arg1 - arg2)
         if self.debug: print(f'isub {arg1} - {arg2}')
 
     def run_imul(self):
-        arg1 = self.s.pop(Integer, 'imul')
-        arg2 = self.s.pop(Integer, 'imul')
+        arg1 = self.s.pop(Number, 'imul')
+        arg2 = self.s.pop(Number, 'imul')
         self.s.pushx(arg1 * arg2)
         if self.debug: print(f'imul {arg2} * {arg1}')
 
     def run_idiv(self):
-        a = self.s.pop(Integer, 'idiv')
-        b = self.s.pop(Integer, 'idiv')
+        a = self.s.pop(Number, 'idiv')
+        b = self.s.pop(Number, 'idiv')
         if b == 0:
             raise RunError('Division by zero')
-        self.s.pushx(a // b)
+        self.s.pushx(a / b)
         if self.debug: print(f'idiv {a} / {b}')
 
     def run_irem(self):
-        a = self.s.pop(Integer, 'irem')
-        b = self.s.pop(Integer, 'irem')
+        a = self.s.pop(Number, 'irem')
+        b = self.s.pop(Number, 'irem')
         if b == 0:
             raise RunError('Division by zero')
 
@@ -859,8 +881,12 @@ class Secd:
             result = self.intern('symbol')
         elif isinstance(v, Pair):
             result = self.intern('pair')
-        elif isinstance(v, int):
+        elif isinstance(v, Integer):
             result = self.intern('int')
+        elif isinstance(v, Rational):
+            result = self.intern('rational')
+        elif isinstance(v, Float):
+            result = self.intern('float')
         elif isinstance(v, String):
             result = self.intern('string')
         elif isinstance(v, Procedure):
@@ -1232,6 +1258,44 @@ class Secd:
             continuation = None
 
         raise AbortedException(message, continuation)
+
+    def run_f2i(self):
+        f = self.s.pop(Float, 'f2i')
+        result = Integer(f)
+        self.s.pushx(result)
+        if self.debug: print(f'f2i {f} => {result}')
+
+    def run_i2f(self):
+        i = self.s.pop(Integer, 'i2f')
+        result = Float(i)
+        self.s.pushx(result)
+        if self.debug: print(f'i2f {i} => {result}')
+
+    def run_f2q(self):
+        f = self.s.pop(Float, 'f2q')
+        result = Rational(Fraction(f))
+        self.s.pushx(result)
+        if self.debug: print(f'f2q {f} => {result}')
+
+    def run_qnum(self):
+        q = self.s.pop((Rational, Integer), 'qnum')
+        if isinstance(q, Integer):
+            result = q
+        else:
+            result = Integer(q.frac.numerator)
+
+        self.s.pushx(result)
+        if self.debug: print(f'qnum {q} => {result}')
+
+    def run_qden(self):
+        q = self.s.pop((Rational, Integer), 'qden')
+        if isinstance(q, Integer):
+            result = Integer(1)
+        else:
+            result = Integer(q.frac.denominator)
+
+        self.s.pushx(result)
+        if self.debug: print(f'qden {q} => {result}')
 
 
 def configure_argparse(parser: argparse.ArgumentParser):

@@ -80,7 +80,7 @@
         char?
         close-input-port
         close-output-port
-        ;; complex?
+        complex?
         cond
         cons
         ;; cos
@@ -89,7 +89,7 @@
         define
         define-syntax
         ;; delay
-        ;; denominator
+        denominator
         display
         do
         dynamic-wind
@@ -100,7 +100,7 @@
         eqv?
         ;; eval
         ;; even?
-        ;; (rename inexact exact->inexact)
+        (rename inexact exact->inexact)
         ;; exact?
         ;; exp
         ;; expt
@@ -110,7 +110,7 @@
         ;; gcd
         if
         ;; imag-part
-        ;; (rename exact inexact->exact)
+        (rename exact inexact->exact)
         input-port?
         integer->char
         integer?
@@ -149,8 +149,8 @@
         ;; null-environment
         null?
         ;; number->string
-        ;; number?
-        ;; numerator
+        number?
+        numerator
         ;; odd?
         open-input-file
         open-output-file
@@ -163,12 +163,12 @@
         quasiquote
         quote
         ;; quotient
-        ;; rational?
+        rational?
         ;; rationalize
         ;; read
         read-char
         ;; real-part
-        ;; real?
+        real?
         remainder
         reverse
         ;; round

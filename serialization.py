@@ -73,6 +73,15 @@ class Serializable:
         n, = struct.unpack('<q', n)
         return n
 
+    def _dump_float64(self, n: float, output):
+        output.write(struct.pack('<d', n))
+
+    @staticmethod
+    def _load_float64(input) -> float:
+        n = input.read(8)
+        n, = struct.unpack('<d', n)
+        return n
+
     def _dump_string(self, s: str, output):
         self._dump_uint4(len(s), output)
         output.write(s.encode(STR_ENCODING))
