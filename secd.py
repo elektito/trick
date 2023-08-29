@@ -12,7 +12,7 @@ from exceptions import RunError
 from fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from snippet import show_snippet
 from machinetypes import (
-    Bool, Bytevector, Char, Float, Integer, List, Nil, Number, Pair, Port, Rational, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
+    Bool, Bytevector, Char, Complex, Float, Integer, List, Nil, Number, Pair, Port, Rational, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
 )
 
 
@@ -249,6 +249,9 @@ class Secd:
             0x46: self.run_f2q,
             0x47: self.run_qnum,
             0x48: self.run_qden,
+            0x49: self.run_cplx,
+            0x4a: self.run_creal,
+            0x4b: self.run_cimag,
             0x80: self.run_ldc,
             0x81: self.run_ld,
             0x82: self.run_sel,
@@ -762,7 +765,7 @@ class Secd:
     def run_idiv(self):
         a = self.s.pop(Number, 'idiv')
         b = self.s.pop(Number, 'idiv')
-        if b == 0:
+        if b.is_zero():
             raise RunError('Division by zero')
         self.s.pushx(a / b)
         if self.debug: print(f'idiv {a} / {b}')
@@ -820,15 +823,21 @@ class Secd:
         if self.debug: print(f'bxor {n1} | {n2}')
 
     def run_ilt(self):
-        arg1 = self.s.pop(Integer, 'ilt')
-        arg2 = self.s.pop(Integer, 'ilt')
-        self.s.pushx(Bool(True) if arg1 < arg2 else Bool(False))
+        arg1 = self.s.pop(Number, 'ilt')
+        arg2 = self.s.pop(Number, 'ilt')
+        try:
+            self.s.pushx(Bool(True) if arg1 < arg2 else Bool(False))
+        except ValueError as e:
+            raise RunError(str(e))
         if self.debug: print(f'ilt {arg1} < {arg2}')
 
     def run_ile(self):
-        arg1 = self.s.pop(Integer, 'ile')
-        arg2 = self.s.pop(Integer, 'ile')
-        self.s.pushx(Bool(True) if arg1 <= arg2 else Bool(False))
+        arg1 = self.s.pop(Number, 'ile')
+        arg2 = self.s.pop(Number, 'ile')
+        try:
+            self.s.pushx(Bool(True) if arg1 <= arg2 else Bool(False))
+        except ValueError as e:
+            raise RunError(str(e))
         if self.debug: print(f'ile {arg1} <= {arg2}')
 
     def run_dum(self):
@@ -887,6 +896,8 @@ class Secd:
             result = self.intern('rational')
         elif isinstance(v, Float):
             result = self.intern('float')
+        elif isinstance(v, Complex):
+            result = self.intern('complex')
         elif isinstance(v, String):
             result = self.intern('string')
         elif isinstance(v, Procedure):
@@ -1297,6 +1308,31 @@ class Secd:
         self.s.pushx(result)
         if self.debug: print(f'qden {q} => {result}')
 
+    def run_cplx(self):
+        imag = self.s.pop((Rational, Integer, Float), 'cplx')
+        real = self.s.pop((Rational, Integer, Float), 'cplx')
+        result = Complex(real, imag)
+        self.s.pushx(result)
+        if self.debug: print(f'cplx {result}')
+
+    def run_creal(self):
+        n = self.s.pop(Number, 'creal')
+        if isinstance(n, Complex):
+            result = n.real
+        else:
+            result = n
+        self.s.pushx(result)
+        if self.debug: print(f'creal {result}')
+
+    def run_cimag(self):
+        n = self.s.pop(Number, 'creal')
+        if isinstance(n, Complex):
+            result = n.imag
+        else:
+            # a zero of the same type as n
+            result = type(n)(0)
+        self.s.pushx(result)
+        if self.debug: print(f'cimag {result}')
 
 def configure_argparse(parser: argparse.ArgumentParser):
     parser.description = 'Run a binary SECD program'

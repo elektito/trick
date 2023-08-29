@@ -164,6 +164,9 @@ class Assembler:
                 'f2q': 0x46,
                 'qnum': 0x47,
                 'qden': 0x48,
+                'cplx': 0x49,
+                'creal': 0x4a,
+                'cimag': 0x4b,
             }
             opcode = single_byte_instrs.get(instr)
             if opcode is not None:

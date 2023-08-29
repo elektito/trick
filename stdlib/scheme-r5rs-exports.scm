@@ -109,7 +109,7 @@
         ;; force
         ;; gcd
         if
-        ;; imag-part
+        imag-part
         (rename exact inexact->exact)
         input-port?
         integer->char
@@ -167,7 +167,7 @@
         ;; rationalize
         ;; read
         read-char
-        ;; real-part
+        real-part
         real?
         remainder
         reverse

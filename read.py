@@ -1,6 +1,6 @@
 from fractions import Fraction
 import io
-from machinetypes import Bytevector, Float, Integer, Rational, Symbol, List, Nil, Pair, Bool, String, Char, Reference, TrickType, Vector
+from machinetypes import Bytevector, Complex, Float, Integer, Rational, Symbol, List, Nil, Pair, Bool, String, Char, Reference, TrickType, Vector
 
 
 class ReadError(Exception):
@@ -117,21 +117,7 @@ class Reader:
 
             case _:
                 token = self._read_token(start_char=cur_char)
-                try:
-                    value = self._parse_number(token, prefix='')
-                except ValueError:
-                    if token.lower() == '+inf.0':
-                        value = Float('+inf')
-                    elif token.lower() == '-inf.0':
-                        value = Float('-inf')
-                    elif token.lower() == '+nan.0':
-                        value = Float('nan')
-                    else:
-                        if self._fold_case:
-                            token = token.casefold()
-                        if token.startswith('|') and token.endswith('|'):
-                            token = token[1:-1]
-                        value = Symbol(token)
+                value = parse_token(token, case_fold=self._fold_case)
 
         if value is not None:
             value.src_start = start
@@ -346,106 +332,32 @@ class Reader:
     def _is_separator(self, char):
         return char.isspace() or char in "()[]'`"
 
-    def _parse_number(self, text: str, prefix: str):
-        complete_text = prefix + text
-
-        int_prefixes = ['#x', '#o', '#b', '#d']
-        force = None
-
-        if prefix in int_prefixes:
-            if text.startswith('#e'):
-                text = text[2:]
-                force = 'exact'
-            elif text.startswith('#i'):
-                text = text[2:]
-                force = 'inexact'
-        elif prefix in ['#e', '#i']:
-            if prefix == '#e':
-                force = 'exact'
-            elif prefix == '#i':
-                force = 'inexact'
-
-            if text[:2] in int_prefixes:
-                prefix = text[:2]
-                text = text[2:]
-            else:
-                prefix = ''
-
-        if prefix:
-            base = {
-                '#x': 16,
-                '#o': 8,
-                '#d': 10,
-                '#b': 2,
-            }[prefix]
-            try:
-                number = int(text, base)
-            except ValueError:
-                raise ReadError(
-                    f'Invalid numeric literal: {complete_text}')
-        else:
-            if '/' in text:
-                number = Fraction(text)
-            elif any(c in '.ed' for c in text):
-                if force == 'exact':
-                    number = Fraction(text)
-                else:
-                    if 'd' in text:
-                        # allow using "d" as exponent marker (see section 6.2.5 of
-                        # r7rs)
-                        text = text.replace('d', 'e')
-
-                    number = float(text)
-            else:
-                number = int(text, 10)
-
-        if force == 'exact':
-            if isinstance(number, float):
-                number = Fraction(number)
-        elif force == 'inexact':
-            if isinstance(number, (int, Fraction)):
-                number = float(number)
-
-        if isinstance(number, int):
-            number = Integer(number)
-        elif isinstance(number, Fraction):
-            if number.denominator == 1:
-                number = Integer(number)
-            else:
-                number = Rational(number)
-        elif isinstance(number, float):
-            number = Float(number)
-        else:
-            assert False, 'unhandled case'
-
-        return number
-
     def _read_sharp_value(self, eof_error=None):
         char = self._read_one_char(eof_error='Invalid sharp sign at end-of-file')
         if char == 'x': #x (hex literal)
             first_char = self._read_one_char('End-of-file in hex literal')
             token = self._read_token(first_char)
-            return self._parse_number(token, '#x')
+            return parse_token('#x' + token, case_fold=self._fold_case)
         elif char == 'o': #o (octal literal)
             first_char = self._read_one_char('End-of-file in octal literal')
             token = self._read_token(first_char)
-            return self._parse_number(token, '#o')
+            return parse_token('#o' + token, case_fold=self._fold_case)
         elif char == 'b': #b (binary literal)
             first_char = self._read_one_char('End-of-file in binary literal')
             token = self._read_token(first_char)
-            return self._parse_number(token, '#b')
+            return parse_token('#b' + token, case_fold=self._fold_case)
         elif char == 'd': #d (decimal literal with explicit prefix)
             first_char = self._read_one_char('End-of-file in decimal literal')
             token = self._read_token(first_char)
-            return self._parse_number(token, '#d')
+            return parse_token('#d' + token, case_fold=self._fold_case)
         elif char == 'e': #e (exact number)
             first_char = self._read_one_char('End-of-file in exact literal')
             token = self._read_token(first_char)
-            return self._parse_number(token, '#e')
+            return parse_token('#e' + token, case_fold=self._fold_case)
         elif char == 'i': #i (inexact number)
             first_char = self._read_one_char('End-of-file in inexact literal')
             token = self._read_token(first_char)
-            return self._parse_number(token, '#i')
+            return parse_token('#i' + token, case_fold=self._fold_case)
         elif char.isnumeric(): #<n>= or #<n># (label or reference)
             value = self._read_label_or_reference(start_char=char)
             if isinstance(value, Label):
@@ -551,6 +463,197 @@ class Reader:
             self._fold_case = False
         else:
             assert False
+
+
+def parse_token(token: str, *, case_fold):
+    """
+    parse the given string as a number if possible, otherwise as a
+    symbol. might raise ReadError.
+    """
+    n = parse_number(token)
+    if n is not None:
+        return n
+
+    # if token.lower() == '+inf.0':
+    #     value = Float('+inf')
+    # elif token.lower() == '-inf.0':
+    #     value = Float('-inf')
+    # elif token.lower() == '+nan.0':
+    #     value = Float('nan')
+    # elif token.lower() == '-nan.0':
+    #     value = Float('nan')
+    # else:
+
+    if case_fold:
+        token = token.casefold()
+    if token.startswith('|') and token.endswith('|'):
+        token = token[1:-1]
+    value = Symbol(token)
+
+    return value
+
+
+def parse_number(token: str):
+    """
+    parse the given number as a number. if not possible, return None.
+    """
+
+    force = None
+    base = 10
+
+    base_prefixes = {
+        '#x': 16,
+        '#d': 10,
+        '#o': 8,
+        '#b': 2,
+    }
+
+    if token[:2] in ['#e', '#i']:
+        force = 'exact' if token[:2] == '#e' else 'inexact'
+        token = token[2:]
+        if token[:2] in base_prefixes:
+            base = base_prefixes[token[:2]]
+            token = token[2:]
+    elif token[:2] in base_prefixes:
+        base = base_prefixes[token[:2]]
+        token = token[2:]
+        if token[:2] in ['#e', '#i']:
+            force = 'exact' if token[:2] == '#e' else 'inexact'
+            token = token[2:]
+
+    return parse_complex(token, base, force)
+
+
+def parse_complex(token: str, base: int, force: (str|None)):
+    if token.endswith('i'):
+        return parse_strict_complex(token, base, force)
+    else:
+        return parse_real(token, base, force)
+
+
+def parse_real(token: str, base: int, force: (str|None)):
+    if '/' in token:
+        return parse_rational(token, base, force)
+    elif any(c in token for c in '.ed'): # d and e for scientific notation
+        return parse_float(token, base, force)
+    else:
+        return parse_integer(token, base, force)
+
+
+def parse_integer(token: str, base: int, force: (str|None)):
+    try:
+        n = int(token, base)
+    except ValueError:
+        return None
+
+    if force == 'inexact':
+        return Float(n)
+    else:
+        return Integer(n)
+
+
+def parse_float(token: str, base: int, force: (str|None)):
+    if token in ['+inf.0', '-inf.0', '+nan.0', '-nan.0']:
+        return Float(token[:-2])
+
+    if base != 10:
+        return None
+
+    try:
+        n = float(token)
+    except ValueError:
+        return None
+
+    if force == 'exact':
+        return Rational(Fraction(n))
+    else:
+        return Float(n)
+
+
+def parse_rational(token: str, base: int, force: (str|None)):
+    parts = token.split('/')
+    if len(parts) != 2:
+        return None
+
+    num, den = parts
+
+    try:
+        num = int(num, base)
+        den = int(den, base)
+    except ValueError:
+        return None
+
+    n = Fraction(num, den)
+
+    if force == 'inexact':
+        return Float(n)
+    else:
+        return Rational(n)
+
+
+def parse_strict_complex(token: str, base: int, force: (str|None)):
+    if token == '+i':
+        return Complex(Integer(0), Integer(1))
+    elif token == '-i':
+        return Complex(Integer(0), Integer(-1))
+    elif token in ['+inf.0i', '-inf.0i', '+nan.0i', '-nan.0i']:
+        return Complex(Integer(0), Float(token[:-3]))
+    else:
+        real_sign = 1
+        if token.startswith('+'):
+            token = token[1:]
+        elif token.startswith('-'):
+            real_sign = -1
+            token = token[1:]
+
+        if '+' in token:
+            imag_sign = '+'
+            parts = token.split('+')
+        elif '-' in token:
+            imag_sign = '-'
+            parts = token.split('-')
+        else: # e.g. 9i
+            imag = parse_real(token[:-1], base, force)
+            if imag is None:
+                return None
+            return Complex(Integer(0), imag)
+
+        if len(parts) != 2:
+            return None
+
+        real, imaginary = parts
+
+        # strip "i" suffix
+        if imaginary == 'i':
+            imaginary = '1'
+        elif imaginary == '-i':
+            imaginary = '-1'
+        else:
+            imaginary = imaginary[:-1]
+
+        imaginary = imag_sign + imaginary
+
+        real = parse_real(real, base, force)
+        imaginary = parse_real(imaginary, base, force)
+        if real is None or imaginary is None:
+            return None
+
+        # if there's no force (already taken into account in parsing real and
+        # imaginary), we'll convert both to float if one of them is.
+        if isinstance(real, Float) and not isinstance(imaginary, Float):
+            if isinstance(imaginary, Rational):
+                imaginary = Float(imaginary.frac)
+            else:
+                imaginary = Float(imaginary)
+        if isinstance(imaginary, Float) and not isinstance(real, Float):
+            if isinstance(real, Rational):
+                real = Float(real.frac)
+            else:
+                real = Float(float(real))
+
+        real *= real_sign
+
+        return Complex(real, imaginary)
 
 
 def read_expr(text):

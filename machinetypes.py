@@ -92,6 +92,32 @@ class Number(TrickType):
     def to_python_number(self):
         raise NotImplementedError
 
+    def to_complex(self):
+        if isinstance(self, Complex):
+            return self
+        else:
+            return Complex(self, Integer(0))
+
+    def is_zero(self):
+        if isinstance(self, Complex):
+            return self.real == 0 and self.imag == 0
+        else:
+            return self.to_python_number() == 0
+
+    def to_specific(self):
+        if isinstance(self, Rational):
+            if self.frac.denominator == 1:
+                return Integer(self.frac.numerator)
+            else:
+                return self
+        elif isinstance(self, Complex):
+            if self.imag == 0:
+                return self.real.to_specific()
+            else:
+                return self
+        else:
+            return self
+
     def __eq__(self, other):
         if not isinstance(other, Number):
             return False
@@ -99,52 +125,134 @@ class Number(TrickType):
         if self.exact != other.exact:
             return False
 
+        if isinstance(self, Complex) or isinstance(other, Complex):
+            n1 = self.to_complex()
+            n2 = other.to_complex()
+            return n1.real == n2.real and n1.imag == n2.imag
+
         return self.to_python_number() == other.to_python_number()
 
     def __hash__(self):
         return hash(self.to_python_number())
 
     def __add__(self, other):
-        n1 = self.to_python_number()
-        n2 = other
-        if isinstance(other, TrickType):
-            n2 = other.to_python_number()
+        if isinstance(self, Complex) or isinstance(other, Complex):
+            n1 = self.to_complex()
+            n2 = other.to_complex()
+            real = n1.real + n2.real
+            imag = n1.imag + n2.imag
+            result = Complex(real, imag)
+            result = result.to_specific()
+        else:
+            n1 = self.to_python_number()
+            n2 = other
+            if isinstance(other, TrickType):
+                n2 = other.to_python_number()
 
-        result = n1 + n2
-        result = Number.from_python_number(result)
+            result = n1 + n2
+            result = Number.from_python_number(result)
         return result
 
     def __sub__(self, other):
-        n1 = self.to_python_number()
-        n2 = other
-        if isinstance(other, TrickType):
-            n2 = other.to_python_number()
+        if isinstance(self, Complex) or isinstance(other, Complex):
+            n1 = self.to_complex()
+            n2 = other.to_complex()
+            real = n1.real - n2.real
+            imag = n1.imag - n2.imag
+            result = Complex(real, imag)
+            result = result.to_specific()
+        else:
+            n1 = self.to_python_number()
+            n2 = other
+            if isinstance(other, TrickType):
+                n2 = other.to_python_number()
 
-        result = n1 - n2
-        result = Number.from_python_number(result)
+            result = n1 - n2
+            result = Number.from_python_number(result)
         return result
 
     def __mul__(self, other):
-        n1 = self.to_python_number()
-        n2 = other
-        if isinstance(other, TrickType):
-            n2 = other.to_python_number()
+        if isinstance(self, Complex) or isinstance(other, Complex):
+            n1 = self.to_complex()
+            n2 = other.to_complex()
+            real = n1.real * n2.real - n1.imag * other.imag
+            imag = n1.imag * n2.real + n1.real * n2.imag
+            result = Complex(real, imag)
+            result = result.to_specific()
+        else:
+            n1 = self.to_python_number()
+            n2 = other
+            if isinstance(other, TrickType):
+                n2 = other.to_python_number()
 
-        result = n1 * n2
-        result = Number.from_python_number(result)
+            result = n1 * n2
+            result = Number.from_python_number(result)
         return result
 
     def __truediv__(self, other):
+        if isinstance(self, Complex) or isinstance(other, Complex):
+            n1 = self.to_complex()
+            n2 = other.to_complex()
+            real = n1.real * n2.real + n1.imag * other.imag
+            imag = n1.imag * n2.real - n1.real * n2.imag
+            div_size = n2.real * n2.real + n2.imag * n2.imag
+            result = Complex(real / div_size, imag / div_size)
+            result = result.to_specific()
+        else:
+            n1 = self.to_python_number()
+            n2 = other
+            if isinstance(other, TrickType):
+                n2 = other.to_python_number()
+
+            if isinstance(n1, int) and isinstance(n2, int):
+                result = Fraction(n1, n2)
+            else:
+                result = n1 / n2
+            result = Number.from_python_number(result)
+        return result
+
+    def __ge__(self, other):
+        if isinstance(self, Complex) or isinstance(other, Complex):
+            raise ValueError('No order defined on complex numbers')
         n1 = self.to_python_number()
         n2 = other
-        if isinstance(other, TrickType):
+        if isinstance(other, Number):
             n2 = other.to_python_number()
 
-        if isinstance(n1, int) and isinstance(n2, int):
-            result = Fraction(n1, n2)
-        else:
-            result = n1 / n2
-        result = Number.from_python_number(result)
+        result = n1 >= n2
+        return result
+
+    def __le__(self, other):
+        if isinstance(self, Complex) or isinstance(other, Complex):
+            raise ValueError('No order defined on complex numbers')
+        n1 = self.to_python_number()
+        n2 = other
+        if isinstance(other, Number):
+            n2 = other.to_python_number()
+
+        result = n1 <= n2
+        return result
+
+    def __gt__(self, other):
+        if isinstance(self, Complex) or isinstance(other, Complex):
+            raise ValueError('No order defined on complex numbers')
+        n1 = self.to_python_number()
+        n2 = other
+        if isinstance(other, Number):
+            n2 = other.to_python_number()
+
+        result = n1 > n2
+        return result
+
+    def __lt__(self, other):
+        if isinstance(self, Complex) or isinstance(other, Complex):
+            raise ValueError('No order defined on complex numbers')
+        n1 = self.to_python_number()
+        n2 = other
+        if isinstance(other, Number):
+            n2 = other.to_python_number()
+
+        result = n1 < n2
         return result
 
 
@@ -261,6 +369,87 @@ class Float(Number, float):
     @classmethod
     def _load(cls, input):
         return Float(cls._load_float64(input))
+
+
+class Complex(Number):
+    serialization_id = 5
+
+    def __init__(self, real, imag):
+        assert isinstance(real, (Float, Rational, Integer))
+        assert isinstance(real, (Float, Rational, Integer))
+        self.real = real
+        self.imag = imag
+
+    def __repr__(self):
+        op = ''
+        imag = str(self.imag)
+        if not imag.startswith('+') and not imag.startswith('-'):
+            op = '+' if self.imag >= 0 else ''
+        return f'{self.real}{op}{self.imag}i'
+
+    def __hash__(self):
+        return hash((self.real, self.imag))
+
+    def __eq__(self, other):
+        if not isinstance(other, Number):
+            return False
+        other = other.to_complex()
+        return self.real == other.real and self.imag == other.imag
+
+    def __mul__(self, other):
+        if not isinstance(other, Number):
+            raise ValueError
+        other = other.to_complex()
+        real = self.real * other.real - self.imag * other.imag
+        imag = self.imag * other.real + self.real * other.imag
+        result = Complex(real, imag)
+        return result.to_specific()
+
+    def __div__(self, other):
+        if not isinstance(other, Number):
+            raise ValueError
+        other = other.to_complex()
+        real = self.real * other.real + self.imag * other.imag
+        imag = self.imag * other.real - self.real * other.imag
+        div_size = other.real * other.real + other.imag * other.imag
+        result = Complex(real / div_size, imag / div_size)
+        return result.to_specific()
+
+    @property
+    def exact(self):
+        return self.real.exact and self.imag.exact
+
+    def _dump(self, output):
+        for part in [self.real, self.imag]:
+            if isinstance(part, Float):
+                type_id = 1
+            elif isinstance(part, Rational):
+                type_id = 2
+            elif isinstance(part, Integer):
+                type_id = 3
+            else:
+                assert False, 'unhandled case'
+
+            self._dump_byte(type_id, output)
+            self.real.dump(output)
+
+    @classmethod
+    def _load(cls, input):
+        parts = []
+        for _ in range(2):
+            type_id = cls._load_byte(input)
+            if type_id == 1:
+                part = Float.load(input)
+            elif type_id == 2:
+                part = Rational.load(input)
+            elif type_id == 3:
+                part = Integer.load(input)
+            else:
+                assert False, 'unhandled case'
+
+            parts.append(part)
+
+        return Complex(*parts)
 
 
 class Symbol(TrickType):

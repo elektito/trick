@@ -10,7 +10,7 @@
   (include-library-declarations "scheme-base-exports.scm")
   (include-library-declarations "scheme-case-lambda-exports.scm")
   (include-library-declarations "scheme-char-exports.scm")
-  ;;(include-library-declarations "scheme-complex-exports.scm")
+  (include-library-declarations "scheme-complex-exports.scm")
   (include-library-declarations "scheme-cxr-exports.scm")
   ;;(include-library-declarations "scheme-eval-exports.scm")
   (include-library-declarations "scheme-file-exports.scm")

@@ -293,7 +293,8 @@
       (eq? (#$type v) 'int)
       (eq? (#$type v) 'float)))
 (define (complex? v)
-  (or (eq? (#$type v) 'rational)
+  (or (eq? (#$type v) 'complex)
+      (eq? (#$type v) 'rational)
       (eq? (#$type v) 'int)
       (eq? (#$type v) 'float)))
 (define (number? v)
@@ -340,17 +341,24 @@
       n))
 
 (define (inexact n)
+  (define (complex real imag)
+    (+ real (* +i imag)))
   (cond ((integer? n) (integer->float n))
         ((rational? n) (/ (integer->float (numerator n))
                           (integer->float (denominator n))))
-        ;; TODO handle complex numbers
+        ((float? n) n)
+        ((complex? n) (complex (inexact (real-part n))
+                               (inexact (imag-part n))))
         (else n)))
 
 (define (exact? n)
   (not (inexact? n)))
 
 (define (inexact? n)
-  (eq? (#$type n) 'float))
+  (if (eq? (type n) 'complex)
+      (or (inexact? (real-part n))
+          (inexact? (imag-part n)))
+      (eq? (type n) 'float)))
 
 ;; list utilities
 

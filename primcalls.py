@@ -306,4 +306,14 @@ primcalls = {
         'code': [S('qden')],
         'exported': True,
     },
+    'real-part': {
+        'nargs': 1,
+        'code': [S('creal')],
+        'exported': True,
+    },
+    'imag-part': {
+        'nargs': 1,
+        'code': [S('cimag')],
+        'exported': True,
+    },
 }
