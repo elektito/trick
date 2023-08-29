@@ -108,6 +108,9 @@ class Compiler:
     def macro_expand(self, form, env):
         initial_form = form
         while True:
+            if not isinstance(form, Pair):
+                break
+
             prev_form = form
             form = self.macro_expand_unhygienic(form, env)
 
