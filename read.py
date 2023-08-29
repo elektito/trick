@@ -1,5 +1,6 @@
 from fractions import Fraction
 import io
+import math
 from machinetypes import Bytevector, Complex, Float, Integer, Rational, Symbol, List, Nil, Pair, Bool, String, Char, Reference, TrickType, Vector
 
 
@@ -526,7 +527,9 @@ def parse_number(token: str):
 
 def parse_complex(token: str, base: int, force: (str|None)):
     if token.endswith('i'):
-        return parse_strict_complex(token, base, force)
+        return parse_strict_rectangular_complex(token, base, force)
+    elif '@' in token:
+        return parse_strict_polar_complex(token, base, force)
     else:
         return parse_real(token, base, force)
 
@@ -591,7 +594,7 @@ def parse_rational(token: str, base: int, force: (str|None)):
         return Rational(n)
 
 
-def parse_strict_complex(token: str, base: int, force: (str|None)):
+def parse_strict_rectangular_complex(token: str, base: int, force: (str|None)):
     if token == '+i':
         return Complex(Integer(0), Integer(1))
     elif token == '-i':
@@ -654,6 +657,26 @@ def parse_strict_complex(token: str, base: int, force: (str|None)):
         real *= real_sign
 
         return Complex(real, imaginary)
+
+
+def parse_strict_polar_complex(token: str, base: int, force: (str|None)):
+    parts = token.split('@')
+    if len(parts) != 2:
+        return None
+
+    mag, ang = parts
+
+    mag = parse_real(mag, base, force)
+    ang = parse_real(ang, base, force)
+    if mag is None or ang is None:
+        return None
+
+    mag = mag.to_float()
+    ang = ang.to_float()
+
+    real = mag * math.cos(ang)
+    imag = mag * math.sin(ang)
+    return Complex(real, imag)
 
 
 def read_expr(text):

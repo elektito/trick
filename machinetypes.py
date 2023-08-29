@@ -98,6 +98,15 @@ class Number(TrickType):
         else:
             return Complex(self, Integer(0))
 
+    def to_float(self):
+        if isinstance(self, Complex):
+            raise ValueError
+
+        if isinstance(self, Rational):
+            return Float(self.frac)
+        else:
+            return Float(self)
+
     def is_zero(self):
         if isinstance(self, Complex):
             return self.real == 0 and self.imag == 0
