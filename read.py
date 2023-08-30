@@ -473,17 +473,9 @@ def parse_token(token: str, *, case_fold):
     """
     n = parse_number(token)
     if n is not None:
+        # e.g. convert 1+0i to 1
+        n = n.to_specific()
         return n
-
-    # if token.lower() == '+inf.0':
-    #     value = Float('+inf')
-    # elif token.lower() == '-inf.0':
-    #     value = Float('-inf')
-    # elif token.lower() == '+nan.0':
-    #     value = Float('nan')
-    # elif token.lower() == '-nan.0':
-    #     value = Float('nan')
-    # else:
 
     if case_fold:
         token = token.casefold()
