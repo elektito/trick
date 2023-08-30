@@ -943,7 +943,8 @@ class Compiler:
                 except ReadError as e:
                     raise self._compile_error(
                         f'Read error while expanding included file '
-                        f'"{filename}": {e}')
+                        f'"{filename}": {e}',
+                        form=expr)
 
             if exprs == []:
                 continue
