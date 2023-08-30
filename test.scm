@@ -317,6 +317,18 @@ and still a comment
 (not (positive? 0))
 (not (positive? -1))
 
+(even? 42)
+(even? -100)
+(even? 0)
+(not (even? 101))
+(not (even? -1))
+
+(odd? 43)
+(odd? -99)
+(not (odd? 0))
+(not (odd? 2))
+(not (odd? -100))
+
 (eq? 10 ((lambda (x y) x) 10 20))
 (eq? 20 ((lambda (x y) y) 10 20))
 

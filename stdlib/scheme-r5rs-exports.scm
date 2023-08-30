@@ -99,7 +99,7 @@
         equal?
         eqv?
         ;; eval
-        ;; even?
+        even?
         (rename inexact exact->inexact)
         exact?
         exp
@@ -151,7 +151,7 @@
         ;; number->string
         number?
         numerator
-        ;; odd?
+        odd?
         open-input-file
         open-output-file
         or

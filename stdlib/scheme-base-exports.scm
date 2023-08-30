@@ -77,7 +77,7 @@
         error-object-irritants
         error-object-message
         error-object?
-        ;; even?
+        even?
         exact
         ;; exact-integer-sqrt
         ;; exact-integer?
@@ -142,7 +142,7 @@
         ;; number->string
         number?
         numerator
-        ;; odd?
+        odd?
         open-input-bytevector
         open-input-string
         open-output-bytevector
