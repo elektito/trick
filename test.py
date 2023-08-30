@@ -9,7 +9,7 @@ from fasl import Fasl
 from importsets import LibraryImportSet
 from libloader import LibLoader
 from libname import LibraryName
-from machinetypes import Symbol
+from machinetypes import Bool, Symbol
 from read import ReadError, Reader
 from secd import Secd
 from utils import compile_expr_to_fasl, ensure_stdlib
@@ -173,7 +173,7 @@ def main():
                         break
                 else:
                     result = result[0]
-                    if result:
+                    if result == Bool(True):
                         success += 1
                         if args.verbose:
                             print('Success')
