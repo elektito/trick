@@ -1975,6 +1975,15 @@ and still a comment
 (= 1 (real-part 1+inf.0i))
 (= +inf.0 (imag-part 1+inf.0i))
 
+(= 3-4i (make-rectangular 3 -4))
+(= 3 (make-rectangular 3 0))
+(= -1/3+5/8i (make-rectangular -1/3 5/8))
+
+(= 1@2 (make-polar 1 2))
+
+(= 1 (magnitude 1@-2))
+(= -2 (angle 1@-2))
+
 (> +inf.0 1)
 (>= +inf.0 1)
 (< -inf.0 -1)
@@ -1983,6 +1992,14 @@ and still a comment
 (>= 4/5 2/3)
 (< -4/5 2/3)
 (<= -4/5 2/3)
+
+(= -inf.0 -inf.0)
+(= +inf.0 +inf.0)
+(not (= -inf.0 +inf.0))
+(= -inf.0+i -inf.0+i)
+(= +inf.0+i +inf.0+i)
+(= 1+inf.0i 1+inf.0i)
+(= 1-inf.0i 1-inf.0i)
 
 (not (> +nan.0 0))
 (not (< +nan.0 0))
@@ -2115,3 +2132,67 @@ and still a comment
 (begin #i-inf.0 #t)
 (begin #i+nan.0 #t)
 (begin #i-nan.0 #t)
+
+;; math
+
+(nan? +nan.0)
+(nan? +nan.0i)
+(nan? -nan.0)
+(nan? -nan.0i)
+(nan? +nan.0+nan.0i)
+(nan? -nan.0+nan.0i)
+(nan? +nan.0-nan.0i)
+(nan? -nan.0-nan.0i)
+(not (nan? +inf.0))
+(not (nan? -inf.0))
+(not (nan? +inf.0i))
+(not (nan? -inf.0i))
+(not (nan? 0))
+(not (nan? 1.0))
+(not (nan? +i))
+(not (nan? 1+2i))
+
+(nan? (- +inf.0 +inf.0))
+(nan? (- -inf.0 -inf.0))
+
+(= +inf.0 (+ +inf.0 +inf.0))
+(= -inf.0 (+ -inf.0 -inf.0))
+(= +inf.0 (- +inf.0 -inf.0))
+(= -inf.0 (- -inf.0 +inf.0))
+
+(eqv? -0.0 -0.0)
+(eqv? -0.0 (- 0.0))
+(eqv? 0.0 (- -0.0))
+(eqv? -0.0 (+ -0.0 -0.0))
+(eqv? -0.0 (- -0.0 0.0))
+(eqv? -0.0 (- -0.0 0))
+
+;; multiplying infinity with exact zero should be zero
+(= 0 (* 0 +inf.0))
+(= 0 (* 0 -inf.0))
+(= 0 (* 0 +inf.0i))
+(= 0 (* 0 -inf.0i))
+
+;; multiplying infinity with inexact zero should be nan
+(nan? (* 0.0 +inf.0))
+(nan? (* 0.0 -inf.0))
+(nan? (* 0.0 +inf.0i))
+(nan? (* 0.0 -inf.0i))
+
+(= -0.0 (sin -0.0))
+(= 0.0 (sin 0.0))
+(approx= 1.0 (sin (/ pi 2)))
+(approx= 0.0 (sin pi))
+(approx= -1.0 (sin (* 3/2 pi)))
+
+(= -0.0 (asin -0.0))
+(= 0.0 (asin 0.0))
+(approx= (/ pi 2) (asin 1.0))
+(approx= 0.0 (asin 0.0))
+(approx= (* -1/2 pi) (asin -1))
+
+;; 6.2.6 under "log"
+(= -inf.0 (log 0.0))
+(approx= (+ -inf.0 (* pi 1i)) (log -0.0))
+
+(approx= (- pi) (imag-part (log -1.0-0.0i))) ;; from section 6.2.4

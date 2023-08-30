@@ -14,7 +14,7 @@
   (include-library-declarations "scheme-cxr-exports.scm")
   ;;(include-library-declarations "scheme-eval-exports.scm")
   (include-library-declarations "scheme-file-exports.scm")
-  ;;(include-library-declarations "scheme-inexact-exports.scm")
+  (include-library-declarations "scheme-inexact-exports.scm")
   ;;(include-library-declarations "scheme-lazy-exports.scm")
   ;;(include-library-declarations "scheme-load-exports.scm")
   (include-library-declarations "scheme-process-context-exports.scm")
@@ -28,14 +28,17 @@
           1+
           all?
           any?
+          approx=
           atom?
           define-macro
+          e
           gensym
           iota
           last
           let/cc
           list*
           pairwise
+          pi
           print
           proper-length
           range

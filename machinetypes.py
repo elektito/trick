@@ -84,6 +84,10 @@ class Number(TrickType):
                 n = Rational(n)
         elif isinstance(n, float):
             n = Float(n)
+        elif isinstance(n, complex):
+            real = Number.from_python_number(n.real)
+            imag = Number.from_python_number(n.imag)
+            n = Complex(real, imag)
         else:
             assert False, 'unhandled case'
 
@@ -112,6 +116,21 @@ class Number(TrickType):
             return self.real == 0 and self.imag == 0
         else:
             return self.to_python_number() == 0
+
+    def is_negative_zero(self):
+        if isinstance(self, Complex):
+            return self.real.is_negative_zero() and self.imag.is_exact_zero()
+        else:
+            # copy the sign of the number to 1 and then compare it. Comparing
+            # against -0.0 itself won't work, since in terms of python
+            # operators, -0.0==0.0 (and -0.0<0.0 is False).
+            return math.copysign(1, self.to_python_number()) < 0
+
+    def is_exact_zero(self):
+        if isinstance(self, Complex):
+            return self.exact and self.imag.is_zero() and self.real.is_zero()
+        else:
+            return isinstance(self, Integer) and self.to_python_number() == 0
 
     def to_specific(self):
         if isinstance(self, Rational):
@@ -181,6 +200,11 @@ class Number(TrickType):
         return result
 
     def __mul__(self, other):
+        if self.is_exact_zero() or (isinstance(other, Number) and other.is_exact_zero()):
+            return Integer(0)
+        elif isinstance(other, (int, float)) and other == 0:
+            return Integer(0)
+
         if isinstance(self, Complex) or isinstance(other, Complex):
             n1 = self.to_complex()
             n2 = other.to_complex()

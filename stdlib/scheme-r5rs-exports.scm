@@ -9,17 +9,17 @@
         =>
         >
         >=
-        ;; abs
-        ;; acos
+        abs
+        acos
         and
-        ;; angle
+        angle
         append
         apply
-        ;; asin
+        asin
         assoc
         assq
         assv
-        ;; atan
+        atan
         begin
         boolean?
         caaaar
@@ -83,7 +83,7 @@
         complex?
         cond
         cons
-        ;; cos
+        cos
         current-input-port
         current-output-port
         define
@@ -102,7 +102,7 @@
         ;; even?
         (rename inexact exact->inexact)
         ;; exact?
-        ;; exp
+        exp
         ;; expt
         ;; floor
         for-each
@@ -130,10 +130,10 @@
         list-tail
         list?
         ;; load
-        ;; log
-        ;; magnitude
-        ;; make-polar
-        ;; make-rectangular
+        log
+        magnitude
+        make-polar
+        make-rectangular
         make-string
         make-vector
         map

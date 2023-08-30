@@ -10,7 +10,7 @@
         >
         >=
         _
-        ;; abs
+        abs
         and
         append
         apply
@@ -178,7 +178,7 @@
         set!
         set-car!
         set-cdr!
-        ;; square
+        square
         string
         string->list
         ;; string->number

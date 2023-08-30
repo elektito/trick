@@ -341,14 +341,12 @@
       n))
 
 (define (inexact n)
-  (define (complex real imag)
-    (+ real (* +i imag)))
   (cond ((integer? n) (integer->float n))
         ((rational? n) (/ (integer->float (numerator n))
                           (integer->float (denominator n))))
         ((float? n) n)
-        ((complex? n) (complex (inexact (real-part n))
-                               (inexact (imag-part n))))
+        ((complex? n) (make-rectangular (inexact (real-part n))
+                                        (inexact (imag-part n))))
         (else n)))
 
 (define (exact? n)
@@ -359,6 +357,88 @@
       (or (inexact? (real-part n))
           (inexact? (imag-part n)))
       (eq? (type n) 'float)))
+
+(define (make-rectangular x y)
+  (+ x (* y +i)))
+
+(define (make-polar mag ang)
+  (make-rectangular (* mag (cos ang))
+                    (* mag (sin ang))))
+
+(define (magnitude z)
+  (sqrt (+ (square (real-part z))
+           (square (imag-part z)))))
+
+(define (angle z)
+  (atan (imag-part z) (real-part z)))
+
+;; math
+
+(define pi 3.141592653589793)
+(define e 2.718281828459045)
+
+(define (abs x)
+  (if (< x 0)
+      (- x)
+      x))
+
+(define (exp z)
+  (#$/math/exp z))
+
+(define log
+  (case-lambda
+   ((z) (#$/math/ln z))
+   ((z base) (#$/math/log z base))))
+
+(define (sin z)
+  (#$/math/sin z))
+
+(define (cos z)
+  (#$/math/cos z))
+
+(define (tan z)
+  (#$/math/tan z))
+
+(define (asin z)
+  (#$/math/asin z))
+
+(define (acos z)
+  (#$/math/acos z))
+
+(define atan
+  (case-lambda
+   ((z) (#$/math/atan z))
+   ;; the reports defines the value of (atan y x) as:
+   ;; (angle (make-rectangular x y)))
+   ((x y) (#$/math/atan2 x y))))
+
+(define (sqrt z)
+  (#$/math/sqrt z))
+
+(define (square z)
+  (* z z))
+
+(define (nan? z)
+  (#$/math/isnan z))
+
+;;
+
+(define approx=
+  (case-lambda
+   ((x y) (approx= x y 0.0000001))
+   ((x y epsilon) (let ((x-real (real-part x))
+                        (y-real (real-part y))
+                        (x-imag (imag-part x))
+                        (y-imag (imag-part y)))
+                    ;; we check both for actual equality and approximate
+                    ;; equality. the reason for that is that approximate
+                    ;; equality does not work for two infinities (since the
+                    ;; difference between two infinities is a nan)
+                    (or (and (= x-real y-real) (= x-imag y-imag))
+                        (and (< (abs (- x-real y-real))
+                                epsilon)
+                             (< (abs (- x-imag y-imag))
+                                epsilon)))))))
 
 ;; list utilities
 

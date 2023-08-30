@@ -1,11 +1,13 @@
+import cmath
 import inspect
 import io
+import math
 import os
 import sys
 import traceback
 
 from exceptions import RunError
-from machinetypes import Bool, Bytevector, Integer, Port, String, Symbol, TrickType, Void
+from machinetypes import Bool, Bytevector, Complex, Float, Integer, Number, Port, String, Symbol, TrickType, Void
 from print import PrintMode, PrintStyle, Printer
 from read import ReadError, Reader
 
@@ -414,6 +416,97 @@ class Read(RuntimeModule):
             return Void()
 
         return result
+
+
+@module(opcode=0x05)
+class Math(RuntimeModule):
+    def _from_py(self, z: complex) -> Number:
+        r = Number.from_python_number(z)
+        r = r.to_specific()
+        return r
+
+    def _to_py(self, z: Number) -> complex:
+        r = z.to_complex()
+        real = r.real.to_float()
+        imag = r.imag.to_float()
+        return complex(real, imag)
+
+    @proc(opcode=0x01)
+    def exp(self, z: Number) -> Number:
+        return self._from_py(cmath.exp(self._to_py(z)))
+
+    @proc(opcode=0x02)
+    def ln(self, z: Number) -> Number:
+        if z.is_negative_zero():
+            # see section 6.2.6, under "log"
+            return self._from_py(float('-inf') + math.pi * 1j)
+        elif z.is_zero():
+            # see section 6.2.6, under "log"
+            return Float('-inf')
+        elif z == Complex(Float(-1.0), Float(-0.0)):
+            # see section 6.2.4
+            return Complex(Float(0.0), Float(-math.pi))
+
+        return self._from_py(cmath.log(self._to_py(z)))
+
+    @proc(opcode=0x03)
+    def log(self, z: Number, base: Number) -> Number:
+        if z.is_negative_zero():
+            # see section 6.2.6, under "log"
+            return self._from_py(float('-inf') + math.pi * 1j)
+        elif z.is_zero():
+            # see section 6.2.6, under "log"
+            return Float('-inf')
+        elif z == Complex(Float(-1.0), Float(-0.0)):
+            # see section 6.2.4
+            return Complex(Float(0.0), Float(-math.pi))
+
+        return self._from_py(cmath.log(self._to_py(z),
+                                       self._to_py(base)))
+
+    @proc(opcode=0x04)
+    def sin(self, z: Number) -> Number:
+        return self._from_py(cmath.sin(self._to_py(z)))
+
+    @proc(opcode=0x05)
+    def cos(self, z: Number) -> Number:
+        return self._from_py(cmath.cos(self._to_py(z)))
+
+    @proc(opcode=0x06)
+    def tan(self, z: Number) -> Number:
+        return self._from_py(cmath.tan(self._to_py(z)))
+
+    @proc(opcode=0x07)
+    def asin(self, z: Number) -> Number:
+        return self._from_py(cmath.asin(self._to_py(z)))
+
+    @proc(opcode=0x08)
+    def acos(self, z: Number) -> Number:
+        return self._from_py(cmath.acos(self._to_py(z)))
+
+    @proc(opcode=0x09)
+    def atan(self, z: Number) -> Number:
+        return self._from_py(cmath.atan(self._to_py(z)))
+
+    @proc(opcode=0x0a)
+    def atan2(self, x: Number, y: Number) -> Float:
+        try:
+            x = x.to_float()
+            y = y.to_float()
+        except ValueError:
+            raise self._runtime_error(f'Cannot calculate atan2 of: {x} and {y}')
+        return Float(math.atan2(x, y))
+
+    @proc(opcode=0x0b)
+    def sqrt(self, z: Number) -> Number:
+        return self._from_py(cmath.sqrt(self._to_py(z)))
+
+    @proc(opcode=0x0c)
+    def isnan(self, z: Number) -> Bool:
+        if isinstance(z, Complex):
+            return self.isnan(z.real) or self.isnan(z.imag)
+        else:
+            return Bool(math.isnan(z.to_python_number()))
 
 
 @module(opcode=0x99)

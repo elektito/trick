@@ -1,6 +1,6 @@
-(export ;;angle
+(export angle
         imag-part
-        ;;magnitude
-        ;;make-polar
-        ;;make-rectangular
+        magnitude
+        make-polar
+        make-rectangular
         real-part)
