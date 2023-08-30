@@ -63,7 +63,7 @@
         define-library
         define-record-type
         define-syntax
-        ;; define-values
+        define-values
         denominator
         do
         dynamic-wind

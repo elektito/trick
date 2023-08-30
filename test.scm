@@ -1238,6 +1238,13 @@ and still a comment
 (let-values ((() (values)))
   #t)
 
+(let ()
+  (define (foo)
+    (values 100 200))
+  (define-values (x y) (foo))
+  (and (= x 100)
+       (= y 200)))
+
 ;; call/cc tests
 ;;
 ;; some tests adapted from chibi scheme test suite. see:
