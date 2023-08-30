@@ -613,7 +613,10 @@ def parse_strict_rectangular_complex(token: str, base: int, force: (str|None)):
             imag = parse_real(token[:-1], base, force)
             if imag is None:
                 return None
-            return Complex(Integer(0), imag)
+            if isinstance(imag, Float):
+                return Complex(Float(0), imag)
+            else:
+                return Complex(Integer(0), imag)
 
         if len(parts) != 2:
             return None

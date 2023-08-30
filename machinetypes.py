@@ -163,6 +163,9 @@ class Number(TrickType):
     def __hash__(self):
         return hash(self.to_python_number())
 
+    def __abs__(self):
+        raise NotImplementedError
+
     def __add__(self, other):
         if isinstance(self, Complex) or isinstance(other, Complex):
             n1 = self.to_complex()
@@ -306,6 +309,12 @@ class Rational(Number):
     def __hash__(self):
         return hash(self.frac)
 
+    def __abs__(self):
+        return Rational(abs(self.frac))
+
+    def __neg__(self):
+        return Rational(-self.frac)
+
     def to_python_number(self):
         return self.frac
 
@@ -413,8 +422,8 @@ class Complex(Number):
     def __init__(self, real, imag):
         assert isinstance(real, (Float, Rational, Integer))
         assert isinstance(real, (Float, Rational, Integer))
-        self.real = real
-        self.imag = imag
+        self.real = real.to_specific()
+        self.imag = imag.to_specific()
 
     def __repr__(self):
         op = ''

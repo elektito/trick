@@ -2297,3 +2297,16 @@ and still a comment
 (let-values (((s r) (exact-integer-sqrt 16)))
   (and (eqv? s 4)
        (eqv? r 0)))
+
+;; using eqv? to make sure exactness matches between input and result. not sure
+;; if this is required by the report, but some other implementations seem to
+;; work like this.
+(eqv? 3.0 (sqrt 9.0))
+(eqv? 3 (sqrt 9))
+(eqv? +i (sqrt -1))
+(eqv? +1/3i (sqrt -1/9))
+(eqv? +1.0i (sqrt -1.0))
+(eqv? 1+i (sqrt 2i))
+(eqv? 1/3+4/5i (sqrt -119/225+8/15i))
+(approx= 8.0 (square (sqrt 8)))
+(approx= -8.0 (square (sqrt -8)))

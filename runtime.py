@@ -1,4 +1,5 @@
 import cmath
+from fractions import Fraction
 import inspect
 import io
 import math
@@ -7,7 +8,7 @@ import sys
 import traceback
 
 from exceptions import RunError
-from machinetypes import Bool, Bytevector, Complex, Float, Integer, Number, Port, String, Symbol, TrickType, Void
+from machinetypes import Bool, Bytevector, Complex, Float, Integer, Number, Port, Rational, String, Symbol, TrickType, Void
 from print import PrintMode, PrintStyle, Printer
 from read import ReadError, Reader
 
@@ -499,6 +500,44 @@ class Math(RuntimeModule):
 
     @proc(opcode=0x0b)
     def sqrt(self, z: Number) -> Number:
+        # try to return an exact number, if the input is an exact number.
+        if isinstance(z, Integer):
+            pos = z if z >= 0 else -z
+            r = math.sqrt(pos)
+            if r.is_integer():
+                r = Integer(r)
+            else:
+                r = Float(r)
+
+            if z < 0:
+                if isinstance(r, Float):
+                    return Complex(Float(0), r)
+                else:
+                    return Complex(Integer(0), r)
+            else:
+                return r
+        elif isinstance(z, Rational):
+            pos = z if z >= 0 else -z
+            num = math.sqrt(pos.frac.numerator)
+            den = math.sqrt(pos.frac.denominator)
+            if num.is_integer() and den.is_integer():
+                r = Rational(Fraction(int(num), int(den)))
+            else:
+                r = Float(math.sqrt(z.frac))
+
+            if z < 0:
+                return Complex(Integer(0), r)
+            else:
+                return r
+        elif isinstance(z, Complex) and z.exact:
+            # See: https://math.stackexchange.com/questions/4760927/calculating-the-exact-square-root-of-a-complex-number-with-rational-components
+            mag = self.sqrt(z.real * z.real + z.imag * z.imag)
+            r_real = self.sqrt((z.real + mag) / Integer(2))
+            r_imag = self.sqrt((-z.real + mag) / Integer(2))
+            if isinstance(r_real, (Rational, Integer)) and isinstance(r_imag, (Rational, Integer)):
+                r_imag *= z.imag / abs(z.imag)
+                return Complex(r_real, r_imag)
+
         return self._from_py(cmath.sqrt(self._to_py(z)))
 
     @proc(opcode=0x0c)
