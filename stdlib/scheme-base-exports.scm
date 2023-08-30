@@ -124,7 +124,7 @@
         list-tail
         list?
         make-bytevector
-        ;; make-list
+        make-list
         make-parameter
         make-string
         make-vector

@@ -557,6 +557,9 @@ and still a comment
 (equal? 'c (list-ref '(a b c d e f) 2))
 (equal? 'a (list-ref '(a b c d e f) 0))
 
+(equal? '(10 10 10 10) (make-list 4 10))
+(equal? 10 (length (make-list 10)))
+
 ;; equality
 
 (not (eq? (gensym) (gensym)))

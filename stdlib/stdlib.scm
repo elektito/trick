@@ -1079,6 +1079,13 @@
          1)
         (else (1+ (proper-length (cdr ls))))))
 
+(define make-list
+  (case-lambda
+   ((n) (make-list n (#$void)))
+   ((n fill) (do ((n n (1- n))
+                  (ls '() (cons fill ls)))
+                 ((zero? n) ls)))))
+
 ;; characters
 
 (define (char=? . chars)
