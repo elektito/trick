@@ -137,11 +137,11 @@
         make-string
         make-vector
         map
-        ;; max
+        max
         ;; member
         memq
         memv
-        ;; min
+        min
         modulo
         negative?
         newline

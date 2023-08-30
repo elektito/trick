@@ -374,6 +374,14 @@
   (unless (integer? n)
     (error "not an integer"))
   (not (zero? (modulo n 2))))
+(define max
+  (case-lambda
+   ((x y) (if (> x y) x y))
+   ((x y . rest) (max x (apply max y rest)))))
+(define min
+  (case-lambda
+   ((x y) (if (< x y) x y))
+   ((x y . rest) (min x (apply min y rest)))))
 
 (define (= . numbers)
   (define (cmp x y)

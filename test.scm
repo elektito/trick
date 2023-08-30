@@ -329,6 +329,12 @@ and still a comment
 (not (odd? 2))
 (not (odd? -100))
 
+(= 2 (max 1 2))
+(= 8 (max 4 1 8 7 -9))
+
+(= 1 (min 1 2))
+(= -9 (min 4 1 8 7 -9))
+
 (eq? 10 ((lambda (x y) x) 10 20))
 (eq? 20 ((lambda (x y) y) 10 20))
 
