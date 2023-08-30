@@ -602,12 +602,14 @@ def parse_strict_rectangular_complex(token: str, base: int, force: (str|None)):
     elif token in ['+inf.0i', '-inf.0i', '+nan.0i', '-nan.0i']:
         return Complex(Integer(0), Float(token[:-3]))
     else:
-        real_sign = 1
+        real_sign = ''
         if token.startswith('+'):
             token = token[1:]
+            real_sign = '+'
         elif token.startswith('-'):
             real_sign = -1
             token = token[1:]
+            real_sign = '-'
 
         if '+' in token:
             imag_sign = '+'
@@ -625,6 +627,8 @@ def parse_strict_rectangular_complex(token: str, base: int, force: (str|None)):
             return None
 
         real, imaginary = parts
+
+        real = real_sign + real
 
         # strip "i" suffix
         if imaginary == 'i':
@@ -653,8 +657,6 @@ def parse_strict_rectangular_complex(token: str, base: int, force: (str|None)):
                 real = Float(real.frac)
             else:
                 real = Float(float(real))
-
-        real *= real_sign
 
         return Complex(real, imaginary)
 
