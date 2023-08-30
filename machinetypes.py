@@ -120,7 +120,7 @@ class Number(TrickType):
             else:
                 return self
         elif isinstance(self, Complex):
-            if self.imag == 0:
+            if self.imag.is_zero():
                 return self.real.to_specific()
             else:
                 return self
