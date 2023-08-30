@@ -421,6 +421,20 @@
 (define (nan? z)
   (#$/math/isnan z))
 
+(define (infinite? z)
+  (let ((z-real (real-part z))
+        (z-imag (imag-part z)))
+    (or (= +inf.0 z-real)
+        (= -inf.0 z-real)
+        (= +inf.0 z-imag)
+        (= -inf.0 z-imag))))
+
+(define (finite? z)
+  (let ((z-real (real-part z))
+        (z-imag (imag-part z)))
+    (and (not (nan? z))
+         (not (infinite? z)))))
+
 ;;
 
 (define approx=

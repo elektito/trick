@@ -3,8 +3,8 @@
         atan
         cos
         exp
-        ;; finite?
-        ;; infinite?
+        finite?
+        infinite?
         log
         nan?
         sin
