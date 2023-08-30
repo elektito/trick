@@ -101,7 +101,7 @@
         ;; eval
         ;; even?
         (rename inexact exact->inexact)
-        ;; exact?
+        exact?
         exp
         ;; expt
         ;; floor
