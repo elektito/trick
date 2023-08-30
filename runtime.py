@@ -508,6 +508,54 @@ class Math(RuntimeModule):
         else:
             return Bool(math.isnan(z.to_python_number()))
 
+    @proc(opcode=0x0d)
+    def truncate(self, x: Number) -> Number:
+        if isinstance(x, Complex):
+            raise self._runtime_error(
+                'Not a real number', kind=Symbol('math'))
+
+        r = math.trunc(x.to_python_number())
+        if x.exact:
+            return Integer(r)
+        else:
+            return Float(r)
+
+    @proc(opcode=0x0e)
+    def floor(self, x: Number) -> Number:
+        if isinstance(x, Complex):
+            raise self._runtime_error(
+                'Not a real number', kind=Symbol('math'))
+
+        r = math.floor(x.to_python_number())
+        if x.exact:
+            return Integer(r)
+        else:
+            return Float(r)
+
+    @proc(opcode=0x0f)
+    def ceiling(self, x: Number) -> Number:
+        if isinstance(x, Complex):
+            raise self._runtime_error(
+                'Not a real number', kind=Symbol('math'))
+
+        r = math.ceil(x.to_python_number())
+        if x.exact:
+            return Integer(r)
+        else:
+            return Float(r)
+
+    @proc(opcode=0x10)
+    def round(self, x: Number) -> Number:
+        if isinstance(x, Complex):
+            raise self._runtime_error(
+                'Not a real number', kind=Symbol('math'))
+
+        r = round(x.to_python_number())
+        if x.exact:
+            return Integer(r)
+        else:
+            return Float(r)
+
 
 @module(opcode=0x99)
 class Dbg(RuntimeModule):

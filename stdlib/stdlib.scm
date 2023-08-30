@@ -426,6 +426,25 @@
 (define (square z)
   (* z z))
 
+(define (exact-integer-sqrt k)
+  (unless (and (integer? k) (not (negative? k)))
+    (error "expected non-negative integer"))
+  (let* ((s (exact (truncate (sqrt k))))
+         (r (- k (square s))))
+    (values s r)))
+
+(define (floor x)
+  (#$/math/floor x))
+
+(define (ceiling x)
+  (#$/math/ceiling x))
+
+(define (truncate x)
+  (#$/math/truncate x))
+
+(define (round x)
+  (#$/math/round x))
+
 (define (nan? z)
   (#$/math/isnan z))
 

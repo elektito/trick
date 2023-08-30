@@ -57,7 +57,7 @@
         cdddr
         cddr
         cdr
-        ;; ceiling
+        ceiling
         char->integer
         char-alphabetic?
         char-ci<=?
@@ -104,7 +104,7 @@
         exact?
         exp
         ;; expt
-        ;; floor
+        floor
         for-each
         ;; force
         ;; gcd
@@ -171,7 +171,7 @@
         real?
         remainder
         reverse
-        ;; round
+        round
         ;; scheme-report-environment
         set!
         set-car!
@@ -204,7 +204,7 @@
         symbol?
         syntax-rules
         ;; tan
-        ;; truncate
+        truncate
         values
         vector
         vector->list

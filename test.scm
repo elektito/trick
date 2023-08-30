@@ -2256,4 +2256,35 @@ and still a comment
 (= -inf.0 (log 0.0))
 (approx= (+ -inf.0 (* pi 1i)) (log -0.0))
 
-(approx= (- pi) (imag-part (log -1.0-0.0i))) ;; from section 6.2.4
+;; from section 6.2.4
+(approx= (- pi) (imag-part (log -1.0-0.0i)))
+
+;; we use eqv? in the following comparisons, instead of =, because exactness
+;; matters.
+(eqv? -5.0 (floor -4.3))
+(eqv? -4.0 (ceiling -4.3))
+(eqv? -4.0 (truncate -4.3))
+(eqv? 4.0 (floor 4.3))
+(eqv? 5.0 (ceiling 4.3))
+(eqv? 4.0 (truncate 4.3))
+
+(eqv? -4.0 (round -4.3))
+(eqv? 5.0 (round 4.7))
+
+(eqv? 2 (floor 8/3))
+(eqv? 3 (ceiling 8/3))
+(eqv? 2 (truncate 8/3))
+
+;; round towards even
+(eqv? -4.0 (round -4.5))
+(eqv? -6.0 (round -5.5))
+(eqv? 4 (round 7/2))
+(eqv? -4 (round -7/2))
+
+(let-values (((s r) (exact-integer-sqrt 8)))
+  (and (eqv? s 2)
+       (eqv? r 4)))
+
+(let-values (((s r) (exact-integer-sqrt 16)))
+  (and (eqv? s 4)
+       (eqv? r 0)))

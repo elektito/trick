@@ -40,7 +40,7 @@
         cdar
         cddr
         cdr
-        ;; ceiling
+        ceiling
         char->integer
         ;; char-ready?
         char<=?
@@ -79,13 +79,13 @@
         error-object?
         even?
         exact
-        ;; exact-integer-sqrt
+        exact-integer-sqrt
         ;; exact-integer?
         exact?
         ;; expt
         features
         file-error?
-        ;; floor
+        floor
         ;; floor-quotient
         ;; floor-remainder
         ;; floor/
@@ -174,7 +174,7 @@
         real?
         remainder
         reverse
-        ;; round
+        round
         set!
         set-car!
         set-cdr!
@@ -207,7 +207,7 @@
         ;; syntax-error
         syntax-rules
         textual-port?
-        ;; truncate
+        truncate
         ;; truncate-quotient
         ;; truncate-remainder
         ;; truncate/
