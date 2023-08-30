@@ -139,7 +139,7 @@ class Number(TrickType):
             else:
                 return self
         elif isinstance(self, Complex):
-            if self.imag.is_zero():
+            if self.imag.is_zero() and not self.imag.is_negative_zero():
                 return self.real.to_specific()
             else:
                 return self
