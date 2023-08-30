@@ -201,6 +201,9 @@ class Number(TrickType):
 
     def __mul__(self, other):
         if self.is_exact_zero() or (isinstance(other, Number) and other.is_exact_zero()):
+            # multiplying an exact zero with any number (even an infinite),
+            # results in an exact zero. notice that this is not true for inexact
+            # 0.0 (which results in nan if multiplied with infinity)
             return Integer(0)
         elif isinstance(other, (int, float)) and other == 0:
             return Integer(0)
