@@ -1956,6 +1956,15 @@ and still a comment
 (not (exact? 1/2+0.4i))
 (not (exact? 2.0+1/2i))
 
+(exact-integer? 4)
+(exact-integer? -1)
+(exact-integer? 0)
+(exact-integer? 5+0i)
+(exact-integer? 4/2)
+(not (exact-integer? 4/3))
+(not (exact-integer? 4.0))
+(not (exact-integer? +i))
+
 (= 9/4 2.25)
 (not (eqv? 9/4 2.25))
 (eqv? 9/4 (exact 2.25))

@@ -366,6 +366,10 @@
           (inexact? (imag-part n)))
       (eq? (type n) 'float)))
 
+(define (exact-integer? x)
+  ;; all our integers are exact
+  (integer? x))
+
 (define (make-rectangular x y)
   (+ x (* y +i)))
 

@@ -80,7 +80,7 @@
         even?
         exact
         exact-integer-sqrt
-        ;; exact-integer?
+        exact-integer?
         exact?
         ;; expt
         features
