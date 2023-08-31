@@ -44,7 +44,7 @@
           range
           reduce
           type
-          (rename #$void void)
+          void
           void?
           with-gensyms))
 

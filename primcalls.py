@@ -24,7 +24,7 @@ primcalls = {
     'void': {
         'nargs': 0,
         'code': [S('void')],
-        'exported': False,
+        'exported': True,
     },
     'call/cc': {
         'nargs': 1,
@@ -34,92 +34,92 @@ primcalls = {
     'values->list': {
         'nargs': 1,
         'code': [S('m2l')],
-        'exported': False,
+        'exported': True,
     },
-    'list->values': {
+    'list->values': {  # NOTE note used at all; maybe should be removed.
         'nargs': 1,
         'code': [S('l2m')],
-        'exported': False,
+        'exported': True,
     },
     'iadd': {
         'nargs': 2,
         'code': [S('iadd')],
-        'exported': False,
+        'exported': True,
     },
     'isub': {
         'nargs': 2,
         'code': [S('isub')],
-        'exported': False,
+        'exported': True,
     },
     'imul': {
         'nargs': 2,
         'code': [S('imul')],
-        'exported': False,
+        'exported': True,
     },
     'idiv': {
         'nargs': 2,
         'code': [S('idiv')],
-        'exported': False,
+        'exported': True,
     },
     'irem': {
         'nargs': 2,
         'code': [S('irem')],
-        'exported': False,
+        'exported': True,
     },
     'ilt': {
         'nargs': 2,
         'code': [S('ilt')],
-        'exported': False,
+        'exported': True,
     },
     'ile': {
         'nargs': 2,
         'code': [S('ile')],
-        'exported': False,
+        'exported': True,
     },
     'igt': {
         'nargs': 2,
         'code': [S('igt')],
-        'exported': False,
+        'exported': True,
     },
     'ige': {
         'nargs': 2,
         'code': [S('ige')],
-        'exported': False,
+        'exported': True,
     },
     'shr': {
         'nargs': 2,
         'code': [S('shr')],
-        'exported': False,
+        'exported': True,
     },
     'shl': {
         'nargs': 2,
         'code': [S('shl')],
-        'exported': False,
+        'exported': True,
     },
     'asr': {
         'nargs': 2,
         'code': [S('asr')],
-        'exported': False,
+        'exported': True,
     },
     'bnot': {
         'nargs': 1,
         'code': [S('bnot')],
-        'exported': False,
+        'exported': True,
     },
     'band': {
         'nargs': 2,
         'code': [S('band')],
-        'exported': False,
+        'exported': True,
     },
     'bor': {
         'nargs': 2,
         'code': [S('bor')],
-        'exported': False,
+        'exported': True,
     },
     'bxor': {
         'nargs': 2,
         'code': [S('bxor')],
-        'exported': False,
+        'exported': True,
     },
     'cons': {
         'nargs': 2,

@@ -21,7 +21,7 @@
 (define-syntax unless
   (syntax-rules ()
     ((_ condition body1 body2 ...)
-     (if condition (#$void) (begin body1 body2 ...)))))
+     (if condition (void) (begin body1 body2 ...)))))
 
 (define-syntax cond
   (syntax-rules (else =>)
@@ -106,7 +106,7 @@
            (lambda (var ...)
              (if test
                  (begin
-                   (#$void)
+                   (void)
                    expr ...)
                  (begin
                    command
@@ -286,7 +286,7 @@
 
 (define (gensym . x)
   (if (null? x)
-      (#$gensym (#$void))
+      (#$gensym (void))
       (#$gensym (car x))))
 
 ;; type predicates
@@ -355,13 +355,13 @@
 ;; numbers
 
 (define (< x y)
-  (#$ilt x y))
+  (ilt x y))
 (define (<= x y)
-  (#$ile x y))
+  (ile x y))
 (define (> x y)
-  (#$igt x y))
+  (igt x y))
 (define (>= x y)
-  (#$ige x y))
+  (ige x y))
 (define (zero? x) (or (eqv? x 0)
                       (eqv? x 0.0)))
 (define (negative? x) (< x 0))
@@ -717,33 +717,33 @@
 (define (+ . r)
   (if (null? r)
       0
-      (#$iadd (car r) (apply + (cdr r)))))
+      (iadd (car r) (apply + (cdr r)))))
 
 (define (- . r)
   (if (null? r)
       (error "Invalid number of arguments for -")
       (if (null? (cdr r))
-          (#$isub 0 (car r))
+          (isub 0 (car r))
           (if (null? (cddr r))
-              (#$isub (car r) (cadr r))
-              (#$isub (apply - (butlast r)) (last r))))))
+              (isub (car r) (cadr r))
+              (isub (apply - (butlast r)) (last r))))))
 
 (define (* . r)
   (if (null? r)
       1
-      (#$imul (car r) (apply * (cdr r)))))
+      (imul (car r) (apply * (cdr r)))))
 
 (define (/ . r)
   (if (null? r)
       (error "Invalid number of arguments for /")
       (if (null? (cdr r))
-          (#$idiv 1 (car r))
+          (idiv 1 (car r))
           (if (null? (cddr r))
-              (#$idiv (car r) (cadr r))
-              (#$idiv (apply / (butlast r)) (last r))))))
+              (idiv (car r) (cadr r))
+              (idiv (apply / (butlast r)) (last r))))))
 
 (define (remainder a b)
-  (#$irem a b))
+  (irem a b))
 
 (define (modulo a b)
   (let ((res (remainder a b)))
@@ -1089,7 +1089,7 @@
 
 (define make-list
   (case-lambda
-   ((n) (make-list n (#$void)))
+   ((n) (make-list n (void)))
    ((n fill) (do ((n n (1- n))
                   (ls '() (cons fill ls)))
                  ((zero? n) ls)))))
@@ -1460,7 +1460,7 @@
   (call/cc (lambda (k) (apply k things))))
 
 (define (call-with-values producer consumer)
-  (let ((vals (#$values->list (producer))))
+  (let ((vals (values->list (producer))))
     (apply consumer vals)))
 
 ;; ====== new call/cc and dynamic-wind
