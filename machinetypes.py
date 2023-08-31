@@ -959,10 +959,8 @@ class Pair(List):
                 if isinstance(cur.cdr, Nil):
                     return length
                 else:
-                    print(cur, cur.is_proper())
-                    print(cur.cdr, cur.cdr.is_proper())
                     raise ValueError(
-                    'Cannot calculate the length of an improper list')
+                        'Cannot calculate the length of an improper list')
 
             visited.add(cur)
 
