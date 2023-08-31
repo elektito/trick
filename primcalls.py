@@ -51,6 +51,16 @@ primcalls = {
         'code': [S('isub')],
         'exported': True,
     },
+    'negate': {
+        'nargs': 1,
+        'code': [S('neg')],
+        'exported': True,
+    },
+    'abs': {
+        'nargs': 1,
+        'code': [S('abs')],
+        'exported': True,
+    },
     'imul': {
         'nargs': 2,
         'code': [S('imul')],

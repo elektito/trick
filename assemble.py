@@ -169,6 +169,8 @@ class Assembler:
                 'cimag': 0x4b,
                 'igt': 0x4c,
                 'ige': 0x4d,
+                'neg': 0x4e,
+                'abs': 0x4f,
             }
             opcode = single_byte_instrs.get(instr)
             if opcode is not None:

@@ -2115,6 +2115,26 @@ and still a comment
 (= -inf.0 (/ -inf.0 2))
 (= +inf.0 (- -inf.0))
 
+(= +inf.0 (/ 1 0.0))
+(= -inf.0 (/ 1 -0.0))
+(= -inf.0 (/ -1 0.0))
+(= +inf.0 (/ -1 -0.0))
+
+(= +inf.0+inf.0i (/ 2+3i 0.0))
+(= -inf.0-inf.0i (/ 2+3i -0.0))
+(= -inf.0+inf.0i (/ -2+3i 0.0))
+(= +inf.0-inf.0i (/ 2-3i 0.0))
+(= +inf.0-inf.0i (/ -2+3i -0.0))
+(= -inf.0+inf.0i (/ 2-3i -0.0))
+(nan? (/ 0 0.0))
+(nan? (/ 0.0 0.0))
+(= +inf.0 (/ +inf.0 0.0))
+(= -inf.0 (/ -inf.0 0.0))
+(nan? (/ +nan.0 0.0))
+(nan? (/ +nan.0 2))
+(nan? (/ +nan.0 +inf.0))
+(nan? (/ +nan.0 -inf.0))
+
 (= 6+8i (+ 2+3i 4+5i))
 (= -2-2i (- 2+3i 4+5i))
 (= -7+22i (* 2+3i 4+5i))
@@ -2198,11 +2218,13 @@ and still a comment
 (= -inf.0 (- -inf.0 +inf.0))
 
 (eqv? -0.0 -0.0)
+(not (eqv? 0.0 -0.0))
 (eqv? -0.0 (- 0.0))
 (eqv? 0.0 (- -0.0))
 (eqv? -0.0 (+ -0.0 -0.0))
 (eqv? -0.0 (- -0.0 0.0))
 (eqv? -0.0 (- -0.0 0))
+(eqv? 0.0 (abs -0.0))
 
 (finite? 0.0)
 (finite? -0.0)
@@ -2277,6 +2299,18 @@ and still a comment
 (approx= 0.0 (asin 0.0))
 (approx= (* -1/2 pi) (asin -1))
 
+(eqv? 1.0 (cos 0.0))
+(eqv? 1.0 (cos -0.0))
+(approx= 0.0 (cos (/ pi 2)))
+(approx= -1.0 (cos pi))
+
+(eqv? 0.0 (acos 1.0))
+(approx= (/ pi 2) (acos 0.0))
+(approx= pi (acos -1.0))
+
+(eqv? 0.0 (tan 0.0))
+(eqv? -0.0 (tan -0.0))
+
 ;; 6.2.6 under "log"
 (= -inf.0 (log 0.0))
 (approx= (+ -inf.0 (* pi 1i)) (log -0.0))
@@ -2326,3 +2360,5 @@ and still a comment
 (eqv? 1/3+4/5i (sqrt -119/225+8/15i))
 (approx= 8.0 (square (sqrt 8)))
 (approx= -8.0 (square (sqrt -8)))
+(eqv? 1.0 (sqrt 1.0))
+(eqv? 1 (sqrt 1))

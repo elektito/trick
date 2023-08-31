@@ -436,11 +436,6 @@
 (define pi 3.141592653589793)
 (define e 2.718281828459045)
 
-(define (abs x)
-  (if (< x 0)
-      (- x)
-      x))
-
 (define (exp z)
   (#$/math/exp z))
 
@@ -717,13 +712,17 @@
 (define (+ . r)
   (if (null? r)
       0
-      (iadd (car r) (apply + (cdr r)))))
+      (if (null? (cdr r))
+          (car r)
+          (if (null? (cddr r))
+              (iadd (car r) (cadr r))
+              (apply + (iadd (car r) (cadr r)) (cddr r))))))
 
 (define (- . r)
   (if (null? r)
       (error "Invalid number of arguments for -")
       (if (null? (cdr r))
-          (isub 0 (car r))
+          (negate (car r))
           (if (null? (cddr r))
               (isub (car r) (cadr r))
               (isub (apply - (butlast r)) (last r))))))

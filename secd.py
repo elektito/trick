@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from decimal import DivisionByZero
 from fractions import Fraction
 import os
 import struct
@@ -254,6 +255,8 @@ class Secd:
             0x4b: self.run_cimag,
             0x4c: self.run_igt,
             0x4d: self.run_ige,
+            0x4e: self.run_neg,
+            0x4f: self.run_abs,
             0x80: self.run_ldc,
             0x81: self.run_ld,
             0x82: self.run_sel,
@@ -758,6 +761,16 @@ class Secd:
         self.s.pushx(arg1 - arg2)
         if self.debug: print(f'isub {arg1} - {arg2}')
 
+    def run_neg(self):
+        arg = self.s.pop(Number, 'neg')
+        self.s.pushx(-arg)
+        if self.debug: print(f'neg {arg}')
+
+    def run_abs(self):
+        arg = self.s.pop(Number, 'abs')
+        self.s.pushx(abs(arg))
+        if self.debug: print(f'abs {arg}')
+
     def run_imul(self):
         arg1 = self.s.pop(Number, 'imul')
         arg2 = self.s.pop(Number, 'imul')
@@ -767,18 +780,20 @@ class Secd:
     def run_idiv(self):
         a = self.s.pop(Number, 'idiv')
         b = self.s.pop(Number, 'idiv')
-        if b.is_zero():
-            raise RunError('Division by zero')
-        self.s.pushx(a / b)
+        try:
+            self.s.pushx(a / b)
+        except ZeroDivisionError:
+            raise RunError('Division by zero', kind=Symbol('math'))
         if self.debug: print(f'idiv {a} / {b}')
 
     def run_irem(self):
         a = self.s.pop(Number, 'irem')
         b = self.s.pop(Number, 'irem')
-        if b == 0:
-            raise RunError('Division by zero')
 
-        result = abs(a) % abs(b) * (1,-1)[a < 0]
+        try:
+            result = abs(a) % abs(b) * (1,-1)[a < 0]
+        except ZeroDivisionError:
+            raise RunError('Division by zero', kind=Symbol('math'))
 
         self.s.pushx(result)
         if self.debug: print(f'irem {a} % {b}')

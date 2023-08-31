@@ -432,9 +432,20 @@ class Math(RuntimeModule):
         imag = r.imag.to_float()
         return complex(real, imag)
 
+    def _do_math(self, z: Number, real_func, complex_func):
+        if isinstance(z, Complex):
+            return self._from_py(complex_func(self._to_py(z)))
+        else:
+            nz = z.to_python_number()
+            try:
+                r = real_func(nz)
+            except ValueError:  # math domain error
+                r = complex_func(nz)
+            return Number.from_python_number(r)
+
     @proc(opcode=0x01)
     def exp(self, z: Number) -> Number:
-        return self._from_py(cmath.exp(self._to_py(z)))
+        return self._do_math(z, math.exp, cmath.exp)
 
     @proc(opcode=0x02)
     def ln(self, z: Number) -> Number:
@@ -448,7 +459,7 @@ class Math(RuntimeModule):
             # see section 6.2.4
             return Complex(Float(0.0), Float(-math.pi))
 
-        return self._from_py(cmath.log(self._to_py(z)))
+        return self._do_math(z, math.log, cmath.log)
 
     @proc(opcode=0x03)
     def log(self, z: Number, base: Number) -> Number:
@@ -462,32 +473,40 @@ class Math(RuntimeModule):
             # see section 6.2.4
             return Complex(Float(0.0), Float(-math.pi))
 
-        return self._from_py(cmath.log(self._to_py(z),
-                                       self._to_py(base)))
+        if isinstance(z, Complex) or isinstance(base, Complex):
+            return self._from_py(cmath.log(self._to_py(z), self._to_py(base)))
+        else:
+            nz = z.to_python_number()
+            nbase = base.to_python_number()
+            try:
+                r = math.log(nz, nbase)
+            except ValueError:  # math domain error
+                r = cmath.log(nz, nbase)
+            return Number.from_python_number(r)
 
     @proc(opcode=0x04)
     def sin(self, z: Number) -> Number:
-        return self._from_py(cmath.sin(self._to_py(z)))
+        return self._do_math(z, math.sin, cmath.sin)
 
     @proc(opcode=0x05)
     def cos(self, z: Number) -> Number:
-        return self._from_py(cmath.cos(self._to_py(z)))
+        return self._do_math(z, math.cos, cmath.cos)
 
     @proc(opcode=0x06)
     def tan(self, z: Number) -> Number:
-        return self._from_py(cmath.tan(self._to_py(z)))
+        return self._do_math(z, math.tan, cmath.tan)
 
     @proc(opcode=0x07)
     def asin(self, z: Number) -> Number:
-        return self._from_py(cmath.asin(self._to_py(z)))
+        return self._do_math(z, math.asin, cmath.asin)
 
     @proc(opcode=0x08)
     def acos(self, z: Number) -> Number:
-        return self._from_py(cmath.acos(self._to_py(z)))
+        return self._do_math(z, math.acos, cmath.acos)
 
     @proc(opcode=0x09)
     def atan(self, z: Number) -> Number:
-        return self._from_py(cmath.atan(self._to_py(z)))
+        return self._do_math(z, math.atan, cmath.atan)
 
     @proc(opcode=0x0a)
     def atan2(self, x: Number, y: Number) -> Float:
@@ -538,7 +557,14 @@ class Math(RuntimeModule):
                 r_imag *= z.imag / abs(z.imag)
                 return Complex(r_real, r_imag)
 
-        return self._from_py(cmath.sqrt(self._to_py(z)))
+        if isinstance(z, Complex):
+            return self._from_py(cmath.sqrt(self._to_py(z)))
+        else:
+            assert isinstance(z, Float)
+            if z < 0.0:
+                return Complex(Float(0), Float(math.sqrt(-z)))
+            else:
+                return Float(math.sqrt(z))
 
     @proc(opcode=0x0c)
     def isnan(self, z: Number) -> Bool:

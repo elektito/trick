@@ -139,7 +139,7 @@ class Number(TrickType):
             else:
                 return self
         elif isinstance(self, Complex):
-            if self.imag.is_zero() and not self.imag.is_negative_zero():
+            if self.imag.is_exact_zero():
                 return self.real.to_specific()
             else:
                 return self
@@ -157,6 +157,9 @@ class Number(TrickType):
             n1 = self.to_complex()
             n2 = other.to_complex()
             return n1.real == n2.real and n1.imag == n2.imag
+
+        if self.is_negative_zero() != other.is_negative_zero():
+            return False
 
         return self.to_python_number() == other.to_python_number()
 
@@ -214,7 +217,7 @@ class Number(TrickType):
         if isinstance(self, Complex) or isinstance(other, Complex):
             n1 = self.to_complex()
             n2 = other.to_complex()
-            real = n1.real * n2.real - n1.imag * other.imag
+            real = n1.real * n2.real - n1.imag * n2.imag
             imag = n1.imag * n2.real + n1.real * n2.imag
             result = Complex(real, imag)
             result = result.to_specific()
@@ -229,15 +232,44 @@ class Number(TrickType):
         return result
 
     def __truediv__(self, other):
+        if self.is_nan() or (isinstance(other, Number) and other.is_nan()):
+            if isinstance(self, Complex) or isinstance(other, Complex):
+                return Complex(Float('nan'), Float('nan'))
+            else:
+                return Float('nan')
+
         if isinstance(self, Complex) or isinstance(other, Complex):
             n1 = self.to_complex()
             n2 = other.to_complex()
             real = n1.real * n2.real + n1.imag * other.imag
             imag = n1.imag * n2.real - n1.real * n2.imag
             div_size = n2.real * n2.real + n2.imag * n2.imag
+            if div_size.is_exact_zero():
+                raise ZeroDivisionError
+            if div_size.is_zero():
+                real = Float('inf') * n1.real.get_sign() * n2.real.get_sign()
+                imag = Float('inf') * n1.imag.get_sign() * n2.real.get_sign()
+                return Complex(real, imag)
             result = Complex(real / div_size, imag / div_size)
             result = result.to_specific()
         else:
+            if isinstance(other, Integer) and other.is_exact_zero():
+                raise ZeroDivisionError
+            elif (isinstance(other, Float) and other.is_zero()) or \
+               other == 0.0:
+                if self.is_zero():
+                    return Float('nan')
+                if self.is_infinite():
+                    return self
+                return Float('inf') * Float(self.get_sign()) * Float(other.get_sign())
+            elif other == 0.0:
+                if self.is_zero():
+                    return Float('nan')
+                if self.is_infinite():
+                    return self
+                other_sign = Float(math.copysign(1, other))
+                return Float('inf') * Float(self.get_sign()) * other_sign
+
             n1 = self.to_python_number()
             n2 = other
             if isinstance(other, TrickType):
@@ -303,6 +335,12 @@ class Rational(Number):
         assert isinstance(frac, Fraction)
         self.frac = frac
 
+    def is_infinite(self):
+        return False
+
+    def is_nan(self):
+        return False
+
     def __repr__(self):
         return str(self.frac)
 
@@ -328,6 +366,15 @@ class Integer(Number, int):
         obj.src_start = None
         obj.src_end = None
         return obj
+
+    def is_infinite(self):
+        return False
+
+    def is_nan(self):
+        return False
+
+    def get_sign(self) -> int:
+        return 0 if self == 0 else 1 if self > 0 else -1
 
     def __floordiv__(self, other):
         return Integer(int(self) // other)
@@ -383,6 +430,15 @@ class Float(Number, float):
         obj.src_end = None
         return obj
 
+    def is_infinite(self):
+        return self == float('inf') or self == float('-inf')
+
+    def is_nan(self):
+        return math.isnan(self)
+
+    def get_sign(self) -> int:
+        return math.copysign(1, self)
+
     def __repr__(self):
         if math.isnan(self):
             return '+nan.0'
@@ -425,6 +481,15 @@ class Complex(Number):
         self.real = real.to_specific()
         self.imag = imag.to_specific()
 
+    def is_infinite(self):
+        return self.real == float('inf') or \
+            self.real == float('-inf') or \
+            self.imag == float('inf') or \
+            self.imag == float('-inf')
+
+    def is_nan(self):
+        return self.real.is_nan() or self.imag.is_nan()
+
     def __repr__(self):
         op = ''
         imag = str(self.imag)
@@ -440,25 +505,6 @@ class Complex(Number):
             return False
         other = other.to_complex()
         return self.real == other.real and self.imag == other.imag
-
-    def __mul__(self, other):
-        if not isinstance(other, Number):
-            raise ValueError
-        other = other.to_complex()
-        real = self.real * other.real - self.imag * other.imag
-        imag = self.imag * other.real + self.real * other.imag
-        result = Complex(real, imag)
-        return result.to_specific()
-
-    def __div__(self, other):
-        if not isinstance(other, Number):
-            raise ValueError
-        other = other.to_complex()
-        real = self.real * other.real + self.imag * other.imag
-        imag = self.imag * other.real - self.real * other.imag
-        div_size = other.real * other.real + other.imag * other.imag
-        result = Complex(real / div_size, imag / div_size)
-        return result.to_specific()
 
     @property
     def exact(self):
