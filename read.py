@@ -578,7 +578,10 @@ def parse_rational(token: str, base: int, force: (str|None)):
     except ValueError:
         return None
 
-    n = Fraction(num, den)
+    try:
+        n = Fraction(num, den)
+    except ZeroDivisionError:
+        raise ReadError('Fraction denominator cannot be zero')
 
     if force == 'inexact':
         return Float(n)
