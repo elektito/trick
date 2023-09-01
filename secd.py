@@ -104,8 +104,12 @@ class Stack:
             if instr_name:
                 prefix = f'{instr_name}: '
             arg_desc = f' "{arg_name}"' if arg_name else ''
+            if isinstance(type, tuple):
+                type_desc = f'one of types {", ".join(t.__name__ for t in type)}'
+            else:
+                type_desc = f'type {type.__name__}'
             raise RunError(
-                f'{prefix}Expected operand{arg_desc} of type "{type.__name__}", got: '
+                f'{prefix}Expected operand{arg_desc} of {type_desc}, got: '
                 f'{value}')
 
         return value
