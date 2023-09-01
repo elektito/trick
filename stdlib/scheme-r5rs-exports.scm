@@ -165,7 +165,7 @@
         quotient
         rational?
         ;; rationalize
-        ;; read
+        read
         read-char
         real-part
         real?
