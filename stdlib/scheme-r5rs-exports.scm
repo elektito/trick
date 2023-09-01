@@ -164,7 +164,7 @@
         quote
         quotient
         rational?
-        ;; rationalize
+        rationalize
         read
         read-char
         real-part

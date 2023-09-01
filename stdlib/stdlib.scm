@@ -532,6 +532,43 @@
     (and (not (nan? z))
          (not (infinite? z)))))
 
+(define (rationalize x y)
+  ;; code adapted from: https://stackoverflow.com/a/65189151/363949
+  ;; (the closed interval variant)
+  (define (fix-exact v)
+    (if (exact? x)
+        v
+        (inexact v)))
+  (let ((start (- x y))
+        (end (+ x y)))
+    (cond ((or (nan? x) (nan? y)) +nan.0)
+          ((infinite? x) (error "Cannot convert infinity to a rational number"))
+          ((infinite? y) (fix-exact 0))
+          ((negative? end) (- (rationalize (- x) y)))
+          ((not (positive? start)) (fix-exact 0))
+          (else (let ((start (exact start))
+                      (end (exact end)))
+                  (let loop ((s (numerator start))
+                             (t (denominator start))
+                             (u (numerator end))
+                             (v (denominator end))
+                             (a 1)
+                             (b 0)
+                             (c 0)
+                             (d 1))
+                    (let ((q (floor-quotient (1- s) t)))
+                      (let ((s v)
+                            (t (- u (* q v)))
+                            (u t)
+                            (v (- s (* q t)))
+                            (a (+ b (* q a)))
+                            (b a)
+                            (c (+ d (* q c)))
+                            (d c))
+                        (if (>= t s)
+                            (fix-exact (/ (+ a b) (+ c d)))
+                            (loop s t u v a b c d))))))))))
+
 ;;
 
 (define approx=
