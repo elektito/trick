@@ -331,9 +331,12 @@ class Rational(Number):
     serialization_id = 2
     exact = True
 
-    def __init__(self, frac: Fraction):
-        assert isinstance(frac, Fraction)
-        self.frac = frac
+    def __init__(self, frac):
+        assert isinstance(frac, (Integer, Fraction))
+        if isinstance(frac, Integer):
+            self.frac = Fraction(frac)
+        else:
+            self.frac = frac
 
     def is_infinite(self):
         return False
