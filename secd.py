@@ -1369,7 +1369,7 @@ class Secd:
             result = n.imag
         else:
             # a zero of the same type as n
-            result = type(n)(0)
+            result = type(n)(Integer(0))
         self.s.pushx(result)
         if self.debug: print(f'cimag {result}')
 
