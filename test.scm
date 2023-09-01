@@ -234,6 +234,11 @@ and still a comment
 (eq? 2 (/ 10 5))
 (eq? 20 (/ 3000 10 5 3))
 
+(eq? 2 (floor-quotient 8 3))
+(eq? -3 (floor-quotient -8 3))
+(eq? 2 (truncate-quotient 8 3))
+(eq? -2 (truncate-quotient -8 3))
+
 (eq? 1 (remainder 10 3))
 (eq? -1 (remainder -10 3))
 (eq? 1 (remainder 10 -3))

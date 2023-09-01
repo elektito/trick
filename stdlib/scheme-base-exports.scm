@@ -86,9 +86,9 @@
         features
         file-error?
         floor
-        ;; floor-quotient
-        ;; floor-remainder
-        ;; floor/
+        floor-quotient
+        floor-remainder
+        floor/
         flush-output-port
         for-each
         ;; gcd
@@ -134,7 +134,7 @@
         memq
         memv
         min
-        modulo
+        (rename floor-remainder modulo)
         negative?
         newline
         not
@@ -159,7 +159,7 @@
         procedure?
         quasiquote
         quote
-        ;; quotient
+        (rename truncate-quotient quotient)
         raise
         raise-continuable
         rational?
@@ -172,7 +172,7 @@
         read-string
         read-u8
         real?
-        remainder
+        (rename truncate-remainder remainder)
         reverse
         round
         set!
@@ -208,9 +208,9 @@
         syntax-rules
         textual-port?
         truncate
-        ;; truncate-quotient
-        ;; truncate-remainder
-        ;; truncate/
+        truncate-quotient
+        truncate-remainder
+        truncate/
         ;; u8-ready?
         unless
         unquote

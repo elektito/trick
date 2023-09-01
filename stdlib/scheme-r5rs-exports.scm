@@ -162,7 +162,7 @@
         procedure?
         quasiquote
         quote
-        ;; quotient
+        quotient
         rational?
         ;; rationalize
         ;; read

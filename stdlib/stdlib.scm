@@ -369,11 +369,11 @@
 (define (even? n)
   (unless (integer? n)
     (error "not an integer"))
-  (zero? (modulo n 2)))
+  (zero? (floor-remainder n 2)))
 (define (odd? n)
   (unless (integer? n)
     (error "not an integer"))
-  (not (zero? (modulo n 2))))
+  (not (zero? (floor-remainder n 2))))
 (define max
   (case-lambda
    ((x y) (if (> x y) x y))
@@ -490,6 +490,30 @@
 
 (define (round x)
   (#$/math/round x))
+
+(define (floor/ m n)
+  (let ((q (floor (/ m n))))
+    (values q (- m (* n q)))))
+
+(define (floor-quotient m n)
+  (let-values (((q r) (floor/ m n)))
+    q))
+
+(define (floor-remainder m n)
+  (let-values (((q r) (floor/ m n)))
+    r))
+
+(define (truncate/ m n)
+  (let ((q (truncate (/ m n))))
+    (values q (- m (* n q)))))
+
+(define (truncate-quotient m n)
+  (let-values (((q r) (truncate/ m n)))
+    q))
+
+(define (truncate-remainder m n)
+  (let-values (((q r) (truncate/ m n)))
+    r))
 
 (define (nan? z)
   (#$/math/isnan z))
@@ -740,15 +764,6 @@
           (if (null? (cddr r))
               (idiv (car r) (cadr r))
               (idiv (apply / (butlast r)) (last r))))))
-
-(define (remainder a b)
-  (irem a b))
-
-(define (modulo a b)
-  (let ((res (remainder a b)))
-    (if (< b 0)
-        (if (<= res 0) res (+ res b))
-        (if (>= res 0) res (+ res b)))))
 
 (define (1+ n)
   (+ n 1))
