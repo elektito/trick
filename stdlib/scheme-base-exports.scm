@@ -82,7 +82,7 @@
         exact-integer-sqrt
         exact-integer?
         exact?
-        ;; expt
+        expt
         features
         file-error?
         floor

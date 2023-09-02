@@ -103,7 +103,7 @@
         (rename inexact exact->inexact)
         exact?
         exp
-        ;; expt
+        expt
         floor
         for-each
         ;; force

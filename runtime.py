@@ -621,6 +621,24 @@ class Math(RuntimeModule):
         else:
             return Float(r)
 
+    @proc(opcode=0x11)
+    def expt(self, z1: Number, z2: Number) -> Number:
+        if isinstance(z1, Complex) or isinstance(z2, Complex):
+            z1 = z1.to_complex()
+            z2 = z2.to_complex()
+            x = complex(z1.real.to_float(), z1.imag.to_float())
+            y = complex(z2.real.to_float(), z2.imag.to_float())
+            r = x ** y
+            if r.imag == 0.0:
+                return Float(r.real)
+            else:
+                return Complex(Float(r.real), Float(r.imag))
+        else:
+            x = z1.to_float()
+            y = z2.to_float()
+            r = x ** y
+            return Float(r)
+
 
 @module(opcode=0x99)
 class Dbg(RuntimeModule):
