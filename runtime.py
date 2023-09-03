@@ -424,32 +424,6 @@ class Str(RuntimeModule):
             35: 'z',
         }
 
-        def float_to_base(n: float, base: int) -> str:
-            base = int(base)  # in case we're passed an Integer
-            if base == 10:
-                # bit of cheating; our converter doesn't work so well on numbers
-                # like 2.2, which are printed with many extra digits, due to floating point error. not sure what python or others do
-                return str(n)
-
-            fractional = n - math.trunc(n)
-            whole = n - fractional
-            whole_str = int_to_base(int(whole), base)
-            if fractional == 0:
-                return whole_str
-
-            remaining_digits = 49  # some arbitrary number!
-            digits = []
-            while remaining_digits > 0:
-                fractional *= base
-                new_digit = int(math.trunc(fractional))
-                digits.append(digit_map[new_digit])
-                fractional -= new_digit
-                if fractional == 0:
-                    break
-                remaining_digits -= 1
-
-            return whole_str + '.' + ''.join(digits).rstrip('0')
-
         def int_to_base(n: int, base: int) -> str:
             n = int(n)
             s = ''
@@ -470,15 +444,21 @@ class Str(RuntimeModule):
             sign = '+' if z.imag >= 0 else ''
             real = self.fmtnum(z.real, base).value
             imag = self.fmtnum(z.imag, base).value
-            return String(real + sign + imag)
-        elif isinstance(z, Integer):
-            return String(int_to_base(z, base))
-        elif isinstance(z, Rational):
-            return String(int_to_base(z.frac.numerator, base) + '/' + int_to_base(z.frac.denominator, base))
-        elif isinstance(z, Float):
-            return String(float_to_base(z, base))
+            return String(real + sign + imag + 'i')
         else:
-            assert False, 'unhandled case'
+            if z.exact:
+                if isinstance(z, Integer):
+                    return String(int_to_base(z, base))
+                elif isinstance(z, Rational):
+                    num = int_to_base(z.frac.numerator, base)
+                    den = int_to_base(z.frac.denominator, base)
+                    return String(num + '/' + den)
+                else:
+                    assert False, 'unhandled case'
+            else:
+                # r7rs number->string description says that if the number is
+                # inexact, the radix is always 10.
+                return String(str(z))
 
 
 @module(opcode=0x03)
