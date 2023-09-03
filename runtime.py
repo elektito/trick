@@ -383,6 +383,103 @@ class Str(RuntimeModule):
 
         return Bytevector([Integer(b) for b in bv])
 
+    @proc(opcode=0x04)
+    def fmtnum(self, z: Number, base: Integer) -> String:
+        digit_map = {
+            0: '0',
+            1: '1',
+            2: '2',
+            3: '3',
+            4: '4',
+            5: '5',
+            6: '6',
+            7: '7',
+            8: '8',
+            9: '9',
+            10: 'a',
+            11: 'b',
+            12: 'c',
+            13: 'd',
+            14: 'e',
+            15: 'f',
+            16: 'g',
+            17: 'h',
+            18: 'i',
+            19: 'j',
+            20: 'k',
+            21: 'l',
+            22: 'm',
+            23: 'n',
+            24: 'o',
+            25: 'p',
+            26: 'q',
+            27: 'r',
+            28: 's',
+            29: 't',
+            30: 'u',
+            31: 'v',
+            32: 'w',
+            33: 'x',
+            34: 'y',
+            35: 'z',
+        }
+
+        def float_to_base(n: float, base: int) -> str:
+            base = int(base)  # in case we're passed an Integer
+            if base == 10:
+                # bit of cheating; our converter doesn't work so well on numbers
+                # like 2.2, which are printed with many extra digits, due to floating point error. not sure what python or others do
+                return str(n)
+
+            fractional = n - math.trunc(n)
+            whole = n - fractional
+            whole_str = int_to_base(int(whole), base)
+            if fractional == 0:
+                return whole_str
+
+            remaining_digits = 49  # some arbitrary number!
+            digits = []
+            while remaining_digits > 0:
+                fractional *= base
+                new_digit = int(math.trunc(fractional))
+                digits.append(digit_map[new_digit])
+                fractional -= new_digit
+                if fractional == 0:
+                    break
+                remaining_digits -= 1
+
+            return whole_str + '.' + ''.join(digits).rstrip('0')
+
+        def int_to_base(n: int, base: int) -> str:
+            n = int(n)
+            s = ''
+            if n < 0:
+                s = '-'
+                n = -n
+            while n > 0:
+                digit = n % base
+                digit = digit_map[digit]
+                s = digit + s
+                n //= base
+            return s
+
+        if base < 1 or base > 36:
+            raise self._runtime_error('Only bases 2-36 supported')
+
+        if isinstance(z, Complex):
+            sign = '+' if z.imag >= 0 else ''
+            real = self.fmtnum(z.real, base).value
+            imag = self.fmtnum(z.imag, base).value
+            return String(real + sign + imag)
+        elif isinstance(z, Integer):
+            return String(int_to_base(z, base))
+        elif isinstance(z, Rational):
+            return String(int_to_base(z.frac.numerator, base) + '/' + int_to_base(z.frac.denominator, base))
+        elif isinstance(z, Float):
+            return String(float_to_base(z, base))
+        else:
+            assert False, 'unhandled case'
+
 
 @module(opcode=0x03)
 class Sys(RuntimeModule):

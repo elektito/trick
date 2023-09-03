@@ -1320,6 +1320,11 @@
    ((str fill start) (_string-fill! str fill start (string-length str)))
    ((str fill start end) (_string-fill! str fill start end))))
 
+(define number->string
+  (case-lambda
+   ((z) (number->string z 10))
+   ((z base) (#$/str/fmtnum z base))))
+
 ;; vectors
 
 (define (make-vector . args)

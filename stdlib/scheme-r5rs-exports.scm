@@ -148,7 +148,7 @@
         not
         ;; null-environment
         null?
-        ;; number->string
+        number->string
         number?
         numerator
         odd?

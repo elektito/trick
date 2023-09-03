@@ -139,7 +139,7 @@
         newline
         not
         null?
-        ;; number->string
+        number->string
         number?
         numerator
         odd?
