@@ -2388,3 +2388,8 @@ and still a comment
 (approx= -0.7530458367485594-0.9864287886477446i (expt 2+3i 4+5i))
 (approx= (sqrt 3) (expt 3 1/2))
 (zero? (imag-part (expt +i +i)))
+
+(equal? "143.1" (number->string 143.1))
+(equal? "3e8" (number->string 1000 16))
+(equal? "1750" (number->string 1000 8))
+(equal? "1111101000" (number->string 1000 2))
