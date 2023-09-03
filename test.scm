@@ -571,6 +571,13 @@ and still a comment
 (equal? '(10 10 10 10) (make-list 4 10))
 (equal? 10 (length (make-list 10)))
 
+(null? (list-copy '()))
+(equal? '(1 2 3) (list-copy '(1 2 3)))
+(equal? '(1 2 3 . 4) (list-copy '(1 2 3 . 4)))
+(let ((x #(1 2 3)))
+  ;; non-list objects should be returned unchanged
+  (eq? x (list-copy x)))
+
 ;; equality
 
 (not (eq? (gensym) (gensym)))

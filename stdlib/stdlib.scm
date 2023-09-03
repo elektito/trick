@@ -706,6 +706,18 @@
 (define (map func . arg-lists)
   (map1 func arg-lists '()))
 
+(define (list-copy-aux ls acc)
+  (cond ((pair? (cdr ls))
+         (list-copy-aux (cdr ls) (cons (car ls) acc)))
+        (else (do ((copy ls (cons (car acc) copy))
+                   (acc acc (cdr acc)))
+                  ((null? acc) copy)))))
+
+(define (list-copy ls)
+  (cond ((null? ls) ls)
+        ((pair? ls) (list-copy-aux ls '()))
+        (else ls)))
+
 ;; general comparison
 
 (define (memq obj ls)

@@ -118,7 +118,7 @@
         list
         list->string
         list->vector
-        ;; list-copy
+        list-copy
         list-ref
         ;; list-set!
         list-tail
