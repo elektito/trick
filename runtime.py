@@ -623,6 +623,10 @@ class Math(RuntimeModule):
 
     @proc(opcode=0x11)
     def expt(self, z1: Number, z2: Number) -> Number:
+        if z1.is_zero() and z2.is_negative():
+            raise self._runtime_error(
+                f'expt is undefined for {z1} and {z2}')
+
         if isinstance(z1, Complex) or isinstance(z2, Complex):
             z1 = z1.to_complex()
             z2 = z2.to_complex()

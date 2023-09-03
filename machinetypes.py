@@ -113,7 +113,8 @@ class Number(TrickType):
 
     def is_zero(self):
         if isinstance(self, Complex):
-            return self.real == 0 and self.imag == 0
+            return self.real.to_python_number() == 0 and \
+                self.imag.to_python_number() == 0
         else:
             return self.to_python_number() == 0
 
@@ -131,6 +132,12 @@ class Number(TrickType):
             return self.exact and self.imag.is_zero() and self.real.is_zero()
         else:
             return isinstance(self, Integer) and self.to_python_number() == 0
+
+    def is_negative(self):
+        if isinstance(self, Complex):
+            return self.real.to_python_number() < 0 and self.imag.to_python_number() == 0
+        else:
+            return self.to_python_number() < 0
 
     def to_specific(self):
         if isinstance(self, Rational):

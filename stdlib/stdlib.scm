@@ -439,6 +439,18 @@
 (define (exp z)
   (#$/math/exp z))
 
+;; this function performs integer exponentiation when the exponent is an
+;; integer, otherwise calls #$/math/expt which performs inexact exponentiation.
+;; the report says nothing about the exactness requirements of expt, and I'm not
+;; even sure if we can do better than this or not.
+(define (expt z1 z2)
+  (when (and (zero? z1) (negative? z2))
+    (error "expt is undefined for the given values."))
+  (cond ((integer? z2) (if (negative? z2)
+                           (/ (apply * (make-list (- z2) z1)))
+                           (apply * (make-list z2 z1))))
+        (else (#$/math/expt z1 z2))))
+
 (define log
   (case-lambda
    ((z) (#$/math/ln z))

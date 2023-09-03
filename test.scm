@@ -2378,3 +2378,13 @@ and still a comment
 (zero? (rationalize 101 -inf.0))
 (nan? (rationalize +nan.0 1))
 (nan? (rationalize 1 +nan.0))
+
+(eqv? 0 (expt 0 3))
+(eqv? 0.0 (expt 0.0 3))
+(eqv? 1 (expt 1 3))
+(eqv? 81 (expt 3 4))
+(eqv? 1/81 (expt 3 -4))
+(approx= #i1/3 (expt 1/9 1/2))
+(approx= -0.7530458367485594-0.9864287886477446i (expt 2+3i 4+5i))
+(approx= (sqrt 3) (expt 3 1/2))
+(zero? (imag-part (expt +i +i)))
