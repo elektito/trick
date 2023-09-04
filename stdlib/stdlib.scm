@@ -718,6 +718,11 @@
         ((pair? ls) (list-copy-aux ls '()))
         (else ls)))
 
+(define (list-set! ls k obj)
+  (if (zero? k)
+      (set-car! ls obj)
+      (list-set! (cdr ls) (1- k) obj)))
+
 ;; general comparison
 
 (define (memq obj ls)
