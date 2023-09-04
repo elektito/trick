@@ -130,7 +130,7 @@
         make-vector
         map
         max
-        ;; member
+        member
         memq
         memv
         min

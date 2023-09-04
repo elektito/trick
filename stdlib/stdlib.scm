@@ -726,16 +726,17 @@
 ;; general comparison
 
 (define (memq obj ls)
-  (if (null? ls)
-      #f
-      (or (eq? obj (car ls))
-          (memq obj (cdr ls)))))
+  (member obj ls eq?))
 
 (define (memv obj ls)
-  (if (null? ls)
-      #f
-      (or (eq? obj (car ls))
-          (memv obj (cdr ls)))))
+  (member obj ls eqv?))
+
+(define member
+  (case-lambda
+   ((obj list) (member obj list equal?))
+   ((obj list compare) (cond ((null? list) #f)
+                             ((compare (car list) obj) list)
+                             (else (member obj (cdr list) compare))))))
 
 (define (_equal? x y recursed)
   (cond ((memq x recursed) ; if already checked this exact object

@@ -582,6 +582,10 @@ and still a comment
   (list-set! x 2 'abc)
   (equal? '(1 2 abc 4 5) x))
 
+(equal? '(3 4 5) (member 3 '(1 2 3 4 5)))
+(not (member 30 '(1 2 3 4 5)))
+(equal? '(1 2 3 4 5) (member 30 '(1 2 3 4 5) (lambda (x y) #t)))
+
 ;; equality
 
 (not (eq? (gensym) (gensym)))
