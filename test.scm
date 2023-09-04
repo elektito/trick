@@ -2445,3 +2445,10 @@ and still a comment
 (equal? "3e8" (number->string 1000 16))
 (equal? "1750" (number->string 1000 8))
 (equal? "1111101000" (number->string 1000 2))
+
+(= 4 (gcd 32 -36))
+(= 4.0 (gcd 32.0 -36))
+(= 0 (gcd))
+(= 288 (lcm 32 -36))
+(= 288.0 (lcm 32.0 -36))
+(= 1 (lcm))

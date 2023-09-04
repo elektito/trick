@@ -581,6 +581,12 @@
                             (fix-exact (/ (+ a b) (+ c d)))
                             (loop s t u v a b c d))))))))))
 
+(define (lcm . numbers)
+  (#$/math/lcm numbers))
+
+(define (gcd . numbers)
+  (#$/math/gcd numbers))
+
 ;;
 
 (define approx=

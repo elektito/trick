@@ -91,7 +91,7 @@
         floor/
         flush-output-port
         for-each
-        ;; gcd
+        gcd
         get-output-bytevector
         get-output-string
         ;; guard
@@ -105,7 +105,7 @@
         integer->char
         integer?
         lambda
-        ;; lcm
+        lcm
         length
         let
         let*

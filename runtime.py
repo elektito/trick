@@ -8,7 +8,7 @@ import sys
 import traceback
 
 from exceptions import RunError
-from machinetypes import Bool, Bytevector, Complex, Float, Integer, Number, Port, Rational, String, Symbol, TrickType, Void
+from machinetypes import Bool, Bytevector, Complex, Float, Integer, List, Number, Port, Rational, String, Symbol, TrickType, Void
 from print import PrintMode, PrintStyle, Printer
 from read import ReadError, Reader
 
@@ -741,6 +741,42 @@ class Math(RuntimeModule):
             y = z2.to_float()
             r = x ** y
             return Float(r)
+
+    @proc(opcode=0x12)
+    def lcm(self, numbers: List) -> Number:
+        ns = []
+        ret_type = Integer
+        for n in numbers:
+            if not isinstance(n, Integer) and \
+               not (isinstance(n, Float) and n.is_integer()):
+                raise self._runtime_error(
+                    'Not an integer', kind=Symbol('math'))
+
+            if isinstance(n, Float):
+                ret_type = Float
+
+            ns.append(int(n))
+
+        result = math.lcm(*ns)
+        return ret_type(result)
+
+    @proc(opcode=0x13)
+    def gcd(self, numbers: List) -> Number:
+        ns = []
+        ret_type = Integer
+        for n in numbers:
+            if not isinstance(n, Integer) and \
+               not (isinstance(n, Float) and n.is_integer()):
+                raise self._runtime_error(
+                    'Not an integer', kind=Symbol('math'))
+
+            if isinstance(n, Float):
+                ret_type = Float
+
+            ns.append(int(n))
+
+        result = math.gcd(*ns)
+        return ret_type(result)
 
 
 @module(opcode=0x99)

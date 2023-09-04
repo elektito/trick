@@ -107,7 +107,7 @@
         floor
         for-each
         ;; force
-        ;; gcd
+        gcd
         if
         imag-part
         (rename exact inexact->exact)
@@ -116,7 +116,7 @@
         integer?
         ;; interaction-environment
         lambda
-        ;; lcm
+        lcm
         length
         let
         let*
