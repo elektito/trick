@@ -578,6 +578,10 @@ and still a comment
   ;; non-list objects should be returned unchanged
   (eq? x (list-copy x)))
 
+(let ((x '(1 2 3 4 5)))
+  (list-set! x 2 'abc)
+  (equal? '(1 2 abc 4 5) x))
+
 ;; equality
 
 (not (eq? (gensym) (gensym)))
