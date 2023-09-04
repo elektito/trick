@@ -15,6 +15,7 @@ from snippet import show_snippet
 from machinetypes import (
     Bool, Bytevector, Char, Complex, Float, Integer, List, Nil, Number, Pair, Port, Rational, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
 )
+from utils import ensure_stdlib
 
 
 class AbortedException(Exception):
@@ -1386,8 +1387,17 @@ def configure_argparse(parser: argparse.ArgumentParser):
         help='Add a FASL to be loaded as a library.')
 
     parser.add_argument(
+        '--no-stdlib', action='store_true', default=False,
+        help='Do not load stdlib before running.')
+
+    parser.add_argument(
         '--debug', '-g', action='store_true', default=False,
         help='Enable debug mode.')
+
+    parser.add_argument(
+        '--print-report', action='store_true', default=False,
+        help='If specified, the final status of the machine is '
+        'printed to the output upon termination.')
 
     parser.set_defaults(func=main)
 
@@ -1398,6 +1408,10 @@ def main(args):
     else:
         with open(args.input, 'rb') as f:
             fasl = Fasl.load(f, args.input)
+
+    if not args.no_stdlib:
+        ensure_stdlib('stdlib.fasl')
+        args.lib = ['stdlib.fasl'] + args.lib
 
     lib_fasls = []
     for lib in args.lib:
@@ -1416,10 +1430,11 @@ def main(args):
         m.print_stack_trace()
         sys.exit(1)
 
-    if m.halt_code is None:
-        print('Code exhausted.', file=sys.stderr, end=' ')
-    else:
-        print('Machine halted with code:', m.halt_code,
-              file=sys.stderr, end=' ')
+    if args.print_report:
+        if m.halt_code is None:
+            print('Code exhausted.', file=sys.stderr, end=' ')
+        else:
+            print('Machine halted with code:', m.halt_code,
+                  file=sys.stderr, end=' ')
 
-    print(f'({len(m.s)} item(s) left on the stack.)', file=sys.stderr)
+        print(f'({len(m.s)} item(s) left on the stack.)', file=sys.stderr)

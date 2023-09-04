@@ -38,6 +38,10 @@ def main():
         help='Load the given FASL as a library when compiling.')
 
     parser.add_argument(
+        '--no-stdlib', action='store_true', default=False,
+        help='Do not use stdlib while compiling.')
+
+    parser.add_argument(
         '--include-path', '-I', action='append', default=[],
         help='Add a given path to the include search path. Can be '
         'specified multiple times.')
@@ -92,6 +96,11 @@ def main():
         if not args.output:
             name, _ = os.path.splitext(args.compile)
             args.output = name + '.fasl'
+
+        if not args.no_stdlib:
+            ensure_stdlib('stdlib.fasl')
+            args.lib = ['stdlib.fasl'] + args.lib
+
         try:
             compile_src_file_to_fasl(
                 args.compile, args.output, args.lib,
