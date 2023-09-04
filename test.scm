@@ -1048,6 +1048,14 @@ and still a comment
                              #(10 20)
                              #(30 40)))
 
+(let ((result '()))
+  (vector-for-each (lambda (x y)
+                     (set! result (cons (cons x y) result)))
+                   #(10 20 30 40 50)
+                   #(a b c))
+  (equal? '((30 . c) (20 . b) (10 . a))
+          result))
+
 (equal? #() (vector))
 (equal? #(a b c) (vector 'a 'b 'c))
 

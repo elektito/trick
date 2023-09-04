@@ -224,7 +224,7 @@
         vector-copy
         vector-copy!
         vector-fill!
-        ;; vector-for-each
+        vector-for-each
         vector-length
         vector-map
         vector-ref

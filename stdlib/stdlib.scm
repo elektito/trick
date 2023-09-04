@@ -1413,10 +1413,15 @@
       (#$make-vector (car args) (cadr args))))
 
 (define (vector-map proc . args)
-  (let ((result (make-vector (vector-length (car args)))))
+  (let* ((shortest (apply min (map vector-length args)))
+         (result (make-vector shortest)))
     (do ((i 0 (1+ i)))
-        ((= i (vector-length result)) result)
+        ((= i shortest) result)
       (vector-set! result i (apply proc (mapcar (lambda (x) (vector-ref x i)) args))))))
+
+(define (vector-for-each proc . args)
+  (apply vector-map proc args)
+  (void))
 
 (define (vector->list vec)
   (let ((result '()))
