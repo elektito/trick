@@ -879,6 +879,43 @@ and still a comment
   (set-cdr! x 10)
   (equal? x '(1 . 10)))
 
+(string<? "bar")
+(string<? "bar" "foo" "spam")
+(string<? "BAR" "bar" "foo" "spam")
+(not (string<? "bar" "bar" "foo" "spam"))
+
+(string<=? "bar")
+(string<=? "bar" "foo" "spam")
+(string<=? "BAR" "bar" "foo" "spam")
+(string<=? "bar" "bar" "foo" "spam")
+
+(string>? "bar")
+(string>? "spam" "foo" "bar")
+(string>? "spam" "foo" "bar" "BAR")
+(not (string>? "spam" "foo" "bar" "bar"))
+
+(string>=? "bar")
+(string>=? "spam" "foo" "bar")
+(string>=? "spam" "foo" "bar" "BAR")
+(string>=? "spam" "foo" "bar" "bar")
+
+(string-ci<? "bar")
+(string-ci<? "bar" "Foo" "spaM")
+(not (string-ci<? "BAR" "bar" "foo" "spam"))
+
+(string-ci<=? "bar")
+(string-ci<=? "bar" "FOO" "Spam")
+(string-ci<=? "BAR" "bar" "Foo" "Spam")
+
+(string-ci>? "bar")
+(string-ci>? "spam" "Foo" "bar")
+(not (string-ci>? "spam" "Foo" "Bar" "bar"))
+
+(string-ci>=? "bar")
+(string-ci>=? "spam" "foo" "bar")
+(string-ci>=? "spam" "foo" "bar" "BAR")
+(string-ci>=? "spam" "Foo" "Bar" "bar")
+
 ;; quasiquote tests
 
 (eq? `() '())

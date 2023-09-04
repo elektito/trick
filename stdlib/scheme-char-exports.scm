@@ -12,11 +12,11 @@
         char-upper-case?
         char-whitespace?
         digit-value
-        ;; string-ci<=?
-        ;; string-ci<?
-        ;; string-ci=?
-        ;; string-ci>=?
-        ;; string-ci>?
+        string-ci<=?
+        string-ci<?
+        string-ci=?
+        string-ci>=?
+        string-ci>?
         ;; string-downcase
         ;;string-foldcase
         ;;string-upcase

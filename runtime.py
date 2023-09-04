@@ -460,6 +460,28 @@ class Str(RuntimeModule):
                 # inexact, the radix is always 10.
                 return String(str(z))
 
+    @proc(opcode=0x05)
+    def cmp(self, s1: String, s2: String, options: Integer) -> Integer:
+        case_insensitive = False
+        if options != 0:
+            case_insensitive = True
+
+        s1 = s1.value
+        s2 = s2.value
+
+        if case_insensitive:
+            s1 = s1.casefold()
+            s2 = s2.casefold()
+
+        if s1 == s2:
+            result = 0
+        elif s1 < s2:
+            result = -1
+        elif s1 > s2:
+            result = 1
+
+        return Integer(result)
+
 
 @module(opcode=0x03)
 class Sys(RuntimeModule):

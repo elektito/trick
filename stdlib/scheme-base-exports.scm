@@ -194,11 +194,11 @@
         ;; string-map
         string-ref
         string-set!
-        ;; string<=?
-        ;; string<?
+        string<=?
+        string<?
         string=?
-        ;; string>=?
-        ;; string>?
+        string>=?
+        string>?
         string?
         substring
         symbol->string

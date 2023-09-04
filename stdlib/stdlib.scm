@@ -1284,14 +1284,65 @@
 (define (list->string ls)
   (apply string ls))
 
-(define (string=?1 s1 s2)
-  (and (eqv? (string-length s1) (string-length s2))
-       (all? (map char=? (string->list s1) (string->list s2)))))
-
-(define (string=? . strings)
-  (if (null? (cdr strings))
+(define (string=? s1 . rest)
+  (if (null? rest)
       #t
-      (all? (pairwise string=?1 strings))))
+      (and (zero? (#$/str/cmp s1 (car rest) 0))
+           (apply string=? rest))))
+
+(define (string<? s1 . rest)
+  (if (null? rest)
+      #t
+      (and (negative? (#$/str/cmp s1 (car rest) 0))
+           (apply string<? rest))))
+
+(define (string<=? s1 . rest)
+  (if (null? rest)
+      #t
+      (and (not (positive? (#$/str/cmp s1 (car rest) 0)))
+           (apply string<=? rest))))
+
+(define (string>? s1 . rest)
+  (if (null? rest)
+      #t
+      (and (positive? (#$/str/cmp s1 (car rest) 0))
+           (apply string>? rest))))
+
+(define (string>=? s1 . rest)
+  (if (null? rest)
+      #t
+      (and (not (negative? (#$/str/cmp s1 (car rest) 0)))
+           (apply string>=? rest))))
+
+(define (string-ci=? s1 . rest)
+  (if (null? rest)
+      #t
+      (and (zero? (#$/str/cmp s1 (car rest) 1))
+           (apply string-ci=? rest))))
+
+(define (string-ci<? s1 . rest)
+  (if (null? rest)
+      #t
+      (and (negative? (#$/str/cmp s1 (car rest) 1))
+           (apply string-ci<? rest))))
+
+(define (string-ci<=? s1 . rest)
+  (if (null? rest)
+      #t
+      (and (not (positive? (#$/str/cmp s1 (car rest) 1)))
+           (apply string-ci<=? rest))))
+
+(define (string-ci>? s1 . rest)
+  (if (null? rest)
+      #t
+      (and (positive? (#$/str/cmp s1 (car rest) 1))
+           (apply string-ci>? rest))))
+
+(define (string-ci>=? s1 . rest)
+  (if (null? rest)
+      #t
+      (and (not (negative? (#$/str/cmp s1 (car rest) 1)))
+           (apply string-ci>=? rest))))
 
 (define (substring str start end)
   (let ((result (make-string (- end start))))
