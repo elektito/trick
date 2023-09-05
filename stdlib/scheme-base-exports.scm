@@ -189,9 +189,9 @@
         string-copy
         string-copy!
         string-fill!
-        ;; string-for-each
+        string-for-each
         string-length
-        ;; string-map
+        string-map
         string-ref
         string-set!
         string<=?

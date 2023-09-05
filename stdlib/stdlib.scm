@@ -1407,6 +1407,19 @@
    ((z) (number->string z 10))
    ((z base) (#$/str/fmtnum z base))))
 
+(define (string-map proc . args)
+  (let* ((shortest (apply min (map string-length args)))
+         (result (make-string shortest)))
+    (do ((i 0 (1+ i)))
+        ((= i shortest) result)
+      (string-set! result i (apply proc (mapcar (lambda (x) (string-ref x i)) args))))))
+
+(define (string-for-each proc . args)
+  (let ((shortest (apply min (map string-length args))))
+    (do ((i 0 (1+ i)))
+        ((= i shortest) (void))
+      (apply proc (mapcar (lambda (x) (string-ref x i)) args)))))
+
 ;; vectors
 
 (define (make-vector . args)

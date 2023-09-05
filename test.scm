@@ -918,6 +918,15 @@ and still a comment
 (string-ci>=? "spam" "foo" "bar" "BAR")
 (string-ci>=? "spam" "Foo" "Bar" "bar")
 
+(equal? "" (string-map char-upcase ""))
+(equal? "foobar1" (string-map char-downcase "FoOBaR1"))
+
+(let ((result '()))
+  (string-for-each (lambda (c)
+                     (set! result (cons c result)))
+                   "foo")
+  (equal? '(#\o #\o #\f) result))
+
 ;; quasiquote tests
 
 (eq? `() '())
