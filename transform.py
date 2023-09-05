@@ -1,6 +1,6 @@
 from machinetypes import Bool, Bytevector, Char, Integer, List, Nil, Pair, String, Symbol, TrickType, Vector
 from serialization import Serializable
-from symbolinfo import AuxKeywords
+from symbolinfo import AuxKeywords, SpecialForms
 
 
 class _List:
@@ -204,7 +204,24 @@ class SyntaxRulesTransformer(Transformer):
         elif isinstance(finalized, _Vector):
             finalized = finalized.to_trick_vector(recursive=True)
 
+        self.check_syntax_error(finalized)
+
         return finalized
+
+    def check_syntax_error(self, form):
+        if not isinstance(form, Pair):
+            return
+        if form.car is None or form.car.info is None:
+            return
+        if not form.car.info.is_special(SpecialForms.SYNTAX_ERROR):
+            return
+
+        if not form.is_proper():
+            raise TransformError(f'Invalid syntax-error form: {form}')
+
+        error = ' '.join(str(i) for i in form.cdr)
+        raise TransformError(f'Syntax Error: {error}')
+
 
     def fix_up(self, expansion, env):
         if isinstance(expansion, _UserSymbol):

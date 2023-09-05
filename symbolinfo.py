@@ -51,6 +51,7 @@ class SpecialForms(Serializable, Enum):
     INCLUDE_CI = 'include-ci'
     COND_EXPAND = 'cond-expand'
     SYNTAX_RULES = 'syntax-rules'
+    SYNTAX_ERROR = 'syntax-error'
 
     def dump(self, output):
         idx = list(SpecialForms).index(self)

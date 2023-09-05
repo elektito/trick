@@ -204,7 +204,7 @@
         symbol->string
         symbol=?
         symbol?
-        ;; syntax-error
+        syntax-error
         syntax-rules
         textual-port?
         truncate
