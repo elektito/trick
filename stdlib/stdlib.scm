@@ -1435,8 +1435,10 @@
       (vector-set! result i (apply proc (mapcar (lambda (x) (vector-ref x i)) args))))))
 
 (define (vector-for-each proc . args)
-  (apply vector-map proc args)
-  (void))
+  (let* ((shortest (apply min (map vector-length args))))
+    (do ((i 0 (1+ i)))
+        ((= i shortest) (void))
+      (apply proc (mapcar (lambda (x) (vector-ref x i)) args)))))
 
 (define (vector->list vec)
   (let ((result '()))
