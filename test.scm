@@ -334,9 +334,11 @@ and still a comment
 (not (odd? 2))
 (not (odd? -100))
 
+(= 1 (max 1))
 (= 2 (max 1 2))
 (= 8 (max 4 1 8 7 -9))
 
+(= 1 (min 1))
 (= 1 (min 1 2))
 (= -9 (min 4 1 8 7 -9))
 

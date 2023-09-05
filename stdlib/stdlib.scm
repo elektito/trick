@@ -376,10 +376,12 @@
   (not (zero? (floor-remainder n 2))))
 (define max
   (case-lambda
+   ((x) x)
    ((x y) (if (> x y) x y))
    ((x y . rest) (max x (apply max y rest)))))
 (define min
   (case-lambda
+   ((x) x)
    ((x y) (if (< x y) x y))
    ((x y . rest) (min x (apply min y rest)))))
 
