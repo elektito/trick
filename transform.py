@@ -211,7 +211,9 @@ class SyntaxRulesTransformer(Transformer):
     def check_syntax_error(self, form):
         if not isinstance(form, Pair):
             return
-        if form.car is None or form.car.info is None:
+        if not isinstance(form.car, Symbol):
+            return
+        if form.car.info is None:
             return
         if not form.car.info.is_special(SpecialForms.SYNTAX_ERROR):
             return
