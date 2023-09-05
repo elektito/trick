@@ -727,6 +727,7 @@ class Char(TrickType):
     serialization_id = 7
 
     name_to_code = {
+        'null': 0x0,
         'alarm': 0x07,
         'backspace': 0x08,
         'delete': 0x7f,
@@ -739,6 +740,7 @@ class Char(TrickType):
     }
 
     code_to_name = {
+        0x0: 'null',
         0x07: 'alarm',
         0x08: 'backspace',
         0x7f: 'delete',
@@ -766,7 +768,7 @@ class Char(TrickType):
         return hash(self.char_code)
 
     def __str__(self):
-        name = Char.code_to_name.get(self.char_code)
+        name = Char.code_to_name.get(int(self.char_code))
         if name is None:
             char = chr(self.char_code)
             if char.isprintable:
@@ -819,7 +821,7 @@ class String(TrickType):
             if escaped is not None:
                 s += escaped
             elif not c.isprintable():
-                s += f'\\x{hex(ord(c))};'
+                s += f'\\x{hex(ord(c))[2:]};'
             else:
                 s += c
         return f'"{s}"'
