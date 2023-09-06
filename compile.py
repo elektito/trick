@@ -654,10 +654,6 @@ class Compiler:
         values = List.from_list([b.cdr.car for b in bindings])
         body = expr.cdr.cdr
 
-        for v in vars:
-            if not isinstance(v, Symbol):
-                raise self._compile_error(f'Invalid let variable: {v}', form=v)
-
         # transform let to a lambda call and compile that instead
         # ((lambda . ( params . body )) . args)
         lambda_form = Pair(S('#$lambda'), Pair(vars, body))
@@ -683,10 +679,6 @@ class Compiler:
         vars = List.from_list([b.car for b in bindings])
         values = List.from_list([b.cdr.car for b in bindings])
         body = expr.cdr.cdr
-
-        for v in vars:
-            if not isinstance(v, Symbol):
-                raise self._compile_error(f'Invalid let variable: {v}', form=v)
 
         if values != Nil():
             for v, b in zip(values, bindings):
@@ -1094,11 +1086,6 @@ class Compiler:
             raise self._compile_error(
                 f'let-syntax body cannot be empty.')
 
-        for v in vars:
-            if not isinstance(v, Symbol):
-                raise self._compile_error(
-                    f'Invalid let-syntax variable: {v}', form=v)
-
         transformers = {}
         for var, value in zip(vars, values):
             transformers[var] = self.compile_transformer(value, env)
@@ -1130,10 +1117,6 @@ class Compiler:
         if len(body) == 0:
             raise self._compile_error(
                 f'let-syntax body cannot be empty.')
-
-        for v in vars:
-            if not isinstance(v, Symbol):
-                raise self._compile_error(f'Invalid letrec-syntax variable: {v}', form=v)
 
         # initialize variables with "bad" transformers that throw an error if
         # used. this is to make sure the variables are not used while the actual
