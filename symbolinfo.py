@@ -44,6 +44,7 @@ class SpecialForms(Serializable, Enum):
     LAMBDA = 'lambda'
     LET = 'let'
     LETREC = 'letrec'
+    LETREC_STAR = 'letrec*'
     LET_SYNTAX = 'let-syntax'
     LETREC_SYNTAX = 'letrec-syntax'
     QUOTE = 'quote'

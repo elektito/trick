@@ -380,6 +380,37 @@ and still a comment
                     (+ (fib (- n 1)) (fib (- n 2)))))))
   (eq? 55 (fib 10)))
 
+(letrec* ((is-even? (lambda (n)
+                      (or (eq? n 0)
+                          (is-odd? (#$isub n 1)))))
+          (is-odd? (lambda (n)
+                     (and (not (eq? n 0))
+                          (is-even? (#$isub n 1))))))
+  (is-odd? 11))
+
+(letrec* ()
+  #t)
+
+(letrec* ((fib (lambda (n)
+                 (if (< n 2)
+                     n
+                     (+ (fib (- n 1)) (fib (- n 2)))))))
+  (eq? 55 (fib 10)))
+
+(letrec* ((x 10)
+          (y x))
+  (= y 10))
+
+(letrec* ((x 10)
+          (y x))
+  (define y 20)
+  (= y 20))
+
+(letrec* ((x 10)
+          (y x))
+  (define z 20)
+  (= z 20))
+
 (eq? 12 (let* ((x 10)
                (y (+ x 2)))
           y))

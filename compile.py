@@ -701,6 +701,43 @@ class Compiler:
 
         return secd_code
 
+    def compile_letrec_star(self, expr, env: Environment):
+        if len(expr) < 2:
+            raise self._compile_error(
+                f'Invalid number of arguments for letrec*: {expr}')
+
+        bindings = expr[1]
+        self.check_let_bindings(bindings, 'letrec*')
+
+        # bindings (( a . (value1 . nil) (b . (value2 . nil))))
+        vars = List.from_list([b.car for b in bindings])
+        values = List.from_list([b.cdr.car for b in bindings])
+        body = expr.cdr.cdr
+
+        if values != Nil():
+            for v, b in zip(values, bindings):
+                v.src_start = b.cdr.car.src_start
+                v.src_end = b.cdr.car.src_end
+
+        new_env = env.with_new_frame(vars)
+        body_code = self.compile_body(body, new_env, full_form=expr)
+
+        set_vars_code = []
+        for var, value in zip(vars, values):
+            set_vars_code += [S('xp')]
+            set_vars_code += self.compile_form(value, new_env)
+            local_desc = new_env.locate_local(var)
+            set_vars_code += [S('st'), local_desc]
+
+        secd_code = [
+            S('nil'),
+            S('ldf'), Integer(0),
+            set_vars_code + body_code + [S('ret')],
+            S('ap'),
+        ]
+
+        return secd_code
+
     def compile_func_call(self, expr, env):
         secd_code = [S('nil')]
 
@@ -1211,6 +1248,7 @@ class Compiler:
                 SpecialForms.LAMBDA: self.compile_lambda,
                 SpecialForms.LET: self.compile_let,
                 SpecialForms.LETREC: self.compile_letrec,
+                SpecialForms.LETREC_STAR: self.compile_letrec_star,
                 SpecialForms.LET_SYNTAX: self.compile_let_syntax,
                 SpecialForms.LETREC: self.compile_letrec,
                 SpecialForms.LETREC_SYNTAX: self.compile_letrec_syntax,

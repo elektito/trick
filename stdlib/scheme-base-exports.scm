@@ -113,7 +113,7 @@
         let-syntax
         let-values
         letrec
-        ;; letrec*
+        letrec*
         letrec-syntax
         list
         list->string
