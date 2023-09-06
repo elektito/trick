@@ -529,11 +529,16 @@ def parse_complex(token: str, base: int, force: (str|None)):
 def parse_real(token: str, base: int, force: (str|None)):
     if '/' in token:
         return parse_rational(token, base, force)
-    elif any(c in token for c in '.ed'): # d and e for scientific notation
+    elif '.' in token:
         return parse_float(token, base, force)
     else:
-        return parse_integer(token, base, force)
-
+        # could be a hexadecimal integer, or a float in scientific form (1e2,
+        # 1d2). we'll check for the integer first.
+        num = parse_integer(token, base, force)
+        if num is not None:
+            return num
+        else:
+            return parse_float(token, base, force)
 
 def parse_integer(token: str, base: int, force: (str|None)):
     try:
