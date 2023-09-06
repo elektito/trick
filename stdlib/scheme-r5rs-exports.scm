@@ -176,18 +176,18 @@
         set!
         set-car!
         set-cdr!
-        ;; sin
-        ;; sqrt
+        sin
+        sqrt
         string
         string->list
         string->number
         string->symbol
         string-append
-        ;; string-ci<=?
-        ;; string-ci<?
-        ;; string-ci=?
-        ;; string-ci>=?
-        ;; string-ci>?
+        string-ci<=?
+        string-ci<?
+        string-ci=?
+        string-ci>=?
+        string-ci>?
         string-copy
         string-fill!
         string-length
@@ -203,7 +203,7 @@
         symbol->string
         symbol?
         syntax-rules
-        ;; tan
+        tan
         truncate
         values
         vector
