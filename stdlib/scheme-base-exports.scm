@@ -94,7 +94,7 @@
         gcd
         get-output-bytevector
         get-output-string
-        ;; guard
+        guard
         if
         include
         include-ci

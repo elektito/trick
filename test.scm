@@ -1597,6 +1597,35 @@ and still a comment
         (lambda (e) 100)
         (lambda () 200)))
 
+(= 42
+   (guard (condition
+           ((assq 'a condition) => cdr)
+           ((assq 'b condition)))
+          (raise (list (cons 'a 42)))))
+
+(equal? '(b . 23)
+        (guard (condition
+                ((assq 'a condition) => cdr)
+                ((assq 'b condition)))
+               (raise (list (cons 'b 23)))))
+
+(equal? 'foo
+        (guard (condition
+                ((assq 'a condition) => cdr)
+                ((assq 'b condition))
+                (else 'foo))
+               (raise (list (cons 'c 100)))))
+
+(= 200
+   (let/cc k
+     (with-exception-handler
+      (lambda (e) (k (+ 100 (cdar e))))
+      (lambda ()
+        (guard (condition
+                ((assq 'a condition) => cdr)
+                ((assq 'b condition)))
+               (raise (list (cons 'c 100))))))))
+
 ;; macros
 
 (let-syntax ((swap! (syntax-rules ()
