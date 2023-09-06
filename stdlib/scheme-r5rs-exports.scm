@@ -180,7 +180,7 @@
         ;; sqrt
         string
         string->list
-        ;; string->number
+        string->number
         string->symbol
         string-append
         ;; string-ci<=?

@@ -181,7 +181,7 @@
         square
         string
         string->list
-        ;; string->number
+        string->number
         string->symbol
         string->utf8
         string->vector

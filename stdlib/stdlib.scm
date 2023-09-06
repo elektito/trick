@@ -1465,6 +1465,11 @@
    ((z) (number->string z 10))
    ((z base) (#$/str/fmtnum z base))))
 
+(define string->number
+  (case-lambda
+   ((s) (string->number s 10))
+   ((s radix) (#$/read/parsenum s radix))))
+
 (define (string-map proc . args)
   (let* ((shortest (apply min (map string-length args)))
          (result (make-string shortest)))

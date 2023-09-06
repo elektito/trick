@@ -517,6 +517,33 @@ class Read(RuntimeModule):
 
         return result
 
+    @proc(opcode=0x02)
+    def parsenum(self, s: String, radix: Integer) -> TrickType:
+        sval = s.value
+        radix = int(radix)
+
+        if sval[:2].lower() not in ['#x', '#o', '#d', '#b']:
+            if radix == 2:
+                sval = '#b' + sval
+            elif radix == 8:
+                sval = '#o' + sval
+            elif radix == 10:
+                pass
+            elif radix == 16:
+                sval = '#x' + sval
+
+        file = io.StringIO(sval)
+        try:
+            reader = Reader(file)
+            result = reader.read()
+        except ReadError:
+            return Bool(False)
+        else:
+            if isinstance(result, Number):
+                return result
+            else:
+                return Bool(False)
+
 
 @module(opcode=0x05)
 class Math(RuntimeModule):
