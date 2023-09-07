@@ -68,12 +68,14 @@ class SourceFile:
 
 class Compiler:
     def __init__(self, libs: list[Fasl], debug_info=False):
-        self.assembler = Assembler()
-        self.macros_fasl = Fasl()
         self.lib_fasls = libs
         self.debug_info = debug_info
         self.include_paths = []
         self.defined_libs = []
+
+        self.assembler = Assembler()
+        self.macros_fasl = Fasl()
+        self.machine = None
 
         self.current_source = None
         self.current_form = None
@@ -191,16 +193,20 @@ class Compiler:
         func_call_code = [S('get'), syminfo.symbol, S('ap')]
         self.assembler.assemble(func_call_code, fasl)
 
-        machine = Secd()
+        if self.machine is None:
+            self.machine = Secd(self.lib_fasls)
 
         try:
             # since we want to push arguments on the stack, load the libraries
             # first to make sure they won't interfere with what we push.
-            machine.load_fasls(self.lib_fasls + [self.macros_fasl])
+            self.machine.load_fasl(self.macros_fasl)
         except RunError as e:
             raise self._compile_error(
-                f'Run error when loading libs for macro expansion of '
+                f'Run error when loading code for macro expansion of '
                 f'"{name_sym}": {e}')
+
+        # loaded it into the machine, so we can clear it now
+        self.macros_fasl = Fasl()
 
         # push the arguments directly on the machine stack. this is a better
         # approach than generating code for the quoted forms of the arguments.
@@ -208,19 +214,20 @@ class Compiler:
         # code objects/lists we have here in the compiler, and if they are
         # incorporated in the macro output, they still have any source
         # locations/debug info associated with them.
-        machine.s.push(args)
+        self.machine.s.clear()
+        self.machine.s.push(args)
 
         try:
-            machine.execute_fasl(fasl)
+            self.machine.execute_fasl(fasl)
         except RunError as e:
             raise self._compile_error(
                 f'Run error during macro expansion of "{name_sym}": {e}')
 
-        if len(machine.s) == 0:
+        if len(self.machine.s) == 0:
             raise self._compile_error(
                 f'Internal error: macro did not return anything')
 
-        expanded = machine.s.top()
+        expanded = self.machine.s.top()
         return expanded
 
     def parse_define_form(self, expr, form_name) -> tuple[Symbol, Pair]:
