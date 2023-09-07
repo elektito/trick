@@ -4,13 +4,15 @@ import inspect
 import io
 import math
 import os
+from select import select
 import sys
 import traceback
 
 from exceptions import RunError
-from machinetypes import Bool, Bytevector, Complex, Float, Integer, List, Number, Port, Rational, String, Symbol, TrickType, Void
+from machinetypes import Bool, Bytevector, Char, Complex, Float, Integer, List, Number, Port, Rational, String, Symbol, TrickType, Void
 from print import PrintMode, PrintStyle, Printer
 from read import ReadError, Reader
+from utils import STR_ENCODING
 
 
 modules = {}
@@ -336,6 +338,118 @@ class Io(RuntimeModule):
             raise self._file_error(str(e))
 
         return Void()
+
+    @proc(opcode=0x18)
+    def bready(self, port: Port) -> Bool:
+        if isinstance(port.file, io.BytesIO):
+            pos = port.file.tell()
+            b = port.file.read(1)
+            port.file.seek(pos, io.SEEK_SET)
+            return Bool(b != b'')
+
+        try:
+            r, _, _ = select([port.file], [], [])
+        except io.UnsupportedOperation:
+            # not exactly correct behavior, but the only alternative I can think
+            # of is buffering all files which is not very nice!
+            return Bool(False)
+
+        return Bool(r != [])
+
+    @proc(opcode=0x19)
+    def cready(self, port: Port) -> Bool:
+        if isinstance(port.file, io.StringIO):
+            pos = port.file.tell()
+            s = port.file.read(1)
+            port.file.seek(pos, io.SEEK_SET)
+            return Bool(s != '')
+
+        try:
+            r, _, _ = select([port.file], [], [])
+        except io.UnsupportedOperation:
+            # not exactly correct behavior, but the only alternative I can think
+            # of is buffering all files which is not very nice!
+            return Bool(False)
+
+        if r == []:
+            return Bool(False)
+
+        if isinstance(port.file, io.BufferedReader):
+            file = port.file
+        elif hasattr(port.file, 'buffer') and isinstance(port.file.buffer, io.BufferedReader):
+            file = port.file.buffer
+        elif hasattr(port.file, 'peek'):
+            file = port.file
+        else:
+            # we can't peek into the file, so can't be sure if the available
+            # bytes amount to a character or not. not exactly correct behavior,
+            # but can't think of a better way.
+            return Bool(False)
+
+        # there's at least one byte available, but that doesn't mean we can read
+        # a whole "character". we'll try to read 1-4 bytes and see if we can
+        # decode that into at least one character.
+        data = file.peek(4)
+        s = data.decode(STR_ENCODING, errors='ignore')
+        return Bool(s != '')
+
+    @proc(opcode=0x1a)
+    def bpeek(self, port: Port) -> Integer:
+        if isinstance(port.file, io.BytesIO):
+            pos = port.file.tell()
+            b = port.file.read(1)
+            port.file.seek(pos, io.SEEK_SET)
+            return Integer(b[0])
+
+        if isinstance(port.file, io.BufferedReader):
+            file = port.file
+        elif hasattr(port.file, 'buffer') and isinstance(port.file.buffer, io.BufferedReader):
+            file = port.file.buffer
+        elif hasattr(port.file, 'peek'):
+            file = port.file
+        else:
+            raise self._file_error(
+                'Cannot peek into the given port because its '
+                'underlying file is not buffered')
+
+        data = file.peek()
+        if data:
+            return Integer(data[0])
+        else:
+            # EOF
+            return Integer(-1)
+
+    @proc(opcode=0x1b)
+    def cpeek(self, port: Port) -> TrickType:
+        if isinstance(port.file, io.StringIO):
+            pos = port.file.tell()
+            c = port.file.read(1)
+            port.file.seek(pos, io.SEEK_SET)
+            return Char(ord(c))
+
+        if isinstance(port.file, io.BufferedReader):
+            file = port.file
+        elif hasattr(port.file, 'buffer') and isinstance(port.file.buffer, io.BufferedReader):
+            file = port.file.buffer
+        elif hasattr(port.file, 'peek'):
+            file = port.file
+        else:
+            raise self._file_error(
+                'Cannot peek into the given port because its '
+                'underlying file is not buffered')
+
+        data = b''
+        while True:
+            data += file.peek()
+            if not data:
+                # EOF
+                return Integer(-1)
+
+            s = data.decode(STR_ENCODING, errors='ignore')
+            if s:
+                return Char(ord(s[0]))
+
+            # not enough data to read a whole character. try reading more.
 
 
 @module(opcode=0x02)

@@ -1989,6 +1989,32 @@
 (define (delete-file filename)
   (#$/io/delete filename))
 
+(define u8-ready?
+  (case-lambda
+   (() (u8-ready? (current-input-port)))
+   ((port) (#$/io/bready port))))
+
+(define char-ready?
+  (case-lambda
+   (() (char-ready? (current-input-port)))
+   ((port) (#$/io/cready port))))
+
+(define peek-u8
+  (case-lambda
+   (() (peek-u8 (current-input-port)))
+   ((port) (let ((b (#$/io/bpeek port)))
+             (if (negative? b)
+                 (eof-object)
+                 b)))))
+
+(define peek-char
+  (case-lambda
+   (() (peek-char (current-input-port)))
+   ((port) (let ((c (#$/io/cpeek port)))
+             (if (eqv? c -1)
+                 (eof-object)
+                 c)))))
+
 ;; read
 
 (define read

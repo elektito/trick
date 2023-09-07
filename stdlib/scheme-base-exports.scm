@@ -42,7 +42,7 @@
         cdr
         ceiling
         char->integer
-        ;; char-ready?
+        char-ready?
         char<=?
         char<?
         char=?
@@ -152,8 +152,8 @@
         output-port?
         pair?
         parameterize
-        ;; peek-char
-        ;; peek-u8
+        peek-char
+        peek-u8
         port?
         positive?
         procedure?
@@ -211,7 +211,7 @@
         truncate-quotient
         truncate-remainder
         truncate/
-        ;; u8-ready?
+        u8-ready?
         unless
         unquote
         unquote-splicing

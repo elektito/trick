@@ -68,7 +68,7 @@
         char-downcase
         char-lower-case?
         char-numeric?
-        ;; char-ready?
+        char-ready?
         char-upcase
         char-upper-case?
         char-whitespace?
@@ -157,7 +157,7 @@
         or
         output-port?
         pair?
-        ;; peek-char
+        peek-char
         positive?
         procedure?
         quasiquote
