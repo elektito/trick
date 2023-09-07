@@ -39,15 +39,20 @@ class TrickExitException(TrickRuntimeError):
 
 
 class RuntimeModule:
-    def _runtime_error(self, msg, kind=None):
-        # get the name of the function that called _runtime_error
-        stack = traceback.extract_stack()
-        proc_name = stack[-2].name
+    def _runtime_error(self, msg, kind=None, proc_name=None):
+        if not proc_name:
+            # get the name of the function that called _runtime_error
+            stack = traceback.extract_stack()
+            proc_name = stack[-2].name
 
         return TrickRuntimeError(self, proc_name, msg, kind=kind)
 
     def _file_error(self, msg):
-        return self._runtime_error(msg, kind=Symbol('file'))
+        # get the name of the function that called _file_error
+        stack = traceback.extract_stack()
+        proc_name = stack[-2].name
+        return self._runtime_error(
+            msg, kind=Symbol('file'), proc_name=proc_name)
 
 
 def module(opcode):
