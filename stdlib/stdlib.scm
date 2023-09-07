@@ -2027,28 +2027,117 @@
 
 ;; record types
 
-(define-macro (define-record-type name constructor pred . fields)
-  (define get-field-accessors
-    (case-lambda
-     ((i field-name getter) `((define (,getter rec)
-                                (vector-ref (#$unwrap rec) ,i))))
-     ((i field-name getter setter) `((define (,getter rec)
-                                       (vector-ref (#$unwrap rec) ,i))
-                                     (define (,setter rec val)
-                                       (vector-set! (#$unwrap rec) ,i val))))))
-  (let ((type-id (gensym (symbol->string name))))
-    `(begin
-       (define (,pred x) (eq? (#$type x) ',type-id))
-       (define ,constructor (#$wrap (vector ,@(cdr constructor)) ',type-id))
-       ,@(let loop ((fields fields)
-                    (i 0)
-                    (results '()))
-           (if (null? fields)
-               results
-               (loop (cdr fields)
-                     (1+ i)
-                     (append results
-                             (apply get-field-accessors i (car fields)))))))))
+;; adapted from SRFI 9
+;; https://srfi.schemers.org/srfi-9/srfi-9.html
+;; see NOTICES file
+(define-syntax define-record-type
+  (syntax-rules ()
+    ((_ type
+        (constructor constructor-tag ...)
+        predicate
+        (field-tag accessor . more) ...)
+     (begin
+       (define type
+         (make-record-type 'type '(field-tag ...)))
+       (define constructor
+         (record-constructor type '(constructor-tag ...)))
+       (define predicate
+         (record-predicate type))
+       (define-record-field type field-tag accessor . more)
+       ...))))
+
+(define-syntax define-record-field
+  (syntax-rules ()
+    ((_ type field-tag accessor)
+     (define accessor (record-accessor type 'field-tag)))
+    ((_ type field-tag accessor modifier)
+     (begin
+       (define accessor (record-accessor type 'field-tag))
+       (define modifier (record-modifier type 'field-tag))))))
+
+;; When we encounter a (define-record-type foo ...) form, we first create a
+;; record-type object for it. This is bound to the type name itself ("foo" in
+;; this example).
+;;
+;; The type of this "record type object" is itself a wrapped vector, very
+;; similar to the records themselves. Its unique id is a gensym stored in
+;; record-type-meta-type-id and is used to check if a given object is a record
+;; type itself (not to be confused with the record object itself).
+;;
+;; This "meta type" has its own predicate, constructor and accessors. For
+;; example, for a foo record type, (record-type? foo) is true. But if you create
+;; a record of type foo using its constructor (record-type? foo-obj) is not
+;; true.
+
+;; a unique identifier used to identify the record type "type".
+;; this means the record type itself is a unique type
+(define record-type-meta-type-id (gensym "record-type"))
+
+(define (make-record-type name fields)
+  ;; a record "type" is a manually constructed wrapped vector itself.
+  (#$wrap (vector (gensym (symbol->string name))
+                  fields)
+          record-type-meta-type-id))
+
+(define (record-type? obj)
+  (eq? (type obj) record-type-meta-type-id))
+
+(define (record-type-type-id record-type-obj)
+  (vector-ref (#$unwrap record-type-obj) 0))
+
+(define (record-type-fields record-type-obj)
+  (vector-ref (#$unwrap record-type-obj) 1))
+
+;; helper function to get the index of a field in the underlying vector, given
+;; the field's tag. "start-idx" should be initially passed 0, and "fields"
+;; should be the list of field tags for the record type.
+(define (record-type-field-idx field-tag start-idx fields)
+  (if (eq? field-tag (car fields))
+      start-idx
+      (record-type-field-idx field-tag (1+ start-idx) (cdr fields))))
+
+(define (record-constructor record-type tags)
+  (unless (record-type? record-type)
+    (error "Invalid record type" record-type))
+  (let ((type-id (record-type-type-id record-type))
+        (fields (record-type-fields record-type)))
+    (lambda args
+      (unless (= (length tags) (length args))
+        (error "Invalid number of arguments for record constructor"
+               (length tags)))
+      (do ((vec (make-vector (length tags) (void)))
+           (tags tags (cdr tags))
+           (args args (cdr args)))
+          ((null? tags) (#$wrap vec type-id))
+        (vector-set! vec
+                     (record-type-field-idx (car tags) 0 fields)
+                     (car args))))))
+
+(define (record-predicate record-type)
+  (unless (record-type? record-type)
+    (error "Invalid record type" record-type))
+  (lambda (obj)
+    (eq? (type obj) (record-type-type-id record-type))))
+
+(define (record-accessor record-type tag)
+  (unless (record-type? record-type)
+    (error "Invalid record type" record-type))
+  (let ((idx (record-type-field-idx tag 0 (record-type-fields record-type)))
+        (type-id (record-type-type-id record-type)))
+    (lambda (obj)
+      (unless (eq? (type obj) type-id)
+        (error "Invalid value passed to accessor procedure"))
+      (vector-ref (#$unwrap obj) idx))))
+
+(define (record-modifier record-type tag)
+  (unless (record-type? record-type)
+    (error "Invalid record type" record-type))
+  (let ((idx (record-type-field-idx tag 0 (record-type-fields record-type)))
+        (type-id (record-type-type-id record-type)))
+    (lambda (obj value)
+      (unless (eq? (type obj) type-id)
+        (error "Invalid value passed to modifier procedure"))
+      (vector-set! (#$unwrap obj) idx value))))
 
 ;; exit
 
