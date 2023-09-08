@@ -1276,6 +1276,11 @@ and still a comment
 (equal? '(a) (append '() '(a)))
 (equal? '(a b c . d) (append '(a b) '(c . d)))
 (equal? '(a b c . d) (append '(a b) '(c) 'd))
+(equal? 3 (append '() 3))
+
+;; the form (append 3 '()) used to be accepted; make sure it raises an error.
+(eq? 'error
+     (guard (e (else 'error)) (append 3 '())))
 
 (equal? '(b . 20) (assq 'b '((a . 10) (b . 20) (c . 30))))
 (equal? #f (assq 'd '((a . 10) (b . 20) (c . 30))))

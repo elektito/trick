@@ -675,19 +675,27 @@
       first
       (cons first (apply list* rest))))
 
-(define (append1 ls1 ls2)
+(define (_append ls1 ls2)
+  (unless (list? ls1)
+    (error "append: not a proper list" ls1))
+
   (if (null? ls1)
       ls2
-      (if (null? ls2)
-          ls1
-          (cons (car ls1) (append1 (cdr ls1) ls2)))))
+      (if (null? (cdr ls1))
+          (cons (car ls1) ls2)
+          (_append (cdr ls1) (cons (car ls1) ls2)))))
 
 (define (append . lists)
   ;; notice that we have to use #$apply here, since apply itself depends on
   ;; "append"
   (if (null? lists)
       '()
-      (append1 (car lists) (#$apply append (cdr lists)))))
+      (if (null? (cdr lists))
+          (car lists)
+          (if (null? (cddr lists))
+              (_append (reverse (car lists)) (cadr lists))
+              (_append (reverse (car lists))
+                       (#$apply append (cdr lists)))))))
 
 (define (last x)
   (if (null? x)
