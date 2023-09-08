@@ -967,6 +967,12 @@ and still a comment
 (equal? '(a b . c) `(a b . c))
 (equal? '(a . 4) `(a . ,(+ 2 2)))
 (equal? '(a b . 4) `(a b . ,(+ 2 2)))
+(equal? '(1 2 3 . `(10 ,(+ 2 2) 20))
+        `(1 2 3 . `(10 ,(+ 2 2) 20)))
+(equal? '(1 2 3 . `(10 ,4 20))
+        `(1 2 3 . `(10 ,,(+ 2 2) 20)))
+(equal? '(1 2 3 . 4)
+        `(1 ,@(list 2 3) . 4))
 (let ((x '(3 4)))
   (equal? `(1 2 ,@x 5)
           '(1 2 3 4 5)))
@@ -1028,6 +1034,13 @@ and still a comment
           `(,a ,@b)))
 (equal? ''(a . b)
         `',(cons 'a 'b))
+
+(let ((append 10)
+      (list 20)
+      (list* 30)
+      (cons 40))
+  (equal? '(1 2 3 4 5)
+          `(1 ,@'(2 3) ,(+ 2 2) 5)))
 
 ;; vectors and quasiquotes
 

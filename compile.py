@@ -13,6 +13,7 @@ from libname import LibraryName
 from library import Library, LibraryExportError, LibraryLookupError
 from program import Program
 from fasl import Fasl
+from qq import Quasiquote, QuasiquoteError
 from read import Reader, ReadError
 from machinetypes import Bool, Bytevector, Char, Complex, Float, Integer, List, Nil, Pair, Rational, Symbol, String, Vector
 from assemble import Assembler
@@ -1232,6 +1233,14 @@ class Compiler:
                 f'Invalid transformer: {expr}', form=expr)
         return self.compile_syntax_rules(expr, env)
 
+    def compile_quasiquote(self, expr, env: Environment):
+        qq = Quasiquote()
+        try:
+            expr = qq.process(expr)
+        except QuasiquoteError as e:
+            raise self._compile_error(str(e), form=e.form)
+        return self.compile_form(expr, env)
+
     def compile_list(self, expr, env: Environment):
         if expr == Nil():
             raise self._compile_error(
@@ -1263,6 +1272,7 @@ class Compiler:
                 SpecialForms.INCLUDE: self.compile_include_local,
                 SpecialForms.INCLUDE_CI: self.compile_include_ci_local,
                 SpecialForms.COND_EXPAND: self.compile_cond_expand_local,
+                SpecialForms.QUASIQUOTE: self.compile_quasiquote,
             }
 
             if info.kind == SymbolKind.SPECIAL:

@@ -53,6 +53,7 @@ class SpecialForms(Serializable, Enum):
     COND_EXPAND = 'cond-expand'
     SYNTAX_RULES = 'syntax-rules'
     SYNTAX_ERROR = 'syntax-error'
+    QUASIQUOTE = 'quasiquote'
 
     def dump(self, output):
         idx = list(SpecialForms).index(self)

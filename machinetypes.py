@@ -646,7 +646,7 @@ class Symbol(TrickType):
             return f'<Symbol {self}>'
 
     @staticmethod
-    def gensym(short_name=None, *, no_shortname_prefix=False):
+    def gensym(short_name=None, *, no_shortname_prefix=False, info=None):
         uid = str(uuid4()).replace('-', '')
 
         if isinstance(short_name, String):
@@ -672,7 +672,7 @@ class Symbol(TrickType):
             short_name = f'#:{gensym_number}'
             full_name = f'#:{uid}-{gensym_number}'
 
-        return Symbol(full_name, short_name=short_name)
+        return Symbol(full_name, short_name=short_name, info=info)
 
     def _dump(self, output):
         self._dump_string(self.name, output)
