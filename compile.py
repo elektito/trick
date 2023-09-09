@@ -308,20 +308,20 @@ class Compiler:
         return [S('ldcq'), expr]
 
     def compile_complex(self, expr: Complex, env: Environment):
-        code = self.compile_form(expr.real, env)
-        code += self.compile_form(expr.imag, env)
+        code = self.compile_form(expr.real, env, tail=False)
+        code += self.compile_form(expr.imag, env, tail=False)
         code += [S('cplx')]
         return code
 
-    def compile_if(self, expr, env):
+    def compile_if(self, expr, env, tail: bool):
         if len(expr) not in (3, 4):
             raise self._compile_error(
                 f'Invalid number of arguments for if: {expr}')
 
-        cond_code = self.compile_form(expr[1], env)
-        true_code = self.compile_form(expr[2], env) + [S('join')]
+        cond_code = self.compile_form(expr[1], env, tail=False)
+        true_code = self.compile_form(expr[2], env, tail) + [S('join')]
         if len(expr) == 4:
-            false_code = self.compile_form(expr[3], env) + [S('join')]
+            false_code = self.compile_form(expr[3], env, tail) + [S('join')]
         else:
             false_code = [S('void'), S('join')]
         return cond_code + [S('sel')] + [true_code] + [false_code]
@@ -410,24 +410,26 @@ class Compiler:
         # to set their values. this is to make sure the functions introduced
         # using define can call each other as if in a letrec*
         for name, define_value in defines:
-            code += self.compile_form(define_value, env)
+            code += self.compile_form(define_value, env, tail=False)
             code += [S('st'), env.locate_local(name)]
 
         # compile any remaining expressions in early_forms
         for i, expr in enumerate(early_forms):
             if i > 0:
                 code.append(S('drop'))
-            code += self.compile_form(expr, env)
+            tail = len(body) == 0 and i == len(early_forms) - 1
+            code += self.compile_form(expr, env, tail)
 
         # compile the rest of the body normally
         for i, e in enumerate(body):
             if i > 0:
                 code.append(S('drop'))
-            code += self.compile_form(e, env)
+            tail = (i == len(body) - 1)
+            code += self.compile_form(e, env, tail)
 
         return code
 
-    def compile_lambda(self, expr, env: Environment):
+    def compile_lambda(self, expr, env: Environment, tail='unused'):
         if len(expr) < 3:
             raise self._compile_error(
                 f'Lambda body cannot be empty: {expr}')
@@ -479,8 +481,11 @@ class Compiler:
         body = expr.cdr.cdr
         body_code = self.compile_body(body, new_env, full_form=expr)
         body_code += [S('ret')]
-        if body_code[-2] == S('ap') or body_code[-2] == S('ap'):
-            body_code[-2:] = [S('tap')]
+        if body_code[-2] == S('ap'):
+            assert False, 'proper tail call elimination should not ' \
+                'allow for ap followed by ret.'
+        elif body_code[-2] == S('tap'):
+            del body_code[-1]
 
         if rest_param:
             code = [S('ldf'), Integer(-original_nparams), body_code]
@@ -605,7 +610,7 @@ class Compiler:
                     f'Invalid {let_name} binding: {pair}',
                     form=bindings)
 
-    def compile_let(self, expr, env):
+    def compile_let(self, expr, env, tail: bool):
         if len(expr) < 2:
             raise self._compile_error(
                 f'Invalid number of arguments for let: {expr}')
@@ -673,9 +678,9 @@ class Compiler:
         lambda_call.src_start = expr.src_start
         lambda_call.src_end = expr.src_end
 
-        return self.compile_form(lambda_call, env)
+        return self.compile_form(lambda_call, env, tail)
 
-    def compile_letrec(self, expr, env: Environment):
+    def compile_letrec(self, expr, env: Environment, tail='unused'):
         if len(expr) < 2:
             raise self._compile_error(
                 f'Invalid number of arguments for letrec: {expr}')
@@ -696,7 +701,7 @@ class Compiler:
         secd_code = [S('dum'), S('nil')]
         for v in reversed(values.to_list()):
             new_env = env.with_new_frame(vars)
-            secd_code += self.compile_form(v, new_env) + [S('cons')]
+            secd_code += self.compile_form(v, new_env, tail=False) + [S('cons')]
 
         # ((lambda . ( params . body )) . args)
         lambda_call = Pair(S('#$lambda'), Pair(vars, body))
@@ -704,12 +709,12 @@ class Compiler:
         lambda_call.src_start = expr.src_start
         lambda_call.src_end = expr.src_end
 
-        secd_code += self.compile_form(lambda_call, env)
+        secd_code += self.compile_form(lambda_call, env, tail=False)
         secd_code += [S('rap')]
 
         return secd_code
 
-    def compile_letrec_star(self, expr, env: Environment):
+    def compile_letrec_star(self, expr, env: Environment, tail='unused'):
         if len(expr) < 2:
             raise self._compile_error(
                 f'Invalid number of arguments for letrec*: {expr}')
@@ -733,7 +738,7 @@ class Compiler:
         set_vars_code = []
         for var, value in zip(vars, values):
             set_vars_code += [S('xp')]
-            set_vars_code += self.compile_form(value, new_env)
+            set_vars_code += self.compile_form(value, new_env, tail=False)
             local_desc = new_env.locate_local(var)
             set_vars_code += [S('st'), local_desc]
 
@@ -746,7 +751,7 @@ class Compiler:
 
         return secd_code
 
-    def compile_func_call(self, expr, env):
+    def compile_func_call(self, expr, env, tail: bool):
         secd_code = [S('nil')]
 
         # compile function before arguments, even though we need it later, so
@@ -758,16 +763,19 @@ class Compiler:
         # this still won't work on errors other than undefined symbol, because
         # those are raised immediately, while undefined symbol errors are raised
         # at the end of compilation.
-        func_code = self.compile_form(expr[0], env)
+        func_code = self.compile_form(expr[0], env, tail=False)
 
         for arg in reversed(expr.to_list()[1:]):
-            secd_code += self.compile_form(arg, env)
+            secd_code += self.compile_form(arg, env, tail=False)
             secd_code += [S('cons')]
         secd_code += func_code
-        secd_code += [S('ap')]
+        if tail:
+            secd_code += [S('tap')]
+        else:
+            secd_code += [S('ap')]
         return secd_code
 
-    def compile_set(self, expr, env):
+    def compile_set(self, expr, env, tail='unused'):
         if len(expr) != 3:
             raise self._compile_error(
                 f'Invalid number of arguments for set!')
@@ -778,7 +786,7 @@ class Compiler:
 
         name = expr[1]
         value = expr[2]
-        code = self.compile_form(value, env)
+        code = self.compile_form(value, env, tail=False)
 
         info = self.lookup_symbol(name, env)
         if info.immutable:
@@ -871,7 +879,7 @@ class Compiler:
                 return [S('ldsym'), form]
         else:
             # other atoms evaluate to themselves, quoted or not
-            return self.compile_form(form, env)
+            return self.compile_form(form, env, False)
 
     def compile_literal(self, expr, env):
         code = []
@@ -888,7 +896,7 @@ class Compiler:
 
         return code
 
-    def compile_quote(self, expr, env):
+    def compile_quote(self, expr, env, tail='unused'):
         if len(expr) != 2:
             raise self._compile_error(
                 f'Invalid number of arguments for quote.')
@@ -903,12 +911,12 @@ class Compiler:
 
         code = []
         for i in range(info.primcall_nargs - 1, -1, -1):
-            code += self.compile_form(expr[i + 1], env)
+            code += self.compile_form(expr[i + 1], env, tail=False)
 
         code += info.primcall_code
         return code
 
-    def compile_begin(self, expr, env):
+    def compile_begin(self, expr, env: Environment, tail: bool):
         if expr.cdr == Nil():
             # unlike at the top-level, or at the beginning of a lambda/let body,
             # the normal "begin" expression cannot be empty.
@@ -918,7 +926,8 @@ class Compiler:
         for i, form in enumerate(expr.cdr):
             if i > 0:
                 code += [S('drop')]
-            code += self.compile_form(form, env)
+            code += self.compile_form(
+                form, env, tail=(tail and i == len(expr.cdr) - 1))
         return code
 
     def find_include_file(self, filename: str):
@@ -1092,7 +1101,7 @@ class Compiler:
                 if context == 'toplevel':
                     code += self.compile_toplevel_form(begin_form, env)
                 elif context == 'local':
-                    code += self.compile_form(begin_form, env)
+                    code += self.compile_form(begin_form, env, False)
                 elif context == 'library':
                     # we can't compile this one as a begin form, since "begin"
                     # has a different meaning inside a library. we wouldn't be
@@ -1113,7 +1122,7 @@ class Compiler:
     def compile_cond_expand_local(self, expr, env):
         return self._compile_cond_expand(expr, env, context='local')
 
-    def compile_let_syntax(self, expr: Pair, env: Environment):
+    def compile_let_syntax(self, expr: Pair, env: Environment, tail: bool):
         if len(expr) < 2:
             raise self._compile_error(
                 f'Invalid number of arguments for let-syntax: {expr}')
@@ -1142,10 +1151,10 @@ class Compiler:
         # beginning are allowed.
         new_body = Pair(S('#$let'), Pair(Nil(), body))
 
-        body_code = self.compile_let(new_body, new_env)
+        body_code = self.compile_let(new_body, new_env, tail)
         return body_code
 
-    def compile_letrec_syntax(self, expr: Pair, env: Environment):
+    def compile_letrec_syntax(self, expr: Pair, env: Environment, tail: bool):
         if len(expr) < 2:
             raise self._compile_error(
                 f'Invalid number of arguments for letrec-syntax: {expr}')
@@ -1178,7 +1187,7 @@ class Compiler:
         # beginning are allowed.
         new_body = Pair(S('#$let'), Pair(Nil(), body))
 
-        body_code = self.compile_let(new_body, new_env,)
+        body_code = self.compile_let(new_body, new_env, tail)
         return body_code
 
     def compile_define_syntax(self, expr, env: Environment):
@@ -1233,15 +1242,15 @@ class Compiler:
                 f'Invalid transformer: {expr}', form=expr)
         return self.compile_syntax_rules(expr, env)
 
-    def compile_quasiquote(self, expr, env: Environment):
+    def compile_quasiquote(self, expr, env: Environment, tail: bool):
         qq = Quasiquote()
         try:
             expr = qq.process(expr)
         except QuasiquoteError as e:
             raise self._compile_error(str(e), form=e.form)
-        return self.compile_form(expr, env)
+        return self.compile_form(expr, env, tail)
 
-    def compile_list(self, expr, env: Environment):
+    def compile_list(self, expr, env: Environment, tail: bool):
         if expr == Nil():
             raise self._compile_error(
                 'Empty list is not a valid form')
@@ -1298,12 +1307,12 @@ class Compiler:
                             f'Form not allowed at this position: {expr}',
                             form=expr)
 
-                return compile_func(expr, env)
+                return compile_func(expr, env, tail)
             else:
                 if info.kind == SymbolKind.PRIMCALL:
                     return self.compile_primcall(expr, env, info)
                 else:
-                    return self.compile_func_call(expr, env)
+                    return self.compile_func_call(expr, env, tail)
         else:
             # if it's something that's obviously not a procedure, let's catch it
             # here at compile time.
@@ -1311,9 +1320,9 @@ class Compiler:
                 raise self._compile_error(
                     f'Invalid procedure: {expr.car}',
                     form=expr.car)
-            return self.compile_func_call(expr, env)
+            return self.compile_func_call(expr, env, tail)
 
-    def _compile_form(self, expr, env):
+    def _compile_form(self, expr, env: Environment, tail: bool):
         if self.detect_cycle(expr):
             raise self._compile_error(
                 f'Cannot compile cyclic list: {expr}')
@@ -1329,7 +1338,7 @@ class Compiler:
             secd_code += [S(':expr-start'), Integer(expr.src_start)]
 
         if isinstance(expr, List):
-            secd_code += self.compile_list(expr, env)
+            secd_code += self.compile_list(expr, env, tail)
         elif isinstance(expr, Integer):
             secd_code += self.compile_int(expr, env)
         elif isinstance(expr, Float):
@@ -1358,11 +1367,11 @@ class Compiler:
 
         return secd_code
 
-    def compile_form(self, expr, env):
+    def compile_form(self, expr, env: Environment, tail: bool):
         old_current_form = self.current_form
         self.current_form = expr
         try:
-            return self._compile_form(expr, env)
+            return self._compile_form(expr, env, tail)
         except CompileError as e:
             raise self._rebuild_compile_error(e)
         finally:
@@ -1504,7 +1513,7 @@ class Compiler:
 
         form = self.macro_expand(form, env)
         if not isinstance(form, Pair):
-            return self.compile_form(form, env)
+            return self.compile_form(form, env, tail=False)
 
         if isinstance(form, Pair) and not form.is_proper():
             raise self._compile_error(
@@ -1540,7 +1549,7 @@ class Compiler:
                     form=name_sym)
 
             env.add_define(name_sym, VariableKind.NORMAL)
-            form_code = self.compile_form(lambda_form, env)
+            form_code = self.compile_form(lambda_form, env, tail=False)
 
             form_code += [S('set'), info.symbol, S('void')]
             if self.debug_info:
@@ -1565,7 +1574,7 @@ class Compiler:
             raise self._compile_error(
                 'Ill-placed syntax-rules', form=form)
         else:
-            form_code = self.compile_form(form, env)
+            form_code = self.compile_form(form, env, tail=False)
 
         return form_code
 
