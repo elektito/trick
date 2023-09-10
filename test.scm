@@ -1573,6 +1573,18 @@ and still a comment
        (= 1 (kar r2))
        (= 2 (kdr r2))))
 
+(let ()
+  (define-record-type foo
+    (make-foo)
+    foo?
+    (x foo-x foo-set-x)
+    (y foo-y foo-set-y))
+  (let ((f (make-foo)))
+    (foo-set-x f 10)
+    (foo-set-y f 20)
+    (and (= 10 (foo-x f))
+         (= 20 (foo-y f)))))
+
 ;; exceptions
 
 (equal? '(handled foo)

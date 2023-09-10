@@ -1885,7 +1885,7 @@
       (unless (= (length tags) (length args))
         (error "Invalid number of arguments for record constructor"
                (length tags)))
-      (do ((vec (make-vector (length tags) (void)))
+      (do ((vec (make-vector (length fields) (void)))
            (tags tags (cdr tags))
            (args args (cdr args)))
           ((null? tags) (#$wrap vec type-id))
