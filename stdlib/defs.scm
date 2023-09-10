@@ -76,9 +76,9 @@
   (import (trick))
   (include-library-declarations "scheme-file-exports.scm"))
 
-;; (define-library (scheme inexact)
-;;   (import (trick))
-;;   (include-library-declarations "scheme-inexact-exports.scm"))
+(define-library (scheme inexact)
+  (import (trick))
+  (include-library-declarations "scheme-inexact-exports.scm"))
 
 ;; (define-library (scheme load)
 ;;   (import (trick))
