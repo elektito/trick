@@ -481,10 +481,7 @@ class Compiler:
         body = expr.cdr.cdr
         body_code = self.compile_body(body, new_env, full_form=expr)
         body_code += [S('ret')]
-        if body_code[-2] == S('ap'):
-            assert False, 'proper tail call elimination should not ' \
-                'allow for ap followed by ret.'
-        elif body_code[-2] == S('tap'):
+        if body_code[-2] == S('tap'):
             del body_code[-1]
 
         if rest_param:
