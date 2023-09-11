@@ -7,9 +7,12 @@ import os
 from select import select
 import sys
 import traceback
+from compile import Compiler
+from env import ToplevelEnvironment
 
-from exceptions import RunError
-from machinetypes import Bool, Bytevector, Char, Complex, Float, Integer, List, Number, Port, Rational, String, Symbol, TrickType, Void
+from exceptions import CompileError, RunError
+from importsets import ImportSet
+from machinetypes import Bool, Bytevector, Char, Complex, Float, Integer, List, Number, OpaqueBox, Port, Rational, String, Symbol, TrickType, Void
 from print import PrintMode, PrintStyle, Printer
 from read import ReadError, Reader
 from utils import STR_ENCODING
@@ -923,6 +926,46 @@ class Math(RuntimeModule):
 
         result = math.gcd(*ns)
         return ret_type(result)
+
+
+@module(opcode=0x06)
+class Compile(RuntimeModule):
+    @proc(opcode=0x01)
+    def env(self) -> TrickType:
+        env = ToplevelEnvironment()
+        boxed_env = OpaqueBox(env)
+        return boxed_env
+
+    @proc(opcode=0x02)
+    def imp(self, env: OpaqueBox, import_set: List) -> Void:
+        env = env.value
+        if not isinstance(env, ToplevelEnvironment):
+            raise self._runtime_error('Not an environment')
+
+        try:
+            env.add_import(ImportSet.parse(import_set))
+        except CompileError as e:
+            raise self._runtime_error(str(e), kind=Symbol('compile'))
+
+        return Void()
+
+    @proc(opcode=0x03)
+    def eval(self, expr: TrickType, env: OpaqueBox) -> TrickType:
+        env = env.value
+        if not isinstance(env, ToplevelEnvironment):
+            raise self._runtime_error('Not an environment')
+
+        compiler = Compiler()
+        compiler.compile_form(expr, env, tail=False)
+
+        # we need the library loading system
+        # so that we know which fasls need to be loaded into the machine when something is imported into the env
+        # we probably should do this using a "clean machine" and not the "current machine"
+        # (though with proper checks maybe that's not truely mandatory)
+        # ...
+
+        # FIXME
+        raise self._runtime_error('Not implemented yet!')
 
 
 @module(opcode=0x99)

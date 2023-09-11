@@ -2119,3 +2119,14 @@
             (ipromise-set-value! content (ipromise-value (unbox promise*)))
             (set-box! promise* content))
           (force promise)))))
+
+;; runtime features needing compiler
+
+(define (environment . imports)
+  (let loop ((env (#$/compile/env))
+             (imports imports))
+    (if (null? imports)
+        env
+        (begin
+          (#$/compile/imp env (car imports))
+          (loop env (cdr imports))))))

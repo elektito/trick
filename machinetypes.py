@@ -1387,4 +1387,12 @@ class WrappedValue(TrickType):
         return f'#<wrapped {self.type_id} {self.value}>'
 
 
+class OpaqueBox(TrickType):
+    def __init__(self, value):
+        self.value = value
+
+    def __repr__(self):
+        return '#<opaque>'
+
+
 shareable_types = (Pair, Vector)

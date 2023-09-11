@@ -68,7 +68,10 @@ class SourceFile:
 
 
 class Compiler:
-    def __init__(self, libs: list[Fasl], debug_info=False):
+    def __init__(self, libs: list[Fasl]=None, debug_info=False):
+        if libs is None:
+            libs = []
+
         self.lib_fasls = libs
         self.debug_info = debug_info
         self.include_paths = []
