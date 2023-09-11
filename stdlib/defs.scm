@@ -15,7 +15,7 @@
   ;;(include-library-declarations "scheme-eval-exports.scm")
   (include-library-declarations "scheme-file-exports.scm")
   (include-library-declarations "scheme-inexact-exports.scm")
-  ;;(include-library-declarations "scheme-lazy-exports.scm")
+  (include-library-declarations "scheme-lazy-exports.scm")
   ;;(include-library-declarations "scheme-load-exports.scm")
   (include-library-declarations "scheme-process-context-exports.scm")
   (include-library-declarations "scheme-read-exports.scm")
@@ -83,6 +83,10 @@
 (define-library (scheme inexact)
   (import (trick))
   (include-library-declarations "scheme-inexact-exports.scm"))
+
+(define-library (scheme lazy)
+  (import (trick))
+  (include-library-declarations "scheme-lazy-exports.scm"))
 
 ;; (define-library (scheme load)
 ;;   (import (trick))

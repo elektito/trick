@@ -2588,3 +2588,147 @@ and still a comment
   (= 20 (unbox b)))
 
 (box? (box 10))
+
+;; lazy
+
+(= 3 (force (delay (+ 1 2))))
+
+(let* ((calls 0)
+       (inc (lambda ()
+              (set! calls (1+ calls))
+              calls))
+       (p (delay (inc)))
+       (x1 (force p))
+       (x2 (force p)))
+  (and (= 1 x1)
+       (= 1 x2)
+       (= 1 calls)))
+
+(let ()
+  (define integers
+    (letrec ((next
+              (lambda (n)
+                (delay (cons n (next (+ n 1)))))))
+      (next 0)))
+  (define head
+    (lambda (stream) (car (force stream))))
+  (define tail
+    (lambda (stream) (cdr (force stream))))
+
+  (= 2 (head (tail (tail integers)))))
+
+(let ()
+  (define integers
+    (letrec ((next
+              (lambda (n)
+                (delay (cons n (next (+ n 1)))))))
+      (next 0)))
+  (define head
+    (lambda (stream) (car (force stream))))
+  (define tail
+    (lambda (stream) (cdr (force stream))))
+  (define (stream-filter p? s)
+    (delay-force
+     (if (null? (force s))
+         (delay '())
+         (let ((h (car (force s)))
+               (t (cdr (force s))))
+           (if (p? h)
+               (delay (cons h (stream-filter p? t)))
+               (stream-filter p? t))))))
+  (= 5 (head (tail (tail (stream-filter odd? integers))))))
+
+(let ()
+  (define x 5)
+  (define count 0)
+  (define p
+    (delay (begin (set! count (+ count 1))
+                  (if (> count x)
+                      count
+                      (force p)))))
+  (and (= 6 (force p))
+       (= 6 (begin (set! x 10) (force p)))))
+
+(promise? (delay (+ 1 1)))
+(promise? (make-promise (+ 1 1)))
+
+(let ((x (delay (+ 2 2))))
+  (force x)
+  (promise? x))
+
+(let ((x (make-promise (+ 2 2))))
+  (force x)
+  (promise? x))
+
+(= 4 (force (make-promise (+ 2 2))))
+(= 4 (force (make-promise (make-promise (+ 2 2)))))
+
+;; some tests from srfi 45
+
+(let ((results '()))
+  (define (stream-drop s index)
+    (delay-force
+     (if (zero? index)
+         s
+         (stream-drop (cdr (force s)) (- index 1)))))
+
+  (define (ones)
+    (delay (begin
+             (set! results (cons 'ho results))
+             (cons 1 (ones)))))
+
+  (define s (ones))
+
+  (car (force (stream-drop s 4)))
+  (car (force (stream-drop s 4)))
+
+  (equal? '(ho ho ho ho ho)
+          results))
+
+(let ()
+  (define count 0)
+  (define p
+    (delay (begin (set! count (+ count 1))
+                  (if (> count x)
+                      count
+                      (force p)))))
+  (define x 5)
+  (force p)
+  (set! x 10)
+  (= 6 (force p)))
+
+(let ()
+  (define f
+    (let ((first? #t))
+      (delay
+        (if first?
+            (begin
+              (set! first? #f)
+              (force f))
+            'second))))
+
+  (eq? 'second (force f)))
+
+(let ()
+  (define q
+    (let ((count 5))
+      (define (get-count) count)
+      (define p (delay (if (<= count 0)
+                           count
+                           (begin (set! count (- count 1))
+                                  (force p)
+                                  (set! count (+ count 2))
+                                  count))))
+      (list get-count p)))
+  (define get-count (car q))
+  (define p (cadr q))
+  (define n1)
+  (define n2)
+  (define n3)
+
+  (set! n1 (get-count))
+  (set! n2 (force p))
+  (set! n3 (get-count))
+  (and (= n1 5)
+       (= n2 0)
+       (= n3 10)))

@@ -2077,3 +2077,45 @@
   (unless (box? boxed)
     (error "not a box" boxed))
   (set-car! (#$unwrap boxed) obj))
+
+;; lazy
+;; adapted from srfi 45
+
+;; internal promise type; the external form is boxed.
+(define-record-type ipromise
+  (make-ipromise done? value)
+  ipromise?
+  (done? ipromise-done? ipromise-set-done?!)
+  (value ipromise-value ipromise-set-value!))
+
+(define (promise? obj)
+  (and (box? obj) (ipromise? (unbox obj))))
+
+(define-syntax delay-force
+  (syntax-rules ()
+    ((_ expr)
+     (box (make-ipromise #f (lambda () expr))))))
+
+(define (eager x)
+  (box (make-ipromise #t x)))
+
+(define-syntax delay
+  (syntax-rules ()
+    ((_ expr) (delay-force (eager expr)))))
+
+(define (make-promise obj)
+  (if (promise? obj)
+      obj
+      (delay obj)))
+
+(define (force promise)
+  (let ((content (unbox promise)))
+    (if (ipromise-done? content)
+        (ipromise-value content)
+        (let* ((promise* ((ipromise-value content)))
+               (content  (unbox promise)))
+          (unless (ipromise-done? content)
+            (ipromise-set-done?! content (ipromise-done? (unbox promise*)))
+            (ipromise-set-value! content (ipromise-value (unbox promise*)))
+            (set-box! promise* content))
+          (force promise)))))
