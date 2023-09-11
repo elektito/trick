@@ -151,7 +151,6 @@ class PrefixImportSet(ImportSet):
         result = self.base_import_set.lookup(no_prefix_name)
         if result is None:
             return None
-        result.symbol = no_prefix_name
         return result
 
     def lookup_internal(self, sym: Symbol) -> (SymbolInfo | None):
@@ -187,7 +186,6 @@ class RenameImportSet(ImportSet):
             to_name = rename[1]
             if sym == to_name:
                 result =  self.base_import_set.lookup(from_name)
-                result.symbol = to_name
                 return result
             elif sym == from_name:
                 # the original name is not available anymore
