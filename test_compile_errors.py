@@ -31,7 +31,7 @@ class TestCompiler(unittest.TestCase):
         r = Reader(file)
         expr = r.read()
         with self.assertRaises(CompileError) as e:
-            c.compile_form(expr, self.env)
+            c.compile_form(expr, self.env, tail=False)
         if error:
             self.assertIn(error, str(e.exception))
 
@@ -40,7 +40,7 @@ class TestCompiler(unittest.TestCase):
         file = io.StringIO(source)
         r = Reader(file)
         expr = r.read()
-        c.compile_form(expr, self.env)
+        c.compile_form(expr, self.env, tail=False)
 
     def test_empty_toplevel_begin(self):
         self._test_toplevel_noerror('(begin)')
