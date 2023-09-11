@@ -5,10 +5,6 @@ from serialization import Serializable
 from symbolinfo import SymbolInfo
 
 
-class LibraryImportError(Exception):
-    pass
-
-
 class ImportSetParseError(Exception):
     def __init__(self, msg, form=None, source=None):
         self.msg = msg
@@ -136,9 +132,6 @@ class LibraryImportSet(ImportSet):
     def _lib(self):
         if self._loaded_lib is None:
             self._loaded_lib = LibLoader().load_lib(self.lib_name)
-            if self._loaded_lib is None:
-                raise LibraryImportError(
-                    f'Could not find library: {self._loaded_lib}')
 
         return self._loaded_lib
 
