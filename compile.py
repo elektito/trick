@@ -7,7 +7,7 @@ import argparse
 
 from env import Environment, EnvironmentError, LocalEnvironment, ToplevelEnvironment, VariableKind
 from exceptions import CompileError, RunError
-from importsets import ExceptImportSet, ImportSet, LibraryImportSet, OnlyImportSet, PrefixImportSet, RenameImportSet
+from importsets import ImportSet, ImportSetParseError
 from libloader import LibLoader, LibraryLoadError
 from libname import LibraryName
 from library import Library, LibraryExportError, LibraryLookupError
@@ -1585,74 +1585,15 @@ class Compiler:
         finally:
             self.current_form = old_current_form
 
-    def process_import_set(self, import_set: Pair) -> ImportSet:
-        if import_set.car == S('only'):
-            if not isinstance(import_set[1], Pair):
-                raise self._compile_error(
-                    f'Invalid "only" import set: {import_set[1]}',
-                    form=import_set[1])
-            base_set = self.process_import_set(import_set[1])
-            identifiers = import_set.cdr.cdr
-            for identifier in identifiers:
-                if base_set.lookup(identifier) is None:
-                    raise self._compile_error(
-                        f'Identifier {identifier} not exported by import set: {import_set[1]}',
-                        form=identifier)
-            return OnlyImportSet(base_set, identifiers)
-        elif import_set.car == S('except'):
-            if not isinstance(import_set[1], Pair):
-                raise self._compile_error(
-                    f'Invalid "except" import set: {import_set[1]}',
-                    form=import_set[1])
-            base_set = self.process_import_set(import_set[1])
-            identifiers = import_set.cdr.cdr
-            for identifier in identifiers:
-                if base_set.lookup(identifier) is None:
-                    raise self._compile_error(
-                        f'Identifier {identifier} not exported by import set: {import_set[1]}',
-                        form=identifier)
-            return ExceptImportSet(base_set, identifiers)
-        elif import_set.car == S('prefix'):
-            if len(import_set) != 3 or \
-               not isinstance(import_set[1], Pair):
-                raise self._compile_error(
-                    f'Invalid "prefix" import set: {import_set[1]}',
-                    form=import_set[1])
-            base_set = self.process_import_set(import_set[1])
-            prefix = import_set[2]
-            if not isinstance(prefix, Symbol):
-                raise self._compile_error(
-                    f'Prefix for import set not a symbol: {prefix}',
-                    form=prefix)
-            return PrefixImportSet(base_set, prefix)
-        elif import_set.car == S('rename'):
-            if not isinstance(import_set[1], Pair):
-                raise self._compile_error(
-                    f'Invalid "rename" import set: {import_set[1]}',
-                    form=import_set[1])
-            base_set = self.process_import_set(import_set[1])
-            renames = import_set.cdr.cdr
-            for rename in renames:
-                if not isinstance(rename, Pair) or \
-                   len(rename) != 2 or \
-                   not isinstance(rename[0], Symbol) or \
-                   not isinstance(rename[1], Symbol):
-                    raise self._compile_error(
-                        f'Invalid import rename: {rename}',
-                        form=rename)
-                if base_set.lookup(rename[0]) is None:
-                    raise self._compile_error(
-                        f'Renamed identifier "{rename[0]}" not exported by: {import_set[1]}',
-                        form=rename[0])
-            return RenameImportSet(base_set, renames)
-        else:
-            lib_name = import_set.to_list()
-            lib_name = LibraryName(lib_name)
-            try:
-                result = LibraryImportSet(lib_name, lazy=False)
-            except LibraryLoadError as e:
-                raise self._compile_error(str(e), form=import_set)
-            return result
+    def process_import_set(self, desc: Pair) -> ImportSet:
+        try:
+            import_set = ImportSet.parse(desc)
+        except ImportSetParseError as e:
+            raise self._compile_error(str(e), form=e.form)
+        except LibraryLoadError as e:
+            raise self._compile_error(str(e), form=desc)
+
+        return import_set
 
     def process_import(self, form: Pair, env: Environment):
         if not isinstance(form.cdr, Pair):

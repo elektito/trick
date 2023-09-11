@@ -2,11 +2,21 @@ from libloader import LibLoader
 from libname import LibraryName
 from machinetypes import Pair, Symbol
 from serialization import Serializable
-from symbolinfo import SymbolInfo, SymbolKind
+from symbolinfo import SymbolInfo
 
 
 class LibraryImportError(Exception):
     pass
+
+
+class ImportSetParseError(Exception):
+    def __init__(self, msg, form=None, source=None):
+        self.msg = msg
+        self.form = form
+        self.source = source
+
+    def __repr__(self):
+        return self.msg
 
 
 class ImportSet(Serializable):
@@ -25,6 +35,78 @@ class ImportSet(Serializable):
             PrefixImportSet,
             RenameImportSet,
         ]
+
+    @staticmethod
+    def parse(desc) -> 'ImportSet':
+        if not isinstance(desc, Pair):
+            raise ImportSetParseError(
+                f'Invalid import set: {desc}',
+                form=desc)
+
+        if desc.car == Symbol('only'):
+            if not isinstance(desc[1], Pair):
+                raise ImportSetParseError(
+                    f'Invalid "only" import set: {desc[1]}',
+                    form=desc[1])
+            base_set = ImportSet.parse(desc[1])
+            identifiers = desc.cdr.cdr
+            for identifier in identifiers:
+                if base_set.lookup(identifier) is None:
+                    raise ImportSetParseError(
+                        f'Identifier {identifier} not exported by import set: {desc[1]}',
+                        form=identifier)
+            return OnlyImportSet(base_set, identifiers)
+        elif desc.car == Symbol('except'):
+            if not isinstance(desc[1], Pair):
+                raise ImportSetParseError(
+                    f'Invalid "except" import set: {desc[1]}',
+                    form=desc[1])
+            base_set = ImportSet.parse(desc[1])
+            identifiers = desc.cdr.cdr
+            for identifier in identifiers:
+                if base_set.lookup(identifier) is None:
+                    raise ImportSetParseError(
+                        f'Identifier {identifier} not exported by import set: {desc[1]}',
+                        form=identifier)
+            return ExceptImportSet(base_set, identifiers)
+        elif desc.car == Symbol('prefix'):
+            if len(desc) != 3 or \
+               not isinstance(desc[1], Pair):
+                raise ImportSetParseError(
+                    f'Invalid "prefix" import set: {desc[1]}',
+                    form=desc[1])
+            base_set = ImportSet.parse(desc[1])
+            prefix = desc[2]
+            if not isinstance(prefix, Symbol):
+                raise ImportSetParseError(
+                    f'Prefix for import set not a symbol: {prefix}',
+                    form=prefix)
+            return PrefixImportSet(base_set, prefix)
+        elif desc.car == Symbol('rename'):
+            if not isinstance(desc[1], Pair):
+                raise ImportSetParseError(
+                    f'Invalid "rename" import set: {desc[1]}',
+                    form=desc[1])
+            base_set = ImportSet.parse(desc[1])
+            renames = desc.cdr.cdr
+            for rename in renames:
+                if not isinstance(rename, Pair) or \
+                   len(rename) != 2 or \
+                   not isinstance(rename[0], Symbol) or \
+                   not isinstance(rename[1], Symbol):
+                    raise ImportSetParseError(
+                        f'Invalid import rename: {rename}',
+                        form=rename)
+                if base_set.lookup(rename[0]) is None:
+                    raise ImportSetParseError(
+                        f'Renamed identifier "{rename[0]}" not exported by: {desc[1]}',
+                        form=rename[0])
+            return RenameImportSet(base_set, renames)
+        else:
+            lib_name = desc.to_list()
+            lib_name = LibraryName(lib_name)
+            result = LibraryImportSet(lib_name, lazy=False)
+            return result
 
 
 class LibraryImportSet(ImportSet):
