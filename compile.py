@@ -5,15 +5,15 @@ from pathlib import Path
 import sys
 import argparse
 
-from env import Environment, EnvironmentError, LocalEnvironment, ToplevelEnvironment, VariableKind
+from env import Environment, LocalEnvironment, ToplevelEnvironment, VariableKind
 from exceptions import CompileError, RunError
-from importsets import ImportSet, ImportSetParseError
+from importsets import ImportSet
 from libloader import LibLoader, LibraryLoadError
 from libname import LibraryName
-from library import Library, LibraryExportError, LibraryLookupError
+from library import Library
 from program import Program
 from fasl import Fasl
-from qq import Quasiquote, QuasiquoteError
+from qq import Quasiquote
 from read import Reader, ReadError
 from machinetypes import Bool, Bytevector, Char, Complex, Float, Integer, List, Nil, Pair, Rational, Symbol, String, Vector
 from assemble import Assembler
@@ -100,14 +100,6 @@ class Compiler:
             form=e.form,
             source=e.source)
 
-    def lookup_symbol(self, sym: Symbol, env: Environment) -> SymbolInfo:
-        try:
-            return env.lookup_symbol(sym)
-        except LibraryLookupError as e:
-            raise self._compile_error(str(e), form=e.form)
-        except EnvironmentError as e:
-            raise self._compile_error(str(e), form=e.form)
-
     def macro_expand(self, form, env):
         initial_form = form
         while True:
@@ -119,7 +111,7 @@ class Compiler:
 
             if isinstance(form, Pair):
                 if isinstance(form.car, Symbol):
-                    info = self.lookup_symbol(form.car, env)
+                    info = env.lookup_symbol(form.car)
                     if info.is_macro():
                         try:
                             form = info.transformer.transform(form, env)
@@ -139,7 +131,7 @@ class Compiler:
               len(form) > 0 and \
               isinstance(form[0], Symbol):
             name_sym = form[0]
-            info = self.lookup_symbol(name_sym, env)
+            info = env.lookup_symbol(name_sym)
             if info.kind != SymbolKind.DEFINED_UNHYGIENIC_MACRO:
                 break
 
@@ -168,7 +160,7 @@ class Compiler:
               len(form) > 0 and \
               isinstance(form[0], Symbol):
             name_sym = form[0]
-            info = self.lookup_symbol(name_sym, env)
+            info = env.lookup_symbol(name_sym)
             if info.is_special(SpecialForms.QUOTE):
                 return form
             if info.kind not in (SymbolKind.DEFINED_UNHYGIENIC_MACRO,
@@ -284,7 +276,7 @@ class Compiler:
         if len(expr) < 3:
             raise self._compile_error('Not enough arguments for define-macro')
 
-        info = self.lookup_symbol(name, env)
+        info = env.lookup_symbol(name)
         if info.immutable:
             raise self._compile_error(
                 f'Attempting to assign immutable variable: {name}',
@@ -345,7 +337,7 @@ class Compiler:
                     # can't be a definition
                     break
 
-                info = self.lookup_symbol(form.car, env)
+                info = env.lookup_symbol(form.car)
                 if info.is_special(SpecialForms.BEGIN):
                     # replace it with its body
                     early_forms = form.cdr.to_list() + early_forms[1:]
@@ -492,7 +484,7 @@ class Compiler:
         return code
 
     def compile_symbol(self, sym: Symbol, env: Environment):
-        info = self.lookup_symbol(sym, env)
+        info = env.lookup_symbol(sym)
 
         if info.kind == SymbolKind.AUX:
             raise self._compile_error(
@@ -785,7 +777,7 @@ class Compiler:
         value = expr[2]
         code = self.compile_form(value, env, tail=False)
 
-        info = self.lookup_symbol(name, env)
+        info = env.lookup_symbol(name)
         if info.immutable:
             raise self._compile_error(
                 f'Attempting to assign immutable variable: {name}',
@@ -1196,7 +1188,7 @@ class Compiler:
         transformer_form = expr[2]
         transformer = self.compile_transformer(transformer_form, env)
 
-        info = self.lookup_symbol(name, env)
+        info = env.lookup_symbol(name)
         if info.immutable:
             raise self._compile_error(
                 f'Attempting to assign immutable variable: {name}',
@@ -1233,7 +1225,7 @@ class Compiler:
            not isinstance(expr.car, Symbol):
             raise self._compile_error(
                 f'Invalid transformer: {expr}', form=expr)
-        info = self.lookup_symbol(expr.car, env)
+        info = env.lookup_symbol(expr.car)
         if not info.is_special(SpecialForms.SYNTAX_RULES):
             raise self._compile_error(
                 f'Invalid transformer: {expr}', form=expr)
@@ -1241,10 +1233,7 @@ class Compiler:
 
     def compile_quasiquote(self, expr, env: Environment, tail: bool):
         qq = Quasiquote()
-        try:
-            expr = qq.process(expr)
-        except QuasiquoteError as e:
-            raise self._compile_error(str(e), form=e.form)
+        expr = qq.process(expr)
         return self.compile_form(expr, env, tail)
 
     def compile_list(self, expr, env: Environment, tail: bool):
@@ -1257,7 +1246,7 @@ class Compiler:
                 f'Cannot compile improper list: {expr}')
 
         if isinstance(expr.car, Symbol):
-            info = self.lookup_symbol(expr.car, env)
+            info = env.lookup_symbol(expr.car)
             if info.kind == SymbolKind.AUX:
                 raise self._compile_error(
                     f'Invalid use of aux keyword "{expr.car}"',
@@ -1473,16 +1462,8 @@ class Compiler:
                 code += [S('drop')]
             code += self.compile_library_declaration(declaration, lib)
 
-        try:
-            lib.finalize_exports()
-        except LibraryExportError as e:
-            raise self._compile_error(
-                str(e), form=e.form, source=e.source)
-
-        try:
-            lib.check_for_undefined()
-        except EnvironmentError as e:
-            raise self._compile_error(str(e), form=e.form, source=e.source)
+        lib.finalize_exports()
+        lib.check_for_undefined()
 
         # add library to available_libs so that it becomes immediately available
         # to libraries defined later
@@ -1518,7 +1499,7 @@ class Compiler:
 
         info = None
         if isinstance(form.car, Symbol):
-            info = self.lookup_symbol(form.car, env)
+            info = env.lookup_symbol(form.car)
 
         if info and info.kind == SymbolKind.AUX:
             raise self._compile_error(
@@ -1539,7 +1520,7 @@ class Compiler:
         elif info and info.is_special(SpecialForms.DEFINE):
             name_sym, lambda_form = self.parse_define_form(form, 'define')
 
-            info = self.lookup_symbol(name_sym, env)
+            info = env.lookup_symbol(name_sym)
             if info.immutable:
                 raise self._compile_error(
                     f'Attempting to assign immutable variable: {name_sym}',
@@ -1588,8 +1569,6 @@ class Compiler:
     def process_import_set(self, desc: Pair) -> ImportSet:
         try:
             import_set = ImportSet.parse(desc)
-        except ImportSetParseError as e:
-            raise self._compile_error(str(e), form=e.form)
         except LibraryLoadError as e:
             raise self._compile_error(str(e), form=desc)
 
@@ -1660,10 +1639,7 @@ class Compiler:
             code = [S(':filename-start'), String(full_path)] + code
             code += [S(':filename-end')]
 
-        try:
-            env.check_for_undefined()
-        except EnvironmentError as e:
-            raise self._compile_error(str(e), form=e.form)
+        env.check_for_undefined()
 
         program = Program(
             code=code,

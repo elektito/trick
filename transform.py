@@ -1,3 +1,4 @@
+from exceptions import CompileError
 from machinetypes import Bool, Bytevector, Char, Integer, List, Nil, Pair, String, Symbol, TrickType, Vector
 from serialization import Serializable
 from symbolinfo import AuxKeywords, SpecialForms
@@ -125,13 +126,8 @@ class _MacroSymbol:
         return f'M[{self.symbol}]'
 
 
-class TransformError(Exception):
-    def __init__(self, msg, form=None):
-        self.msg = msg
-        self.form = form
-
-    def __repr__(self):
-        return self.msg
+class TransformError(CompileError):
+    pass
 
 
 class Transformer(Serializable):

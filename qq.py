@@ -1,3 +1,4 @@
+from exceptions import CompileError
 from libname import LibraryName
 from machinetypes import List, Nil, Pair, String, Symbol, Vector
 from symbolinfo import SymbolInfo, SymbolKind
@@ -41,14 +42,8 @@ QQ_LIST_TO_VECTOR = Symbol.gensym(
 QQ_QUOTE = Symbol.gensym(String('quote'))
 
 
-class QuasiquoteError(Exception):
-    def __init__(self, msg, form=None, source=None):
-        self.msg = msg
-        self.form = form
-        self.source = source
-
-    def __repr__(self):
-        return self.msg
+class QuasiquoteError(CompileError):
+    pass
 
 
 class Quasiquote:

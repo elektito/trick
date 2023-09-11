@@ -1,4 +1,7 @@
-class LibraryLoadError(Exception):
+from exceptions import CompileError
+
+
+class LibraryLoadError(CompileError):
     pass
 
 

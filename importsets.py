@@ -1,3 +1,4 @@
+from exceptions import CompileError
 from libloader import LibLoader
 from libname import LibraryName
 from machinetypes import Pair, Symbol
@@ -5,14 +6,8 @@ from serialization import Serializable
 from symbolinfo import SymbolInfo
 
 
-class ImportSetParseError(Exception):
-    def __init__(self, msg, form=None, source=None):
-        self.msg = msg
-        self.form = form
-        self.source = source
-
-    def __repr__(self):
-        return self.msg
+class ImportSetParseError(CompileError):
+    pass
 
 
 class ImportSet(Serializable):

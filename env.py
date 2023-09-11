@@ -1,5 +1,6 @@
 from copy import copy
 from enum import Enum
+from exceptions import CompileError
 
 from libloader import LibLoader
 from machinetypes import Integer, Symbol
@@ -9,14 +10,8 @@ from transform import Transformer
 from utils import OrderedSet
 
 
-class EnvironmentError(Exception):
-    def __init__(self, msg: str, form=None, source=None):
-        self.msg = msg
-        self.form = form
-        self.source = source
-
-    def __repr__(self):
-        return self.msg
+class EnvironmentError(CompileError):
+    pass
 
 
 class VariableKind(Serializable, Enum):

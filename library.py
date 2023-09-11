@@ -3,33 +3,23 @@ import re
 from typing import Optional
 
 from env import ToplevelEnvironment, Variable, VariableKind
+from exceptions import CompileError
 from importsets import ImportSet
 from libname import LibraryName
 import runtime
-from machinetypes import Integer, List, Pair, Symbol
+from machinetypes import Symbol
 from primcalls import primcalls
 from serialization import Serializable
 from symbolinfo import AuxKeywords, SpecialForms, SymbolInfo, SymbolKind
 from transform import Transformer
 
 
-class LibraryLookupError(Exception):
-    def __init__(self, msg, form=None):
-        self.msg = msg
-        self.form = form
-
-    def __repr__(self):
-        return self.msg
+class LibraryLookupError(CompileError):
+    pass
 
 
-class LibraryExportError(Exception):
-    def __init__(self, msg, form=None, source=None):
-        self.msg = msg
-        self.form = form
-        self.source = source
-
-    def __repr__(self):
-        return self.msg
+class LibraryExportError(CompileError):
+    pass
 
 
 class ExportKind(Serializable, Enum):
