@@ -2577,3 +2577,14 @@ and still a comment
 (= 288 (lcm 32 -36))
 (= 288.0 (lcm 32.0 -36))
 (= 1 (lcm))
+
+;; boxes
+
+(let ((unique-obj (list 666)))
+  (eq? unique-obj (unbox (box unique-obj))))
+
+(let ((b (box 10)))
+  (set-box! b 20)
+  (= 20 (unbox b)))
+
+(box? (box 10))

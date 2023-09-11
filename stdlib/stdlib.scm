@@ -2057,3 +2057,23 @@
 (define-record-type eof
   (eof-object)
   eof-object?)
+
+;; boxes
+
+(define box-type-id '#box)
+
+(define (box value)
+  (#$wrap (cons value (void)) box-type-id))
+
+(define (box? obj)
+  (eq? (type obj) box-type-id))
+
+(define (unbox boxed-value)
+  (unless (box? boxed-value)
+    (error "not a box" boxed-value))
+  (car (#$unwrap boxed-value)))
+
+(define (set-box! boxed obj)
+  (unless (box? boxed)
+    (error "not a box" boxed))
+  (set-car! (#$unwrap boxed) obj))

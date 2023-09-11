@@ -30,6 +30,8 @@
           any?
           approx=
           atom?
+          box
+          box?
           define-macro
           e
           gensym
@@ -43,7 +45,9 @@
           proper-length
           range
           reduce
+          set-box!
           type
+          unbox
           void
           void?
           with-gensyms))
