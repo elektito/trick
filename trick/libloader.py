@@ -60,7 +60,8 @@ class LibLoader:
                 if lib.name == lib_name:
                     for var in lib.defined_symbols.values():
                         if var.value:
-                            var.value.env= lib
+                            # if it's a macro, add the library to it as an environment
+                            var.value.env = lib
                     return lib
 
         return None
