@@ -2060,23 +2060,10 @@
 
 ;; boxes
 
-(define box-type-id '#box)
-
-(define (box value)
-  (#$wrap (cons value (void)) box-type-id))
-
-(define (box? obj)
-  (eq? (type obj) box-type-id))
-
-(define (unbox boxed-value)
-  (unless (box? boxed-value)
-    (error "not a box" boxed-value))
-  (car (#$unwrap boxed-value)))
-
-(define (set-box! boxed obj)
-  (unless (box? boxed)
-    (error "not a box" boxed))
-  (set-car! (#$unwrap boxed) obj))
+(define-record-type box-type
+  (box value)
+  box?
+  (value unbox set-box!))
 
 ;; lazy
 ;; adapted from srfi 45
