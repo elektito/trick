@@ -17,6 +17,10 @@ class ImportSet(Serializable):
     def lookup_internal(self, sym: Symbol) -> (SymbolInfo | None):
         raise NotImplementedError
 
+    @property
+    def underlying_lib(self) -> LibraryName:
+        raise NotImplementedError
+
     @staticmethod
     def _get_serializable_subclasses():
         return [
@@ -130,6 +134,10 @@ class LibraryImportSet(ImportSet):
 
         return self._loaded_lib
 
+    @property
+    def underlying_lib(self) -> LibraryName:
+        return self.lib_name
+
     def _dump(self, output):
         self._dump_string(self.lib_name.mangle(), output)
 
@@ -155,6 +163,10 @@ class OnlyImportSet(ImportSet):
 
     def lookup_internal(self, sym: Symbol) -> (SymbolInfo | None):
         return self.base_import_set.lookup_internal(sym)
+
+    @property
+    def underlying_lib(self) -> LibraryName:
+        return self.base_import_set.underlying_lib
 
     def __str__(self):
         return f'<OnlyImportSet base={self.base_import_set} only={self.identifiers}>'
@@ -188,6 +200,10 @@ class ExceptImportSet(ImportSet):
 
     def lookup_internal(self, sym: Symbol) -> (SymbolInfo | None):
         return self.base_import_set.lookup_internal(sym)
+
+    @property
+    def underlying_lib(self) -> LibraryName:
+        return self.base_import_set.underlying_lib
 
     def __str__(self):
         return f'<ExceptImportSet base={self.base_import_set} except={self.identifiers}>'
@@ -225,6 +241,10 @@ class PrefixImportSet(ImportSet):
 
     def lookup_internal(self, sym: Symbol) -> (SymbolInfo | None):
         return self.base_import_set.lookup_internal(sym)
+
+    @property
+    def underlying_lib(self) -> LibraryName:
+        return self.base_import_set.underlying_lib
 
     def __str__(self):
         return f'<PrefixImportSet base={self.base_import_set} prefix="{self.prefix}">'
@@ -264,6 +284,10 @@ class RenameImportSet(ImportSet):
 
     def lookup_internal(self, sym: Symbol) -> (SymbolInfo | None):
         return self.base_import_set.lookup_internal(sym)
+
+    @property
+    def underlying_lib(self) -> LibraryName:
+        return self.base_import_set.underlying_lib
 
     def __str__(self):
         renames = [f'"{f}"=>"{t}"' for f, t in self.renames]

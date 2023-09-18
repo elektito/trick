@@ -76,6 +76,7 @@ class Compiler:
         self.debug_info = debug_info
         self.include_paths = []
         self.defined_libs = []
+        self.dependency_libs = set()
 
         self.assembler = Assembler()
         self.macros_fasl = Fasl()
@@ -1591,6 +1592,7 @@ class Compiler:
 
         for import_set in sets:
             env.add_import(import_set)
+            self.dependency_libs.add(import_set.underlying_lib)
 
     def compile_program(self, text, env=None, *, filename=None):
         if env is None:
@@ -1647,6 +1649,7 @@ class Compiler:
         program = Program(
             code=code,
             defined_libs=self.defined_libs,
+            dependency_libs=self.dependency_libs,
             debug_info_enabled=self.debug_info,
         )
 

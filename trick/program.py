@@ -1,3 +1,4 @@
+from .libname import LibraryName
 from .machinetypes import List
 
 
@@ -9,7 +10,9 @@ class Program:
 
     def __init__(self, code: list,
                  defined_libs,
+                 dependency_libs: set[LibraryName],
                  debug_info_enabled: bool):
         self.code = List.from_list_recursive(code)
         self.defined_libs = defined_libs
+        self.dependency_libs = dependency_libs
         self.debug_info_enabled = debug_info_enabled

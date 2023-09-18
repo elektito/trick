@@ -296,6 +296,45 @@ class FaslLibInfoSection(FaslSection):
         return section
 
 
+class FaslDepInfoSection(FaslSection):
+    section_id = 3
+
+    def __init__(self, deps=None):
+        if deps is None:
+            deps = set()
+        assert all(isinstance(i, LibraryName) for i in deps)
+        self.deps: set[LibraryName] = set(deps)
+
+    @property
+    def name(self):
+        return 'depinfo'
+
+    def add_dep(self, lib_name: LibraryName):
+        self.deps.add(lib_name)
+
+    def __repr__(self):
+        return '<FaslDepInfoSection'
+
+    def _serialize(self) -> bytes:
+        s = b''
+        s += struct.pack('<I', len(self.deps))
+        for lib_name in self.deps:
+            s += serialize_string(lib_name.mangle())
+
+        return s
+
+    @staticmethod
+    def _deserialize(data: bytes):
+        ndeps, = struct.unpack('<I', data[:4])
+        offset = 4
+        section = FaslDepInfoSection()
+        for _ in range(ndeps):
+            lib_name, offset = deserialize_string(data, offset)
+            section.add_dep(LibraryName.unmangle(lib_name))
+
+        return section
+
+
 class Fasl:
     def __init__(self, *, filename=None):
         self.filename = filename
@@ -553,6 +592,16 @@ def print_general_info(fasl: Fasl):
                     print(f'      {ex.external}' + kind)
                 else:
                     print(f'      {ex.external} (internal: {ex.internal})' + kind)
+
+    dep_info = fasl.get_section('depinfo')
+    if dep_info is None:
+        print('No dependency information available in fasl.')
+    elif not dep_info.deps:
+        print('Fasl has no dependencies.')
+    else:
+        print('Dependency libs:')
+        for lib_name in dep_info.deps:
+            print(f'   {lib_name}')
 
 
 def main(args):

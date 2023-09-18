@@ -8,7 +8,7 @@ import argparse
 from . import runtime
 from .exceptions import AssembleError
 from .program import Program
-from .fasl import DbgInfoDefineRecord, DbgInfoExprRecord, DbgInfoSourceFileRecord, Fasl, FaslDbgInfoSection, FaslLibInfoSection
+from .fasl import DbgInfoDefineRecord, DbgInfoExprRecord, DbgInfoSourceFileRecord, Fasl, FaslDbgInfoSection, FaslDepInfoSection, FaslLibInfoSection
 from .read import Reader, ReadError
 from .machinetypes import List, Rational, String, Symbol
 
@@ -340,6 +340,11 @@ class Assembler:
             for lib in program.defined_libs:
                 libs_section.add_library(lib)
             fasl.add_section(libs_section)
+
+        deps_section = FaslDepInfoSection()
+        for lib_name in program.dependency_libs:
+            deps_section.add_dep(lib_name)
+        fasl.add_section(deps_section)
 
         return fasl
 
