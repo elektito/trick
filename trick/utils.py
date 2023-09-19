@@ -104,7 +104,7 @@ def ensure_fasl(main_src_filename,
 
 
 def ensure_stdlib(fasl_filename: str):
-    stdlib_main_src_filename = 'trick/scm/stdlib/defs.scm'
+    stdlib_main_src_filename = 'trick/scm/stdlib/lib.scm'
     stdlib_all_src_filenames = glob.glob('stdlib/*.scm')
     ensure_fasl(stdlib_main_src_filename,
                 stdlib_all_src_filenames,
