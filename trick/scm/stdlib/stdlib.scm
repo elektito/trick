@@ -2117,3 +2117,6 @@
         (begin
           (#$/compile/imp env (car imports))
           (loop env (cdr imports))))))
+
+(define (eval expr-or-def env)
+  (#$/compile/eval expr-or-def env))

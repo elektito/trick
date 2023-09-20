@@ -14,7 +14,7 @@ from .importsets import ImportSet
 from .machinetypes import Bool, Bytevector, Char, Complex, Float, Integer, List, Number, OpaqueBox, Port, Rational, String, Symbol, TrickType, Void
 from .print import PrintMode, PrintStyle, Printer
 from .read import ReadError, Reader
-from .utils import STR_ENCODING
+from .utils import STR_ENCODING, compile_expr_to_fasl, get_all_builtin_fasls
 
 
 modules = {}
@@ -929,20 +929,37 @@ class Math(RuntimeModule):
 
 @module(opcode=0x06)
 class Compile(RuntimeModule):
+    class EvalEnv:
+        def __init__(self, machine, fasls, env):
+            self.machine = machine
+            self.fasls = fasls
+            self.env = env
+
     @proc(opcode=0x01)
     def env(self) -> TrickType:
+        from .secd import Secd  # avoid circular imports
+
+        # we have no dynamic library loading system, so we'll just add all
+        # built-in fasls we have.
+        #
+        # NOTE that any dynamically created libraries (using define-library)
+        # will not be available.
+        lib_fasls = get_all_builtin_fasls()
+
         env = ToplevelEnvironment()
-        boxed_env = OpaqueBox(env)
+        machine = Secd(lib_fasls)
+        eval_env = Compile.EvalEnv(machine, lib_fasls, env)
+        boxed_env = OpaqueBox(eval_env)
         return boxed_env
 
     @proc(opcode=0x02)
     def imp(self, env: OpaqueBox, import_set: List) -> Void:
-        env = env.value
-        if not isinstance(env, ToplevelEnvironment):
+        eval_env = env.value
+        if not isinstance(eval_env, Compile.EvalEnv):
             raise self._runtime_error('Not an environment')
 
         try:
-            env.add_import(ImportSet.parse(import_set))
+            eval_env.env.add_import(ImportSet.parse(import_set))
         except CompileError as e:
             raise self._runtime_error(str(e), kind=Symbol('compile'))
 
@@ -950,24 +967,15 @@ class Compile(RuntimeModule):
 
     @proc(opcode=0x03)
     def eval(self, expr: TrickType, env: OpaqueBox) -> TrickType:
-        env = env.value
-        if not isinstance(env, ToplevelEnvironment):
+        eval_env = env.value
+        if not isinstance(eval_env, Compile.EvalEnv):
             raise self._runtime_error('Not an environment')
 
-        # avoid circular import
-        from .compile import Compiler
+        expr_fasl = compile_expr_to_fasl(expr, eval_env.fasls, eval_env.env)
+        eval_env.machine.execute_fasl(expr_fasl)
+        assert not len(eval_env.machine.s) == 0
 
-        compiler = Compiler()
-        compiler.compile_form(expr, env, tail=False)
-
-        # we need the library loading system
-        # so that we know which fasls need to be loaded into the machine when something is imported into the env
-        # we probably should do this using a "clean machine" and not the "current machine"
-        # (though with proper checks maybe that's not truely mandatory)
-        # ...
-
-        # FIXME
-        raise self._runtime_error('Not implemented yet!')
+        return eval_env.machine.s.top()
 
 
 @module(opcode=0x99)

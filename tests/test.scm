@@ -2732,3 +2732,9 @@ and still a comment
   (and (= n1 5)
        (= n2 0)
        (= n3 10)))
+
+;; eval
+
+(let ((env (environment '(scheme base))))
+  (eval '(define x 20) env)
+  (= 42 (eval '(+ x 22) env)))

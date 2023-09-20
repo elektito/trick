@@ -1,3 +1,2 @@
 (export environment
-        ;; eval
-        )
+        eval)

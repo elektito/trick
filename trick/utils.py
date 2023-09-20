@@ -244,5 +244,12 @@ def get_builtin_fasl_filename(name: str):
 
 
 def get_builtin_fasl(name: str):
+    # TODO the fasls created by this function should somehow be cached
     filename = get_builtin_fasl_filename(name)
     return load_fasl_file(filename)
+
+
+def get_all_builtin_fasls():
+    return [
+        get_builtin_fasl('stdlib'),
+    ]
