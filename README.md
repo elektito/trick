@@ -17,5 +17,10 @@ file named 'foo.scm' into a FASL file that can be run by the VM run `./trick.sh
 -c foo.scm`. This creates a files named `foo.fasl`. Now you can run the file by
 running `./trick.py run foo.fasl`.
 
+## Known Issues
+
+ - `equal?` does not correctly with circular lists.
+ - `map` does not work correctly with circular lists.
+
 [1]: https://en.wikipedia.org/wiki/SECD_machine
 [2]: https://small.r7rs.org
