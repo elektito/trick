@@ -4,7 +4,7 @@ from pathlib import Path
 from .version import __version__
 
 
-true_values = ['true', 't', 'yes', 'y']
+true_values = ['true', 't', 'yes', 'y', '1']
 
 
 class Config:

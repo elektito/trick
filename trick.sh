@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 
-python3 -m trick.trick "$@"
+DEV_MODE=true python3 -m trick.trick "$@"
