@@ -958,6 +958,10 @@ and still a comment
                    "foo")
   (equal? '(#\o #\o #\f) result))
 
+(string=? "foo1" (string-downcase "Foo1"))
+(string=? "FOO1" (string-upcase "Foo1"))
+(string=? (string-foldcase "Foo1") (string-foldcase "fOo1"))
+
 ;; quasiquote tests
 
 (eq? `() '())

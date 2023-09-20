@@ -1263,6 +1263,15 @@
         ((= i shortest) (void))
       (apply proc (mapcar (lambda (x) (string-ref x i)) args)))))
 
+(define (string-downcase s)
+  (#$/str/down s))
+
+(define (string-upcase s)
+  (#$/str/up s))
+
+(define (string-foldcase s)
+  (#$/str/fold s))
+
 ;; vectors
 
 (define (make-vector . args)

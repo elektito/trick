@@ -17,7 +17,6 @@
         string-ci=?
         string-ci>=?
         string-ci>?
-        ;; string-downcase
-        ;;string-foldcase
-        ;;string-upcase
-        )
+        string-downcase
+        string-foldcase
+        string-upcase)

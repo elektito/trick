@@ -603,6 +603,18 @@ class Str(RuntimeModule):
 
         return Integer(result)
 
+    @proc(opcode=0x06)
+    def down(self, s: String) -> String:
+        return String(s.value.lower())
+
+    @proc(opcode=0x07)
+    def up(self, s: String) -> String:
+        return String(s.value.upper())
+
+    @proc(opcode=0x08)
+    def fold(self, s: String) -> String:
+        return String(s.value.casefold())
+
 
 @module(opcode=0x03)
 class Sys(RuntimeModule):
