@@ -146,7 +146,7 @@
         negative?
         newline
         not
-        ;; null-environment
+        null-environment
         null?
         number->string
         number?

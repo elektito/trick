@@ -39,6 +39,7 @@
           last
           let/cc
           list*
+          null-environment
           scheme-report-environment
           pairwise
           pi

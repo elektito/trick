@@ -2742,3 +2742,7 @@ and still a comment
 (let ((env (environment '(scheme base))))
   (eval '(define x 20) env)
   (= 42 (eval '(+ x 22) env)))
+
+;; r5rs
+
+(eqv? 2.0 (eval '(exact->inexact 2) (scheme-report-environment 5)))

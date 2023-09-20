@@ -2151,3 +2151,30 @@
   (unless (= version 5)
     (error "Unsupported report version" version))
   (environment '(scheme r5rs)))
+
+(define (null-environment version)
+  (unless (= version 5)
+    (error "Unsupported report version" version))
+  (environment '(only (scheme r5rs)
+                      ...
+                      begin
+                      case
+                      cond
+                      define
+                      define-syntax
+                      delay
+                      do
+                      else
+                      if
+                      lambda
+                      let
+                      let*
+                      let-syntax
+                      letrec
+                      letrec-syntax
+                      quasiquote
+                      quote
+                      set!
+                      set-car!
+                      set-cdr!
+                      syntax-rules)))
