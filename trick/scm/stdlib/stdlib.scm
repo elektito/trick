@@ -2139,3 +2139,8 @@
 
 (define (eval expr-or-def env)
   (#$/compile/eval expr-or-def env))
+
+;; repl
+
+(define (interaction-environment)
+  (environment '(trick)))
