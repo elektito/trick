@@ -5,15 +5,13 @@ import readline
 
 from .env import ToplevelEnvironment
 from .exceptions import CompileError, RunError
-from .fasl import Fasl
 from .importsets import LibraryImportSet
-from .libloader import LibLoader
 from .libname import LibraryName
 from .machinetypes import Void
 from .read import ReadError, read_expr
 from .runtime import TrickExitException
 from .secd import Secd
-from .utils import compile_expr_to_fasl, ensure_stdlib
+from .utils import compile_expr_to_fasl, get_builtin_fasl, init_stdlib
 
 
 HISTORY_FILE = os.path.expanduser('~/.trick-repl-history')
@@ -55,13 +53,7 @@ class Completer:
 
 
 def main(args):
-    stdlib_fasl_filename = 'stdlib.fasl'
-    ensure_stdlib(stdlib_fasl_filename)
-    with open(stdlib_fasl_filename, 'rb') as f:
-        stdlib_fasl = Fasl.load(f, stdlib_fasl_filename)
-
-    libs = [stdlib_fasl]
-    LibLoader().add_fasl(stdlib_fasl)
+    init_stdlib()
 
     env = ToplevelEnvironment()
 
@@ -81,7 +73,7 @@ def main(args):
     readline.set_completer(Completer(env))
 
     machine = Secd()
-    machine.load_fasls(libs)
+    machine.load_fasl(get_builtin_fasl('stdlib'))
 
     while True:
         try:
@@ -100,7 +92,7 @@ def main(args):
             continue
 
         try:
-            expr_fasl = compile_expr_to_fasl(expr, libs, env)
+            expr_fasl = compile_expr_to_fasl(expr, [], env)
         except CompileError as e:
             print(f'Compile error: {e}')
             continue

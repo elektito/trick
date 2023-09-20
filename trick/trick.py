@@ -14,7 +14,7 @@ from .importsets import LibraryImportSet
 from .libloader import LibLoader
 from .libname import LibraryName
 from .read import ReadError, read_expr
-from .utils import compile_expr_to_fasl, compile_src_file_to_fasl, ensure_stdlib, load_fasl_files
+from .utils import compile_expr_to_fasl, compile_src_file_to_fasl, init_stdlib, load_fasl_files
 from .version import __version__
 
 
@@ -92,14 +92,13 @@ def main():
         print(f'Trick Version: v{__version__}')
         sys.exit(0)
 
+    if not args.no_stdlib:
+        init_stdlib()
+
     if args.compile:
         if not args.output:
             name, _ = os.path.splitext(args.compile)
             args.output = name + '.fasl'
-
-        if not args.no_stdlib:
-            ensure_stdlib('stdlib.fasl')
-            args.lib = ['stdlib.fasl'] + args.lib
 
         try:
             compile_src_file_to_fasl(
@@ -115,12 +114,6 @@ def main():
             sys.exit(1)
     elif args.compile_expr:
         lib_fasls = load_fasl_files(args.lib)
-
-        ensure_stdlib('stdlib.fasl')
-        with open('stdlib.fasl', 'rb') as f:
-            stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
-        lib_fasls += [stdlib_fasl]
-
         compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
 
         env = compile.ToplevelEnvironment()
@@ -150,13 +143,6 @@ def main():
             print(e)
             sys.exit(1)
 
-
-        ensure_stdlib('stdlib.fasl')
-        with open('stdlib.fasl', 'rb') as f:
-            stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
-        lib_fasls += [stdlib_fasl]
-        LibLoader().add_fasl(stdlib_fasl)
-
         env = compile.ToplevelEnvironment()
 
         lib_name = LibraryName.create('trick', 'core')
@@ -181,13 +167,6 @@ def main():
             sys.exit(1)
 
         lib_fasls = load_fasl_files(args.lib)
-
-        ensure_stdlib('stdlib.fasl')
-        with open('stdlib.fasl', 'rb') as f:
-            stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
-        lib_fasls += [stdlib_fasl]
-        LibLoader().add_fasl(stdlib_fasl)
-
         env = compile.ToplevelEnvironment()
 
         lib_name = LibraryName.create('trick', 'core')
@@ -206,13 +185,6 @@ def main():
         print(expanded)
     elif args.eval_expr:
         lib_fasls = load_fasl_files(args.lib)
-
-        ensure_stdlib('stdlib.fasl')
-        with open('stdlib.fasl', 'rb') as f:
-            stdlib_fasl = fasl.Fasl.load(f, 'stdlib.fasl')
-        lib_fasls += [stdlib_fasl]
-        LibLoader().add_fasl(stdlib_fasl)
-
         env = compile.ToplevelEnvironment()
 
         lib_name = LibraryName.create('trick', 'core')

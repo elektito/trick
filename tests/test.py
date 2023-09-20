@@ -5,14 +5,12 @@ import sys
 
 from trick.env import ToplevelEnvironment
 from trick.exceptions import CompileError, RunError
-from trick.fasl import Fasl
 from trick.importsets import LibraryImportSet
-from trick.libloader import LibLoader
 from trick.libname import LibraryName
 from trick.machinetypes import Bool, Symbol
 from trick.read import ReadError, Reader
 from trick.secd import Secd
-from trick.utils import compile_expr_to_fasl, ensure_stdlib
+from trick.utils import compile_expr_to_fasl, get_builtin_fasl, init_stdlib
 
 
 class TestFilter:
@@ -78,13 +76,7 @@ def main():
 
     args = parser.parse_args()
 
-    stdlib_fasl_filename = 'stdlib.fasl'
-    ensure_stdlib(stdlib_fasl_filename)
-    with open(stdlib_fasl_filename, 'rb') as f:
-        stdlib_fasl = Fasl.load(f, stdlib_fasl_filename)
-
-    libs = [stdlib_fasl]
-    LibLoader().add_fasl(stdlib_fasl)
+    init_stdlib()
 
     f = open('tests/test.scm')
     reader = Reader(f)
@@ -101,6 +93,7 @@ def main():
             break
         test_exprs.append(expr)
 
+    libs = [get_builtin_fasl('stdlib')]
     machine = Secd(libs)
 
     env = ToplevelEnvironment()

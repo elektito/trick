@@ -1,5 +1,10 @@
-import glob
+from importlib.abc import Traversable
 import os
+from importlib import resources
+from pathlib import Path
+import shutil
+
+from .version import __version__
 
 
 STR_ENCODING = 'utf-8'
@@ -103,14 +108,6 @@ def ensure_fasl(main_src_filename,
     compile_src_file_to_fasl(main_src_filename, fasl_filename, libs)
 
 
-def ensure_stdlib(fasl_filename: str):
-    stdlib_main_src_filename = 'trick/scm/stdlib/lib.scm'
-    stdlib_all_src_filenames = glob.glob('stdlib/*.scm')
-    ensure_fasl(stdlib_main_src_filename,
-                stdlib_all_src_filenames,
-                fasl_filename)
-
-
 def load_fasl_file(filename):
     from .fasl import Fasl
     with open(filename, 'rb') as f:
@@ -149,3 +146,103 @@ def find_shared(obj):
             assert False
 
     return shared
+
+
+def init_stdlib():
+    from .config import Config  # avoid circular import
+
+    cfg = Config()
+    if not cfg.dev_mode:
+        copy_lib_dir()
+
+    update_cache()
+
+
+def copy_lib_dir():
+    from .config import Config  # avoid circular import
+
+    cfg = Config()
+    cfg.lib_dir.mkdir(parents=True, exist_ok=True)
+
+    version = None
+    version_file = cfg.lib_dir / 'version'
+    if version_file.exists():
+        with open(version_file, 'r') as f:
+            version = f.read().strip()
+
+    if version == __version__:
+        return
+
+    for i in resources.files('trick.scm').iterdir():
+        if i.is_dir():
+            dest_dir = cfg.lib_dir / i.name
+            if dest_dir.exists():
+                shutil.rmtree(dest_dir)
+            copy_dir(i, dest_dir)
+        else:
+            copy_file(i, cfg.lib_dir / i.name)
+
+    with open(version_file, 'w') as f:
+        f.write(__version__ + '\n')
+
+
+def copy_file(file: Traversable, dest: Path):
+    with open(dest, 'wb') as f:
+        f.write(file.read_bytes())
+
+
+def copy_dir(src: Traversable, dest: Path):
+    dest.mkdir(parents=True, exist_ok=True)
+    for i in src.iterdir():
+        if i.is_dir():
+            copy_dir(i, dest / i.name)
+        else:
+            copy_file(i, dest / i.name)
+
+
+def update_cache():
+    from .config import Config  # avoid circular import
+    from .libloader import LibLoader
+
+    cfg = Config()
+    cfg.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    update_fasl('stdlib', [])
+
+    LibLoader().add_fasl(get_builtin_fasl('stdlib'))
+
+
+def update_fasl(name: str, lib_fasls: list[Path]):
+    from .config import Config  # avoid circular import
+
+    cfg = Config()
+
+    src_dir = cfg.lib_dir / name
+    src_files = list(src_dir.glob('**/*.scm'))
+    src_modified_time = max(i.stat().st_mtime for i in src_files)
+
+    fasl_filename = cfg.cache_dir / (name + '.fasl')
+    if fasl_filename.exists() and \
+       fasl_filename.stat().st_mtime > src_modified_time:
+        return
+
+    # (re-)build the fasl
+    compile_src_file_to_fasl(
+        input_filename=src_dir / 'lib.scm',
+        output_filename=fasl_filename,
+        libs=lib_fasls,
+    )
+
+
+def get_builtin_fasl_filename(name: str):
+    from .config import Config  # avoid circular import
+    cfg = Config()
+    if name in ['stdlib']:
+        return cfg.cache_dir / f'{name}.fasl'
+    else:
+        raise ValueError(f'Unknown built-in package: {name}')
+
+
+def get_builtin_fasl(name: str):
+    filename = get_builtin_fasl_filename(name)
+    return load_fasl_file(filename)

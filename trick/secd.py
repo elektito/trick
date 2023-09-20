@@ -8,13 +8,14 @@ import argparse
 import unicodedata
 
 from . import runtime
+from .config import Config
 from .exceptions import RunError
 from .fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from .snippet import show_snippet
 from .machinetypes import (
     Bool, Bytevector, Char, Complex, Float, Integer, List, Nil, Number, Pair, Port, Rational, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
 )
-from .utils import ensure_stdlib
+from .utils import init_stdlib
 
 
 class AbortedException(Exception):
@@ -1409,8 +1410,9 @@ def main(args):
             fasl = Fasl.load(f, args.input)
 
     if not args.no_stdlib:
-        ensure_stdlib('stdlib.fasl')
-        args.lib = ['stdlib.fasl'] + args.lib
+        init_stdlib()
+        cfg = Config()
+        args.lib = [cfg.cache_dir / 'stdlib.fasl'] + args.lib
 
     lib_fasls = []
     for lib in args.lib:
