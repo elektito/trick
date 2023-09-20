@@ -2144,3 +2144,10 @@
 
 (define (interaction-environment)
   (environment '(trick)))
+
+;; r5rs specific
+
+(define (scheme-report-environment version)
+  (unless (= version 5)
+    (error "Unsupported report version" version))
+  (environment '(scheme r5rs)))

@@ -39,6 +39,7 @@
           last
           let/cc
           list*
+          scheme-report-environment
           pairwise
           pi
           print

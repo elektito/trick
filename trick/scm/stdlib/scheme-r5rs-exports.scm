@@ -172,7 +172,7 @@
         remainder
         reverse
         round
-        ;; scheme-report-environment
+        scheme-report-environment
         set!
         set-car!
         set-cdr!
