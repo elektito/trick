@@ -98,10 +98,10 @@ def main():
 
     env = ToplevelEnvironment()
 
-    lib_name = LibraryName.create('trick', 'core')
-    env.add_import(LibraryImportSet(lib_name))
+    lib_name = LibraryName.create('trick')
+    env.add_import(LibraryImportSet(lib_name, lazy=False))
 
-    lib_name = LibraryName([Symbol('trick')])
+    lib_name = LibraryName.create('srfi', 8)
     env.add_import(LibraryImportSet(lib_name, lazy=False))
 
     errors = []

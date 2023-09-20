@@ -2752,3 +2752,8 @@ and still a comment
 ;; make sure the same environment is returned on each call
 (eq? (interaction-environment)
      (interaction-environment))
+
+;; srfi-8
+
+(receive (x y) (values 10 20)
+  (and (= x 10) (= y 20)))
