@@ -1043,6 +1043,32 @@ class Compile(RuntimeModule):
 
         return self._repl_env
 
+    @proc(opcode=0x05)
+    def load(self, filename: String, env: OpaqueBox) -> Void:
+        eval_env = env.value
+        if not isinstance(eval_env, Compile.EvalEnv):
+            raise self._runtime_error('Not an environment')
+
+        fasls = []
+        try:
+            with open(filename.value, 'r') as f:
+                reader = Reader(f)
+                while expr := reader.read():
+                    fasls.append(
+                        compile_expr_to_fasl(expr, eval_env.fasls, eval_env.env))
+        except OSError as e:
+            raise self._runtime_error(f'Error loading file: {e}')
+        except CompileError as e:
+            raise self._runtime_error(f'Compile error when loading file: {e}')
+
+        try:
+            for fasl in fasls:
+                eval_env.machine.load_fasl(fasl)
+        except RunError as e:
+            raise self._runtime_error(f'Error while loading file: {e}')
+
+        return Void()
+
 
 @module(opcode=0x99)
 class Dbg(RuntimeModule):

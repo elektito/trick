@@ -2190,3 +2190,10 @@
                       set-car!
                       set-cdr!
                       syntax-rules)))
+
+;; load
+
+(define load
+  (case-lambda
+   ((filename) (load filename (interaction-environment)))
+   ((filename env) (#$/compile/load filename env))))

@@ -52,7 +52,7 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
     lib_fasls = []
     for lib in libs:
         with open(lib, 'rb') as f:
-            lib_fasls.append(Fasl.load(f, lib))
+                lib_fasls.append(Fasl.load(f, lib))
 
     compiler = Compiler(lib_fasls, debug_info=dbg_info)
     if include_paths:

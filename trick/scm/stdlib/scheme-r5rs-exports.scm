@@ -129,7 +129,7 @@
         list-ref
         list-tail
         list?
-        ;; load
+        load
         log
         magnitude
         make-polar
