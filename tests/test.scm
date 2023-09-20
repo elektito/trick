@@ -2746,3 +2746,9 @@ and still a comment
 ;; r5rs
 
 (eqv? 2.0 (eval '(exact->inexact 2) (scheme-report-environment 5)))
+
+;; repl
+
+;; make sure the same environment is returned on each call
+(eq? (interaction-environment)
+     (interaction-environment))

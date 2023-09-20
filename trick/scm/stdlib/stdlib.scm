@@ -2142,8 +2142,20 @@
 
 ;; repl
 
+(define repl-env #f)
+
 (define (interaction-environment)
-  (environment '(trick)))
+  ;; if there's a repl environment (that is, we're inside a repl) return that,
+  ;; otherwise create one, store it, and return it. notice that we cannot create
+  ;; a new one on each call, since the same environment should be returned in
+  ;; different calls.
+  (let ((env (#$/compile/replenv)))
+    (if env
+        env
+        (begin
+          (unless repl-env
+            (set! repl-env (environment '(trick))))
+          repl-env))))
 
 ;; r5rs specific
 

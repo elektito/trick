@@ -27,6 +27,11 @@ _proc_methods = []
 program_name = None
 program_args = None
 
+# these are suppoesd to be set by the repl when we're running inside a repl.
+repl_machine = None
+repl_fasls = None
+repl_env = None
+
 
 class TrickRuntimeError(RunError):
     def __init__(self, module, proc_name, msg, *, kind=None):
@@ -969,6 +974,10 @@ class Compile(RuntimeModule):
             self.fasls = fasls
             self.env = env
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._repl_env = None
+
     @proc(opcode=0x01)
     def env(self) -> TrickType:
         from .secd import Secd  # avoid circular imports
@@ -1018,6 +1027,21 @@ class Compile(RuntimeModule):
         assert not len(eval_env.machine.s) == 0
 
         return eval_env.machine.s.top()
+
+    @proc(opcode=0x04)
+    def replenv(self) -> TrickType:
+        if self._repl_env is not None:
+            return self._repl_env
+
+        if repl_machine is None:
+            return Bool(False)
+
+        assert repl_fasls is not None
+        assert repl_env is not None
+        self._repl_env = OpaqueBox(
+            Compile.EvalEnv(repl_machine, repl_fasls, repl_env))
+
+        return self._repl_env
 
 
 @module(opcode=0x99)

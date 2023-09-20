@@ -3,6 +3,7 @@ import atexit
 import argparse
 import readline
 
+from . import runtime
 from .env import ToplevelEnvironment
 from .exceptions import CompileError, RunError
 from .importsets import LibraryImportSet
@@ -73,7 +74,13 @@ def main(args):
     readline.set_completer(Completer(env))
 
     machine = Secd()
-    machine.load_fasl(get_builtin_fasl('stdlib'))
+
+    lib_fasls = [get_builtin_fasl('stdlib')]
+    machine.load_fasls(lib_fasls)
+
+    runtime.repl_machine = machine
+    runtime.repl_fasls = lib_fasls
+    runtime.repl_env = env
 
     while True:
         try:
