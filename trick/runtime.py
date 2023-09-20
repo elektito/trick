@@ -1005,8 +1005,16 @@ class Compile(RuntimeModule):
         if not isinstance(eval_env, Compile.EvalEnv):
             raise self._runtime_error('Not an environment')
 
-        expr_fasl = compile_expr_to_fasl(expr, eval_env.fasls, eval_env.env)
-        eval_env.machine.execute_fasl(expr_fasl)
+        try:
+            expr_fasl = compile_expr_to_fasl(expr, eval_env.fasls, eval_env.env)
+        except CompileError as e:
+            raise self._runtime_error(str(e), kind=Symbol('compile'))
+
+        try:
+            eval_env.machine.execute_fasl(expr_fasl)
+        except RunError as e:
+            raise self._runtime_error(str(e))
+
         assert not len(eval_env.machine.s) == 0
 
         return eval_env.machine.s.top()
