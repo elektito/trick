@@ -6,6 +6,7 @@ import math
 import os
 from select import select
 import sys
+import time
 import traceback
 
 from .env import ToplevelEnvironment
@@ -1068,6 +1069,21 @@ class Compile(RuntimeModule):
             raise self._runtime_error(f'Error while loading file: {e}')
 
         return Void()
+
+
+@module(opcode=0x07)
+class Time(RuntimeModule):
+    @proc(opcode=0x01)
+    def tai(self) -> Float:
+        return Float(time.clock_gettime(time.CLOCK_TAI))
+
+    @proc(opcode=0x02)
+    def jiffy(self) -> Integer:
+        return Integer(time.perf_counter_ns())
+
+    @proc(opcode=0x03)
+    def jps(self) -> Integer:
+        return Integer(1_000_000_000)
 
 
 @module(opcode=0x99)

@@ -2197,3 +2197,14 @@
   (case-lambda
    ((filename) (load filename (interaction-environment)))
    ((filename env) (#$/compile/load filename env))))
+
+;; time
+
+(define (current-second)
+  (#$/time/tai))
+
+(define (current-jiffy)
+  (#$/time/jiffy))
+
+(define (jiffies-per-second)
+  (#$/time/jps))
