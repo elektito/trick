@@ -32,6 +32,7 @@
           atom?
           box
           box?
+          char-general-category
           define-macro
           e
           gensym
