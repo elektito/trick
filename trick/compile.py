@@ -7,6 +7,7 @@ import argparse
 
 from .env import Environment, LocalEnvironment, ToplevelEnvironment, VariableKind
 from .exceptions import CompileError, RunError
+from .features import get_features
 from .importsets import ImportSet
 from .libloader import LibLoader, LibraryLoadError
 from .libname import LibraryName
@@ -20,7 +21,7 @@ from .assemble import Assembler
 from .secd import Secd
 from .symbolinfo import SpecialForms, SymbolInfo, SymbolKind
 from .transform import SyntaxRulesTransformer, TransformError, UninitializedTransformer
-from .utils import find_shared
+from .utils import find_shared, get_all_builtin_libs
 from .version import __version__
 
 
@@ -1064,7 +1065,10 @@ class Compiler:
 
         features = get_features()
         def match(req):
-            if isinstance(req, Symbol):
+            if req == Symbol('else'):
+                raise self._compile_error(
+                    f'"else" clause can only be the last: {req}', form=req)
+            elif isinstance(req, Symbol):
                 return req.name in features
             elif isinstance(req, Pair):
                 if req.car == S('and'):
@@ -1074,20 +1078,25 @@ class Compiler:
                 elif req.car == S('not'):
                     return not(match(req.cdr))
                 elif req.car == S('library'):
+                    lib_name_desc = req.cdr.car.to_list()
+                    lib_name = LibraryName(lib_name_desc)
+                    return lib_name in get_all_builtin_libs()
+                else:
                     raise self._compile_error(
-                        'cond-expand library clause not implemented yet',
-                        form=req)
+                        f'Invalid cond-expand clause: {req}', form=req)
             return False
 
         code = []
-        for clause in expr.cdr:
+        nclauses = len(expr.cdr)
+        for i, clause in enumerate(expr.cdr):
             if not isinstance(clause, Pair) or len(clause) < 2:
                 raise self._compile_error(
                     f'Invalid cond-expand clause: {clause}',
                     form=clause)
             requirement = clause.car
             expressions = clause.cdr
-            if match(requirement):
+            if (i == nclauses - 1 and requirement == Symbol('else')) or \
+               match(requirement):
                 begin_form = Pair(S('#$begin'), expressions)
                 begin_form.src_start = clause.src_start
                 begin_form.src_end = clause.src_end
@@ -1106,6 +1115,8 @@ class Compiler:
                         code += self.compile_library_declaration(expr, env)
                 else:
                     assert False, 'unhandled context'
+
+                break
 
         return code
 

@@ -237,6 +237,12 @@ def update_fasl(name: str, lib_fasls: list[Path]):
 def get_builtin_fasl_filename(name: str):
     from .config import Config  # avoid circular import
     cfg = Config()
+
+    # NOTE When adding new packages here, don't forget to also update:
+    #  - get_builtin_fasl
+    #  - get_builtin_fasl_filename
+    #  - get_all_builtin_fasls
+    #  - get_all_builtin_libs
     if name in ['stdlib']:
         return cfg.cache_dir / f'{name}.fasl'
     else:
@@ -252,4 +258,28 @@ def get_builtin_fasl(name: str):
 def get_all_builtin_fasls():
     return [
         get_builtin_fasl('stdlib'),
+    ]
+
+
+def get_all_builtin_libs():
+    from .libname import LibraryName
+
+    return [
+        LibraryName.create('trick', 'core'),
+        LibraryName.create('trick'),
+        LibraryName.create('scheme', 'base'),
+        LibraryName.create('scheme', 'case-lambda'),
+        LibraryName.create('scheme', 'char'),
+        LibraryName.create('scheme', 'complex'),
+        LibraryName.create('scheme', 'cxr'),
+        LibraryName.create('scheme', 'eval'),
+        LibraryName.create('scheme', 'file'),
+        LibraryName.create('scheme', 'inexact'),
+        LibraryName.create('scheme', 'lazy'),
+        LibraryName.create('scheme', 'load'),
+        LibraryName.create('scheme', 'process-context'),
+        LibraryName.create('scheme', 'read'),
+        LibraryName.create('scheme', 'repl'),
+        LibraryName.create('scheme', 'time'),
+        LibraryName.create('scheme', 'write'),
     ]
