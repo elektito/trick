@@ -1928,7 +1928,7 @@
         (error "Invalid value passed to modifier procedure"))
       (vector-set! (#$unwrap obj) idx value))))
 
-;; exit
+;; process-context
 
 ;; will be set further down
 (define exit-continuation #f)
@@ -1952,6 +1952,9 @@
                         dont-exit))))
   (unless (eq? code dont-exit)
     (emergency-exit code)))
+
+(define (command-line)
+  (#$/sys/args))
 
 ;; exceptions
 

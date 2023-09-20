@@ -1399,6 +1399,10 @@ def configure_argparse(parser: argparse.ArgumentParser):
         help='If specified, the final status of the machine is '
         'printed to the output upon termination.')
 
+    parser.add_argument(
+        'program_args', nargs='*', metavar='program-args',
+        help='Arguments passed to the fasl being run.')
+
     parser.set_defaults(func=main)
 
 
@@ -1413,6 +1417,9 @@ def main(args):
         init_stdlib()
         cfg = Config()
         args.lib = [cfg.cache_dir / 'stdlib.fasl'] + args.lib
+
+    runtime.program_name = args.input
+    runtime.program_args = args.program_args
 
     lib_fasls = []
     for lib in args.lib:

@@ -21,6 +21,13 @@ modules = {}
 _proc_methods = []
 
 
+# these are supposed to be set by the runner at run time. the first should
+# contain the name of the program being run, the second the arguments meant to
+# be passed to the program.
+program_name = None
+program_args = None
+
+
 class TrickRuntimeError(RunError):
     def __init__(self, module, proc_name, msg, *, kind=None):
         self.module = module
@@ -621,6 +628,15 @@ class Sys(RuntimeModule):
     @proc(opcode=0x01)
     def exit(self, exit_code: Integer) -> Void:
         raise TrickExitException(self, 'exit', exit_code)
+
+    @proc(opcode=0x02)
+    def args(self) -> List:
+        if not isinstance(program_name, str) or \
+           not isinstance(program_args, list) or \
+           not all(isinstance(i, str) for i in program_args):
+            raise self._runtime_error('Command-line arguments not available')
+        args = [program_name] + program_args
+        return List.from_list([String(i) for i in args])
 
 
 @module(opcode=0x04)
