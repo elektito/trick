@@ -1956,6 +1956,13 @@
 (define (command-line)
   (#$/sys/args))
 
+(define (get-environment-variables)
+  (#$/sys/envvars))
+
+(define (get-environment-variable name)
+  (let ((value (assoc name (#$/sys/envvars))))
+    (if value (cdr value) #f)))
+
 ;; exceptions
 
 ;; whenever a system exception happens, this function is called in the dynamic

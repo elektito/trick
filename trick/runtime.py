@@ -11,7 +11,7 @@ import traceback
 from .env import ToplevelEnvironment
 from .exceptions import CompileError, RunError
 from .importsets import ImportSet
-from .machinetypes import Bool, Bytevector, Char, Complex, Float, Integer, List, Number, OpaqueBox, Port, Rational, String, Symbol, TrickType, Void
+from .machinetypes import Bool, Bytevector, Char, Complex, Float, Integer, List, Number, OpaqueBox, Pair, Port, Rational, String, Symbol, TrickType, Void
 from .print import PrintMode, PrintStyle, Printer
 from .read import ReadError, Reader
 from .utils import STR_ENCODING, compile_expr_to_fasl, get_all_builtin_fasls
@@ -637,6 +637,12 @@ class Sys(RuntimeModule):
             raise self._runtime_error('Command-line arguments not available')
         args = [program_name] + program_args
         return List.from_list([String(i) for i in args])
+
+    @proc(opcode=0x03)
+    def envvars(self) -> List:
+        return List.from_list([
+            Pair(String(k), String(v)) for k, v in os.environ.items()
+        ])
 
 
 @module(opcode=0x04)
