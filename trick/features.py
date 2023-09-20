@@ -33,6 +33,10 @@ def get_features():
         'trick',
         'trick-' + __version__[:__version__.rindex('.')], # only add major and minor versions
         'full-unicode',
+        'exact-closed',
+        'exact-complex',
+        'ieee-float',
+        'ratios',
         architecture,
         os_name,
         endianness,
