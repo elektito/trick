@@ -88,7 +88,7 @@
         current-output-port
         define
         define-syntax
-        ;; delay
+        delay
         denominator
         display
         do
@@ -98,7 +98,7 @@
         eq?
         equal?
         eqv?
-        ;; eval
+        eval
         even?
         (rename inexact exact->inexact)
         exact?
@@ -106,7 +106,7 @@
         expt
         floor
         for-each
-        ;; force
+        force
         gcd
         if
         imag-part
@@ -114,7 +114,7 @@
         input-port?
         integer->char
         integer?
-        ;; interaction-environment
+        interaction-environment
         lambda
         lcm
         length
