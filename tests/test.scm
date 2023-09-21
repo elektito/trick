@@ -2755,6 +2755,264 @@ and still a comment
 (eq? (interaction-environment)
      (interaction-environment))
 
+;; srfi-1
+
+(equal? '(a b c) (xcons '(b c) 'a))
+
+(equal? '(1 2 3 . 4) (cons* 1 2 3 4))
+(equal? 1 (cons* 1))
+
+(equal? '(0 1 2 3) (list-tabulate 4 values))
+
+;; uncomment this when equal? is fixed to work correctly with circular lists
+;;(equal? '#0=(z q #0#)
+;;        (circular-list 'z 'q))
+
+(equal? '(0 1 2 3 4) (iota 5))
+(all? (map approx= '(0 -0.1 -0.2 -0.3 -0.4) (iota 5 0 -0.1)))
+
+(list= eq?)
+(list= eq? '(a))
+
+(eqv? 'a (first '(a b c d e f g h i j k l m n)))
+(eqv? 'b (second '(a b c d e f g h i j k l m n)))
+(eqv? 'c (third '(a b c d e f g h i j k l m n)))
+(eqv? 'd (fourth '(a b c d e f g h i j k l m n)))
+(eqv? 'e (fifth '(a b c d e f g h i j k l m n)))
+(eqv? 'f (sixth '(a b c d e f g h i j k l m n)))
+(eqv? 'g (seventh '(a b c d e f g h i j k l m n)))
+(eqv? 'h (eighth '(a b c d e f g h i j k l m n)))
+(eqv? 'i (ninth '(a b c d e f g h i j k l m n)))
+(eqv? 'j (tenth '(a b c d e f g h i j k l m n)))
+
+(equal? '(a b) (take '(a b c d e)  2))
+(equal? '(c d e) (drop '(a b c d e)  2))
+
+(equal? '(1 2) (take '(1 2 3 . d) 2))
+(equal? '(3 . d) (drop '(1 2 3 . d) 2))
+(equal? '(1 2 3) (take '(1 2 3 . d) 3))
+(equal? 'd (drop '(1 2 3 . d) 3))
+
+(equal? '(d e) (take-right '(a b c d e) 2))
+(equal? '(a b c) (drop-right '(a b c d e) 2))
+
+(equal? '(2 3 . d) (take-right '(1 2 3 . d) 2))
+(equal? '(1) (drop-right '(1 2 3 . d) 2))
+(equal? 'd (take-right '(1 2 3 . d) 0))
+(equal? '(1 2 3) (drop-right '(1 2 3 . d) 0))
+
+(equal? '(1 3) (take! (circular-list 1 3 5) 8))
+(equal? '(1 3 5 1 3 5 1 3) (take (circular-list 1 3 5) 8))
+
+(let-values (((x y) (split-at '(a b c d e f g h) 3)))
+  (and (equal? '(a b c) x)
+       (equal? '(d e f g h) y)))
+
+(equal? 'c (last '(a b c)))
+(equal? '(c) (last-pair '(a b c)))
+
+(equal? '((one 1 odd) (two 2 even) (three 3 odd))
+        (zip '(one two three)
+             '(1 2 3)
+             '(odd even odd even odd even odd even)))
+(equal? '((1) (2) (3))
+        (zip '(1 2 3)))
+(equal? '((3 #f) (1 #t) (4 #f) (1 #t))
+        (zip '(3 1 4 1) (circular-list #f #t)))
+
+(let-values (((x y) (unzip2 '((1 one) (2 two) (3 three)))))
+  (and (equal? '(1 2 3) x)
+       (equal? '(one two three) y)))
+
+(equal? 3 (count even? '(3 1 4 1 5 9 2 5 6)))
+(equal? 3 (count < '(1 2 4 8) '(2 4 6 8 10 12 14 16)))
+(equal? 2 (count < '(3 1 4 1) (circular-list 1 10)))
+
+(= 27 (fold + 0 '(10 5 8 4))) ; add up list elements
+(equal? '(40 30 20 10)
+        (fold cons '() '(10 20 30 40))) ; reverse list
+
+;; how many symbols in list
+(= 4 (fold (lambda (x count) (if (symbol? x) (+ count 1) count))
+           0
+           '(1 2 foo bar 10 '() spam eggs #(1))))
+
+;; length of the longest string
+(= 6 (fold (lambda (s max-len) (max max-len (string-length s)))
+           0
+           '("a" "foobar" "abcde" "ab" "100" "xyzw")))
+
+(equal? '(c 3 b 2 a 1)
+        (fold cons* '() '(a b c) '(1 2 3 4 5)))
+
+(equal? '(a b c)
+        (fold-right cons '() '(a b c)))
+
+(equal? '(2 10 16 20)
+        (fold-right (lambda (x l)
+                      (if (even? x)
+                          (cons x l)
+                          l))
+                    '()
+                    '(1 2 10 13 15 16 20 31)))
+
+(equal? '(a 1 b 2 c 3)
+        (fold-right cons* '() '(a b c) '(1 2 3 4 5)))
+
+;; destructively reverse list
+(equal? '(40 30 20 10)
+        (pair-fold (lambda (pair tail)
+                     (set-cdr! pair tail) pair)
+                   '()
+                   (list 10 20 30 40)))
+
+(equal? '((a b c) (b c) (c))
+        (pair-fold-right cons '() '(a b c)))
+
+(eqv? 41 (reduce max 0 '(30 20 41 15 8 0 10)))
+
+(equal? '(1 2 3 4 5 6)
+        (reduce-right append '() '((1) () (2 3 4) (5 6))))
+
+(equal? '(1 4 9 16 25 36 49 64 81 100)
+        (unfold (lambda (x) (> x 10))
+                (lambda (x) (* x x))
+                (lambda (x) (+ x 1))
+                1))
+
+(equal? '(1 2 3 . 4)
+        (unfold not-pair? car cdr '(1 2 3 . 4) values))
+
+(equal? '(1 2 3 10 20)
+        (unfold null-list? car cdr '(1 2 3) (lambda (x) '(10 20))))
+
+(equal? '(1 4 9 16 25 36 49 64 81 100)
+        (unfold-right zero?
+                      (lambda (x) (* x x))
+                      (lambda (x) (- x 1))
+                      10))
+
+(equal? '(30 20 10)
+        (unfold-right null-list? car cdr (list 10 20 30)))
+
+(equal? '(1 -1 3 -3 8 -8)
+        (append-map! (lambda (x) (list x (- x))) '(1 3 8)))
+
+(equal? '(1 9 49)
+        (filter-map (lambda (x)
+                      (and (number? x) (* x x)))
+                    '(a 1 b 3 c 7)))
+
+(equal? '(0 8 8 -4)
+        (filter even? '(0 7 8 8 43 -4)))
+
+(let-values (((x y) (partition symbol? '(one 2 3 four five 6))))
+  (and (equal? '(one four five) x)
+       (equal? '(2 3 6) y)))
+
+(equal? '(7 43)
+        (remove even? '(0 7 8 8 43 -4)))
+
+;; Proper list -- success
+(equal? 2 (find even? '(1 2 3)))
+(any  even? '(1 2 3))
+
+;; proper list -- failure
+(not (find even? '(1 7 3)))
+(not (any  even? '(1 7 3)))
+
+;; circular list -- success
+(equal? 6 (find even? (circular-list 1 6 3)))
+(any even? (circular-list 1 6 3))
+
+(equal? 4 (find even? '(3 1 4 1 5 9)))
+
+(equal? '(-8 -5 0 0)
+        (find-tail even? '(3 1 37 -8 -5 0 0)))
+(not (find-tail even? '(3 1 37 -5)))
+
+(equal? '(2 18)
+        (take-while even? '(2 18 3 10 22 9)))
+
+(equal? '(3 10 22 9)
+        (drop-while even? '(2 18 3 10 22 9)))
+
+(let-values (((x y) (span even? '(2 18 3 10 22 9))))
+  (and (equal? '(2 18) x)
+       (equal? '(3 10 22 9) y)))
+
+(let-values (((x y) (break even? '(3 1 4 1 5 9))))
+  (and (equal? '(3 1) x)
+       (equal? '(4 1 5 9) y)))
+
+(any integer? '(a 3 b 2.7))
+(not (any integer? '(a 3.1 b 2.7)))
+(any < '(3 1 4 1 5) '(2 7 1 8 2))
+
+(equal? 2 (list-index even? '(3 1 4 1 5 9)))
+(equal? 1 (list-index < '(3 1 4 1 5 9 2 5 6) '(2 7 1 8 2)))
+(not (list-index = '(3 1 4 1 5 9 2 5 6) '(2 7 1 8 2)))
+
+(equal? '(1 3 5 7)
+        (remove even? '(1 2 3 4 5 6 7)))
+
+(equal? '(a b c z)
+        (delete-duplicates '(a b a c a b c z)))
+
+(equal? '((a . 3) (b . 7) (c . 1))
+        (delete-duplicates '((a . 3) (b . 7) (a . 9) (c . 1))
+                           (lambda (x y) (eq? (car x) (car y)))))
+
+(lset<= eq? '(a) '(a b a) '(a b c c))
+(lset<= eq?)
+(lset<= eq? '(a))
+
+(lset= eq? '(b e a) '(a e b) '(e e b a))
+(lset= eq?)
+(lset= eq? '(a))
+
+(lset= eq?
+       '(u o i a b c d c e)
+       (lset-adjoin eq? '(a b c d c e) 'a 'e 'i 'o 'u))
+
+(lset= eq?
+       '(u o i a b c d e)
+        (lset-union eq? '(a b c d e) '(a e i o u)))
+
+;; Repeated elements in LIST1 are preserved.
+(lset= eq?
+       '(x a a c)
+        (lset-union eq? '(a a c) '(x a x)))
+
+(null? (lset-union eq?))
+(lset= eq?
+       '(a b c)
+       (lset-union eq? '(a b c)))
+
+(lset= eq?
+       '(a e)
+        (lset-intersection eq? '(a b c d e) '(a e i o u)))
+(lset= eq?
+       '(a x a)
+        (lset-intersection eq? '(a x y a) '(x a x z)))
+(lset= eq?
+       '(a b c)
+        (lset-intersection eq? '(a b c)))
+(lset= eq?
+       '(b c d)
+        (lset-difference eq? '(a b c d e) '(a e i o u)))
+(lset= eq?
+       '(a b c)
+        (lset-difference eq? '(a b c)))
+
+(lset= eq?
+       '(d c b i o u)
+       (lset-xor eq? '(a b c d e) '(a e i o u)))
+(null? (lset-xor eq?))
+(lset= eq?
+       '(a b c d e)
+        (lset-xor eq? '(a b c d e)))
+
 ;; srfi-8
 
 (receive (x y) (values 10 20)

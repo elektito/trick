@@ -12,7 +12,7 @@ from .machinetypes import Void
 from .read import ReadError, read_expr
 from .runtime import TrickExitException
 from .secd import Secd
-from .utils import compile_expr_to_fasl, get_builtin_fasl, init_stdlib
+from .utils import compile_expr_to_fasl, get_all_builtin_fasls, get_builtin_fasl, init_stdlib
 
 
 HISTORY_FILE = os.path.expanduser('~/.trick-repl-history')
@@ -58,11 +58,8 @@ def main(args):
 
     env = ToplevelEnvironment()
 
-    lib_name = LibraryName.create('trick', 'core')
+    lib_name = LibraryName.create('trick', 'repl')
     env.add_import(LibraryImportSet(lib_name))
-
-    lib_name = LibraryName.create('trick')
-    env.add_import(LibraryImportSet(lib_name, lazy=False))
 
     readline.set_auto_history(True)
     read_history()
@@ -75,7 +72,7 @@ def main(args):
 
     machine = Secd()
 
-    lib_fasls = [get_builtin_fasl('stdlib')]
+    lib_fasls = get_all_builtin_fasls()
     machine.load_fasls(lib_fasls)
 
     runtime.repl_machine = machine

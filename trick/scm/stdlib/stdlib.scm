@@ -339,8 +339,13 @@
       (#$make-string (car args) (cadr args))))
 
 (define (apply fn . args)
-  ;; last argument must be a list
-  (#$apply fn (append (butlast args) (last args))))
+  ;; last argument must be a list; we attach the last argument to the rest, thus
+  ;; flattening the list and then apply the list to fn. we need to do this
+  ;; because the primitive #$apply only accepts one argument which must be a
+  ;; list.
+  (if (null? args)
+      (fn)
+      (#$apply fn (#$apply list* args))))
 
 (define (gensym . x)
   (if (null? x)
@@ -670,10 +675,12 @@
 
 (define (list . values) values)
 
+;; from srfi 1 (named cons* in there)
 (define (list* first . rest)
-  (if (null? rest)
-      first
-      (cons first (apply list* rest))))
+  (let recur ((x first) (rest rest))
+    (if (pair? rest)
+        (cons x (recur (car rest) (cdr rest)))
+        x)))
 
 (define (_append ls1 ls2)
   (unless (list? ls1)
@@ -696,20 +703,6 @@
               (_append (reverse (car lists)) (cadr lists))
               (_append (reverse (car lists))
                        (#$apply append (cdr lists)))))))
-
-(define (last x)
-  (if (null? x)
-      '()
-      (if (null? (cdr x))
-          (car x)
-          (last (cdr x)))))
-
-(define (butlast x)
-  (if (null? x)
-      '()
-      (if (null? (cdr x))
-          '()
-          (cons (car x) (butlast (cdr x))))))
 
 (define (caar x) (car (car x)))
 (define (cadr x) (car (cdr x)))
@@ -780,6 +773,7 @@
 (define (map func . arg-lists)
   (map1 func arg-lists '()))
 
+;; adapted from srfi 1
 (define (list-copy lis)
   (let recur ((lis lis))
     (if (pair? lis)
@@ -861,55 +855,37 @@
          (cons (fn (car ls) (cadr ls))
                (pairwise fn (cdr ls))))))
 
-(define (reduce func values)
-  (cond ((null? values)
-         (func))
-        ((null? (cdr values))
-         (func (car values)))
-        ((null? (cddr values))
-         (func (car values) (cadr values)))
-        (else (reduce func (cons (func (car values) (cadr values))
-                                 (cddr values))))))
-
 ;; arithmetic
 
-(define (+ . r)
-  (if (null? r)
-      0
-      (if (null? (cdr r))
-          (car r)
-          (if (null? (cddr r))
-              (iadd (car r) (cadr r))
-              (apply + (iadd (car r) (cadr r)) (cddr r))))))
+(define +
+  (case-lambda
+   (() 0)
+   ((x) x)
+   ((x y . rest) (apply + (iadd x y) rest))))
 
-(define (- . r)
-  (if (null? r)
-      (error "Invalid number of arguments for -")
-      (if (null? (cdr r))
-          (negate (car r))
-          (if (null? (cddr r))
-              (isub (car r) (cadr r))
-              (isub (apply - (butlast r)) (last r))))))
+(define -
+  (case-lambda
+   ((x) (negate x))
+   ((x y) (isub x y))
+   ((x y . rest) (apply - (isub x y) rest))))
 
-(define (* . r)
-  (if (null? r)
-      1
-      (imul (car r) (apply * (cdr r)))))
+(define *
+  (case-lambda
+   (() 1)
+   ((x) x)
+   ((x y . rest) (apply * (imul x y) rest))))
 
-(define (/ . r)
-  (if (null? r)
-      (error "Invalid number of arguments for /")
-      (if (null? (cdr r))
-          (idiv 1 (car r))
-          (if (null? (cddr r))
-              (idiv (car r) (cadr r))
-              (idiv (apply / (butlast r)) (last r))))))
+(define /
+  (case-lambda
+   ((x) (idiv 1 x))
+   ((x y) (idiv x y))
+   ((x y . rest) (apply / (idiv x y) rest))))
 
 (define (1+ n)
-  (+ n 1))
+  (iadd n 1))
 
 (define (1- n)
-  (- n 1))
+  (isub n 1))
 
 ;;
 
@@ -967,8 +943,12 @@
          1)
         ((not (pair? (cdr ls)))
          (error "length: argument not a proper list"))
-        (else (+ 1 (length (cdr ls))))))
+        ;; we use iadd here instead of + because + uses case-lambda, and
+        ;; case-lambda needs length. if we use + here, there would be an
+        ;; infinite loop.
+        (else (iadd 1 (length (cdr ls))))))
 
+;; adapted from srfi 1
 (define iota
   (case-lambda
    ((count) (iota count 0 1))

@@ -6,54 +6,14 @@
   ;; include the actual library source code
   (include "stdlib.scm")
 
-  ;; include the exports for (scheme *) standard library
-  (include-library-declarations "scheme-base-exports.scm")
-  (include-library-declarations "scheme-case-lambda-exports.scm")
-  (include-library-declarations "scheme-char-exports.scm")
-  (include-library-declarations "scheme-complex-exports.scm")
-  (include-library-declarations "scheme-cxr-exports.scm")
-  (include-library-declarations "scheme-eval-exports.scm")
-  (include-library-declarations "scheme-file-exports.scm")
-  (include-library-declarations "scheme-inexact-exports.scm")
-  (include-library-declarations "scheme-lazy-exports.scm")
-  (include-library-declarations "scheme-load-exports.scm")
-  (include-library-declarations "scheme-process-context-exports.scm")
-  (include-library-declarations "scheme-read-exports.scm")
-  (include-library-declarations "scheme-repl-exports.scm")
-  (include-library-declarations "scheme-time-exports.scm")
-  (include-library-declarations "scheme-write-exports.scm")
+  ;; include exports
+  (include-library-declarations "trick-exports.scm"))
 
-  ;; trick specific exports
-  (export 1-
-          1+
-          all?
-          any?
-          approx=
-          atom?
-          box
-          box?
-          char-general-category
-          define-macro
-          e
-          gensym
-          iota
-          last
-          let/cc
-          list*
-          null-environment
-          scheme-report-environment
-          pairwise
-          pi
-          print
-          proper-length
-          range
-          reduce
-          set-box!
-          type
-          unbox
-          void
-          void?
-          with-gensyms))
+(define-library (trick repl)
+  (import (trick))
+  (include-library-declarations "trick-exports.scm")
+  (export import)
+  (include "trick-repl.scm"))
 
 (define-library (scheme base)
   (import (trick))

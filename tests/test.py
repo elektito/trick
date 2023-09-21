@@ -7,10 +7,10 @@ from trick.env import ToplevelEnvironment
 from trick.exceptions import CompileError, RunError
 from trick.importsets import LibraryImportSet
 from trick.libname import LibraryName
-from trick.machinetypes import Bool, Symbol
+from trick.machinetypes import Bool
 from trick.read import ReadError, Reader
 from trick.secd import Secd
-from trick.utils import compile_expr_to_fasl, get_builtin_fasl, init_stdlib
+from trick.utils import compile_expr_to_fasl, get_all_builtin_fasls, init_stdlib
 
 
 class TestFilter:
@@ -93,12 +93,15 @@ def main():
             break
         test_exprs.append(expr)
 
-    libs = [get_builtin_fasl('stdlib')]
+    libs = get_all_builtin_fasls()
     machine = Secd(libs)
 
     env = ToplevelEnvironment()
 
     lib_name = LibraryName.create('trick')
+    env.add_import(LibraryImportSet(lib_name, lazy=False))
+
+    lib_name = LibraryName.create('srfi', 1)
     env.add_import(LibraryImportSet(lib_name, lazy=False))
 
     lib_name = LibraryName.create('srfi', 8)
