@@ -15,7 +15,8 @@ class LibraryName:
     def __eq__(self, other):
         if not isinstance(other, LibraryName):
             return False
-        return all(i == j for i, j in zip(self.parts, other.parts))
+        return len(self.parts) == len(other.parts) and \
+            all(i == j for i, j in zip(self.parts, other.parts))
 
     def __hash__(self):
         return hash(tuple(hash(p) for p in self.parts))
