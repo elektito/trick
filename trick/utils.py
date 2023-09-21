@@ -215,7 +215,9 @@ def update_cache():
 
 
 def update_fasl(name: str, lib_fasls: list[Path]):
-    from .config import Config  # avoid circular import
+    # avoid circular import
+    from .exceptions import CompileError
+    from .config import Config
 
     cfg = Config()
 
@@ -229,12 +231,19 @@ def update_fasl(name: str, lib_fasls: list[Path]):
         return
 
     # (re-)build the fasl
-    compile_src_file_to_fasl(
-        input_filename=src_dir / 'lib.scm',
-        output_filename=fasl_filename,
-        libs=lib_fasls,
-    )
-
+    try:
+        compile_src_file_to_fasl(
+            input_filename=src_dir / 'lib.scm',
+            output_filename=fasl_filename,
+            libs=lib_fasls,
+        )
+    except CompileError as e:
+        if e.source and e.source.filename:
+            print(f'Compile error in {e.source.filename}: {e}')
+        else:
+            print(f'Compile error: {e}')
+        e.print_snippet()
+        exit(1)
 
 def get_builtin_fasl_filename(name: str):
     from .config import Config  # avoid circular import
