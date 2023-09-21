@@ -780,17 +780,11 @@
 (define (map func . arg-lists)
   (map1 func arg-lists '()))
 
-(define (list-copy-aux ls acc)
-  (cond ((pair? (cdr ls))
-         (list-copy-aux (cdr ls) (cons (car ls) acc)))
-        (else (do ((copy ls (cons (car acc) copy))
-                   (acc acc (cdr acc)))
-                  ((null? acc) copy)))))
-
-(define (list-copy ls)
-  (cond ((null? ls) ls)
-        ((pair? ls) (list-copy-aux ls '()))
-        (else ls)))
+(define (list-copy lis)
+  (let recur ((lis lis))
+    (if (pair? lis)
+        (cons (car lis) (recur (cdr lis)))
+        lis)))
 
 (define (list-set! ls k obj)
   (if (zero? k)
@@ -975,16 +969,21 @@
          (error "length: argument not a proper list"))
         (else (+ 1 (length (cdr ls))))))
 
-(define (range1 start n acc)
-  (if (<= n start)
-      acc
-      (range1 start (1- n) (cons (1- n) acc))))
+(define iota
+  (case-lambda
+   ((count) (iota count 0 1))
+   ((count start) (iota count start 1))
+   ((count start step)
+    (if (negative? count)
+        '()
+        (let loop ((n 0) (r '()))
+          (if (= n count)
+              (reverse r)
+              (loop (1+ n)
+                    (cons (+ start (* n step)) r))))))))
 
 (define (range start end)
-  (range1 start end '()))
-
-(define (iota n)
-  (range 0 n))
+  (iota (- end start) start))
 
 (define (list-tail ls k)
   (if (zero? k)

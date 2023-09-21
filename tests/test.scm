@@ -585,6 +585,8 @@ and still a comment
 (equal? (iota -1) '())
 (equal? (iota 0) '())
 (equal? (iota 5) '(0 1 2 3 4))
+(equal? (iota 5 10) '(10 11 12 13 14))
+(equal? (iota 5 10 2) '(10 12 14 16 18))
 (equal? (range 0 0) '())
 (equal? (range 0 5) '(0 1 2 3 4))
 (equal? (range 5 0) '())
