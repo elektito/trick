@@ -1657,6 +1657,10 @@ class Compiler:
 
         env.check_for_undefined()
 
+        # remove any dependency libs that are defined inside this compilation
+        # unit
+        self.dependency_libs -= set(lib.name for lib in self.defined_libs)
+
         program = Program(
             code=code,
             defined_libs=self.defined_libs,
