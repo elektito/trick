@@ -6,6 +6,13 @@ and, as of this moment, is very very slow! It's mostly an educational project at
 the moment, though I might be able to write a faster implementation of the
 virtual machine in the future.
 
+## SRFI Support
+
+The following SRFIs are supported:
+
+ - [SRFI 1][3]: List Library
+ - [SRFI 8][4]: receive: Binding to multiple values
+
 ## Requirements
 
 Python 3.9 or later is required. There is no other dependency.
@@ -24,3 +31,5 @@ running `./trick.py run foo.fasl`.
 
 [1]: https://en.wikipedia.org/wiki/SECD_machine
 [2]: https://small.r7rs.org
+[3]: https://srfi.schemers.org/srfi-1/srfi-1.html
+[4]: https://srfi.schemers.org/srfi-8/srfi-8.html
