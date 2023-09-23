@@ -301,3 +301,45 @@ def get_all_builtin_libs():
         LibraryName.create('srfi', 1),
         LibraryName.create('srfi', 8),
     ]
+
+
+def to_varint_signed(n: int) -> bytes:
+    if n < 0:
+        return to_varint_unsigned(-2 * n + 1)
+    else:
+        return to_varint_unsigned(2 * n)
+
+
+def from_varint_signed(x: bytes, idx: int) -> tuple[int, int]:
+    n, idx = from_varint_unsigned(x, idx)
+    sign = -1 if n & 1 else 1
+    n >>= 1
+    return n * sign, idx
+
+
+def to_varint_unsigned(n: int) -> bytes:
+    x = b''
+    while n != 0:
+        b = n & 0x7f
+        n >>= 7
+        if n != 0:
+            b |= 0x80
+        x += bytes([b])
+
+    if x == b'':
+        x = b'\x00'
+
+    return x
+
+
+def from_varint_unsigned(x: bytes, idx: int) -> tuple[int, int]:
+    i = 0
+    n = 0
+    while True:
+        n += (x[idx] & 0x7f) << (7 * i)
+        if x[idx] & 0x80 == 0:
+            break
+        i += 1
+        idx += 1
+
+    return n, idx + 1

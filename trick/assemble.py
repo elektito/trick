@@ -11,6 +11,7 @@ from .program import Program
 from .fasl import DbgInfoDefineRecord, DbgInfoExprRecord, DbgInfoSourceFileRecord, Fasl, FaslDbgInfoSection, FaslDepInfoSection, FaslLibInfoSection
 from .read import Reader, ReadError
 from .machinetypes import List, Rational, String, Symbol
+from .utils import to_varint_signed, to_varint_unsigned
 
 
 class Assembler:
@@ -181,7 +182,7 @@ class Assembler:
                 if not isinstance(value, int):
                     raise AssembleError(f'Invalid argument for ldc: {value}')
                 code += bytes([0x80])
-                code += value.to_bytes(length=4, byteorder='little', signed=True)
+                code += to_varint_signed(value)
             elif instr == 'ld':
                 if not isinstance(expr[i], list) or \
                    len(expr[i]) != 2 or \
@@ -191,8 +192,8 @@ class Assembler:
                 frame, index = expr[i]
                 i += 1
                 code += bytes([0x81])
-                code += frame.to_bytes(length=2, byteorder='little', signed=False)
-                code += index.to_bytes(length=2, byteorder='little', signed=False)
+                code += to_varint_unsigned(frame)
+                code += to_varint_unsigned(index)
             elif instr == 'sel':
                 if not isinstance(expr[i], list) :
                     raise AssembleError(f'Invalid first argument for sel: {expr[i]}')
@@ -258,7 +259,7 @@ class Assembler:
                     raise AssembleError(f'Invalid argument for ldstr: {s}')
                 strnum = fasl.add_string(s)
                 code += bytes([0x86])
-                code += strnum.to_bytes(length=4, byteorder='little', signed=True)
+                code += to_varint_unsigned(strnum)
             elif instr == 'ldsym':
                 sym = expr[i]
                 i += 1
@@ -266,7 +267,7 @@ class Assembler:
                     raise AssembleError(f'Invalid argument for ldstr: {sym}')
                 symnum = fasl.add_symbol(sym)
                 code += bytes([0x88])
-                code += symnum.to_bytes(length=4, byteorder='little', signed=True)
+                code += to_varint_unsigned(symnum)
             elif instr == 'set':
                 sym = expr[i]
                 i += 1
@@ -274,7 +275,7 @@ class Assembler:
                     raise AssembleError(f'Invalid argument type for set: {sym}')
                 symnum = fasl.add_symbol(sym)
                 code += bytes([0x8a])
-                code += symnum.to_bytes(length=4, byteorder='little', signed=False)
+                code += to_varint_unsigned(symnum)
             elif instr == 'get':
                 sym = expr[i]
                 i += 1
@@ -282,7 +283,7 @@ class Assembler:
                     raise AssembleError(f'Invalid argument type for get: {sym}')
                 symnum = fasl.add_symbol(sym)
                 code += bytes([0x8b])
-                code += symnum.to_bytes(length=4, byteorder='little', signed=False)
+                code += to_varint_unsigned(symnum)
             elif instr == 'unset':
                 sym = expr[i]
                 i += 1
@@ -290,7 +291,7 @@ class Assembler:
                     raise AssembleError(f'Invalid argument type for unset: {sym}')
                 symnum = fasl.add_symbol(sym)
                 code += bytes([0x8c])
-                code += symnum.to_bytes(length=4, byteorder='little', signed=False)
+                code += to_varint_unsigned(symnum)
             elif instr == 'ldcf':
                 value = expr[i]
                 i += 1
@@ -304,7 +305,8 @@ class Assembler:
                 if not isinstance(value, Rational):
                     raise AssembleError(f'Invalid argument for ldcq: {value}')
                 code += bytes([0x8e])
-                code += struct.pack('<qQ', value.frac.numerator, value.frac.denominator)
+                code += to_varint_signed(value.frac.numerator)
+                code += to_varint_unsigned(value.frac.denominator)
             else:
                 raise AssembleError(f'Unknown instruction: {instr}')
 

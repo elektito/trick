@@ -15,7 +15,7 @@ from .snippet import show_snippet
 from .machinetypes import (
     Bool, Bytevector, Char, Complex, Float, Integer, List, Nil, Number, Pair, Port, Rational, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
 )
-from .utils import init_stdlib
+from .utils import from_varint_signed, from_varint_unsigned, init_stdlib
 
 
 class AbortedException(Exception):
@@ -545,9 +545,7 @@ class Secd:
         if self.debug: print(f'cons {car} onto {cdr} => {result}')
 
     def run_ldc(self):
-        value = self.cur_fasl.code[self.c:self.c+4]
-        self.c += 4
-        value = int.from_bytes(value, byteorder='little', signed=True)
+        value, self.c = from_varint_signed(self.cur_fasl.code, self.c)
         self.s.pushx(Integer(value))
         if self.debug: print(f'ldc {value}')
 
@@ -559,25 +557,20 @@ class Secd:
         if self.debug: print(f'ldcf {value}')
 
     def run_ldcq(self):
-        value = self.cur_fasl.code[self.c:self.c+16]
-        self.c += 16
-        numerator, denominator = struct.unpack('<qQ', value)
+        numerator, self.c = from_varint_signed(self.cur_fasl.code, self.c)
+        denominator, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
         frac = Fraction(numerator, denominator)
         self.s.pushx(Rational(frac))
-        if self.debug: print(f'ldcq {value}')
+        if self.debug: print(f'ldcq {frac}')
 
     def run_ldstr(self):
-        strnum = self.cur_fasl.code[self.c:self.c+4]
-        self.c += 4
-        strnum = int.from_bytes(strnum, byteorder='little', signed=True)
+        strnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
         s = self.cur_fasl.strtab[strnum]
         self.s.push(s)
         if self.debug: print(f'ldstr {s}')
 
     def run_ldsym(self):
-        symnum = self.cur_fasl.code[self.c:self.c+4]
-        self.c += 4
-        symnum = int.from_bytes(symnum, byteorder='little', signed=True)
+        symnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
         try:
             s = self.cur_fasl.symtab[symnum]
         except IndexError:
@@ -586,12 +579,8 @@ class Secd:
         if self.debug: print(f'ldsym {s}')
 
     def run_ld(self):
-        frame_idx = self.cur_fasl.code[self.c:self.c+2]
-        index = self.cur_fasl.code[self.c+2:self.c+4]
-        self.c += 4
-
-        frame_idx = int.from_bytes(frame_idx, byteorder='little', signed=False)
-        index = int.from_bytes(index, byteorder='little', signed=False)
+        frame_idx, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
+        index, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
 
         if frame_idx >= len(self.e):
             raise RunError(f'Invalid frame number: {frame_idx} (nframes: {len(self.e)})')
@@ -969,9 +958,7 @@ class Secd:
         if self.debug: print(f'eq {result}')
 
     def run_set(self):
-        symnum = self.cur_fasl.code[self.c:self.c+4]
-        self.c += 4
-        symnum = int.from_bytes(symnum, byteorder='little', signed=True)
+        symnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
 
         try:
             sym = self.cur_fasl.symtab[symnum]
@@ -984,9 +971,7 @@ class Secd:
         if self.debug: print(f'set {sym} => {value}')
 
     def run_get(self):
-        symnum = self.cur_fasl.code[self.c:self.c+4]
-        self.c += 4
-        symnum = int.from_bytes(symnum, byteorder='little', signed=True)
+        symnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
 
         try:
             sym = self.cur_fasl.symtab[symnum]
@@ -1002,9 +987,7 @@ class Secd:
         if self.debug: print(f'get {self.cur_fasl.symtab[symnum]} => {value}')
 
     def run_unset(self):
-        symnum = self.cur_fasl.code[self.c:self.c+4]
-        self.c += 4
-        symnum = int.from_bytes(symnum, byteorder='little', signed=True)
+        symnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
 
         try:
             sym = self.cur_fasl.symtab[symnum]
