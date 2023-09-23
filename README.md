@@ -12,6 +12,7 @@ The following SRFIs are supported:
 
  - [SRFI 1][3]: List Library
  - [SRFI 8][4]: receive: Binding to multiple values
+ - [SRFI 151][5]: Bitwise Operations 
 
 ## Requirements
 
@@ -33,3 +34,4 @@ running `./trick.py run foo.fasl`.
 [2]: https://small.r7rs.org
 [3]: https://srfi.schemers.org/srfi-1/srfi-1.html
 [4]: https://srfi.schemers.org/srfi-8/srfi-8.html
+[5]: https://srfi.schemers.org/srfi-151/srfi-151.html
