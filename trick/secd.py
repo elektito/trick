@@ -1018,7 +1018,7 @@ class Secd:
         short_name = self.s.popx()
         sym = Symbol.gensym(short_name)
         self.s.pushx(sym)
-        if self.debug: print(f'gensym2 {short_name} -- {sym}')
+        if self.debug: print(f'gensym {short_name} -- {sym}')
 
     def run_ccc(self): # call/cc
         proc = self.s.pop(Procedure, 'ccc')
