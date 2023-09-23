@@ -172,6 +172,8 @@ class Assembler:
                 'ige': 0x4d,
                 'neg': 0x4e,
                 'abs': 0x4f,
+                'popcnt': 0x50,
+                'intlen': 0x51,
             }
             opcode = single_byte_instrs.get(instr)
             if opcode is not None:

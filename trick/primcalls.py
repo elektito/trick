@@ -131,6 +131,16 @@ primcalls = {
         'code': [S('bxor')],
         'exported': True,
     },
+    'popcnt': {
+        'nargs': 1,
+        'code': [S('popcnt')],
+        'exported': True,
+    },
+    'intlen': {
+        'nargs': 1,
+        'code': [S('intlen')],
+        'exported': True,
+    },
     'cons': {
         'nargs': 2,
         'code': [S('cons')],

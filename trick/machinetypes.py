@@ -1,5 +1,6 @@
 import math
 from fractions import Fraction
+import sys
 from uuid import uuid4
 
 from .serialization import Serializable
@@ -125,7 +126,14 @@ class Number(TrickType):
             # copy the sign of the number to 1 and then compare it. Comparing
             # against -0.0 itself won't work, since in terms of python
             # operators, -0.0==0.0 (and -0.0<0.0 is False).
-            return math.copysign(1, self.to_python_number()) < 0
+            #
+            # Note: copysign throws an error if the given number doesn't fit a
+            # float, so we check to very large numbers separately.
+            n = self.to_python_number()
+            if abs(n) > sys.float_info.max:
+                return False
+            else:
+                return math.copysign(1, n) < 0
 
     def is_exact_zero(self):
         if isinstance(self, Complex):

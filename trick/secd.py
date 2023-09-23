@@ -262,6 +262,8 @@ class Secd:
             0x4d: self.run_ige,
             0x4e: self.run_neg,
             0x4f: self.run_abs,
+            0x50: self.run_popcnt,
+            0x51: self.run_intlen,
             0x80: self.run_ldc,
             0x81: self.run_ld,
             0x82: self.run_sel,
@@ -832,6 +834,33 @@ class Secd:
         n2 = self.s.pop(Integer, 'bxor')
         self.s.pushx(n1 ^ n2)
         if self.debug: print(f'bxor {n1} | {n2}')
+
+    def run_popcnt(self):
+        n = self.s.pop(Integer, 'popcnt')
+        if n < 0:
+            # return the number of unset (i.e. zero) bits
+            result = Integer((~n).bit_count())
+        else:
+            result = Integer(n.bit_count())
+        self.s.pushx(result)
+        if self.debug: print(f'popcnt {n} => {result}')
+
+    def run_intlen(self):
+        n = self.s.pop(Integer, 'intlen')
+        if n < 0:
+            # SRFI 151 says "For all i, (+ 1 (integer-length i)) is the number
+            # of bits needed to represent i in a signed twos-complement
+            # representation." I was at a bit of a loss how to do that (and in
+            # Python) which doesn't work so well for bitwise operations, when I
+            # read this in R6RS definition of bitwise-length: "...and the number
+            # of bits needed to represent (bitwise-not ei) if it is negative"
+            # which is very clear and seems to have the same result as the SRFI
+            # expects.
+            result = Integer((~n).bit_length())
+        else:
+            result = Integer(n.bit_length())
+        self.s.pushx(result)
+        if self.debug: print(f'intlen {n} => {result}')
 
     def run_ilt(self):
         arg1 = self.s.pop(Number, 'ilt')
