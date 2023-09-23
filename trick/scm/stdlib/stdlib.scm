@@ -511,10 +511,10 @@
 (define (expt z1 z2)
   (when (and (zero? z1) (negative? z2))
     (error "expt is undefined for the given values."))
-  (cond ((integer? z2) (if (negative? z2)
-                           (/ (apply * (make-list (- z2) z1)))
-                           (apply * (make-list z2 z1))))
-        (else (#$/math/expt z1 z2))))
+
+  (if (and (exact? z1) (integer? z2))
+      (#$/math/exactexpt z1 z2)
+      (#$/math/expt z1 z2)))
 
 (define log
   (case-lambda

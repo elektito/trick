@@ -931,6 +931,23 @@ class Math(RuntimeModule):
             return Float(r)
 
     @proc(opcode=0x12)
+    def exactexpt(self, n1: Number, n2: Integer) -> Number:
+        if isinstance(n1, Rational):
+            if n2 < 0:
+                return Rational(1 / (n1.frac ** -n2)).to_specific()
+            else:
+                return Rational(n1.frac ** n2).to_specific()
+        elif isinstance(n1, Integer):
+            if n2 < 0:
+                return Rational(Fraction(1, n1 ** -n2)).to_specific()
+            else:
+                return Integer(n1 ** n2)
+        else:
+            raise self._runtime_error(
+                'Value not an integer or rational',
+                kind=Symbol('math'))
+
+    @proc(opcode=0x13)
     def lcm(self, numbers: List) -> Number:
         ns = []
         ret_type = Integer
@@ -948,7 +965,7 @@ class Math(RuntimeModule):
         result = math.lcm(*ns)
         return ret_type(result)
 
-    @proc(opcode=0x13)
+    @proc(opcode=0x14)
     def gcd(self, numbers: List) -> Number:
         ns = []
         ret_type = Integer
