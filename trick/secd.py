@@ -174,7 +174,7 @@ class Secd:
         self.dummy_frame = object()
         self.debug = False
         self.symvals = {}
-        self.cur_fasl = None
+        self.cur_fasl: (Fasl | None) = None
         self.exception_handler = None
 
         self.setup_instructions()
@@ -518,13 +518,8 @@ class Secd:
                     raise
 
     def intern(self, name):
-        sym = Symbol(name)
-        if sym not in self.cur_fasl.symtab:
-            sname = String(name)
-            if sname not in self.cur_fasl.strtab:
-                self.cur_fasl.strtab.append(sname)
-            self.cur_fasl.symtab.append(sym)
-        return sym
+        assert self.cur_fasl is not None
+        return Symbol(name)
 
     def find_procedure_name(self, procedure):
         for sym, value in self.symvals.items():
@@ -572,11 +567,12 @@ class Secd:
         if self.debug: print(f'ldstr {s}')
 
     def run_ldsym(self):
-        symnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
+        strnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
         try:
-            s = self.cur_fasl.symtab[symnum]
+            name = self.cur_fasl.strtab[strnum]
+            s = Symbol(name.value)
         except IndexError:
-            raise RunError(f'Invalid symbol index: {symnum} (symtab size: {len(self.cur_fasl.symtab)})')
+            raise RunError(f'Invalid symbol string index: {strnum} (strtab size: {len(self.cur_fasl.strtab)})')
         self.s.push(s)
         if self.debug: print(f'ldsym {s}')
 
@@ -987,12 +983,13 @@ class Secd:
         if self.debug: print(f'eq {result}')
 
     def run_set(self):
-        symnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
+        strnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
 
         try:
-            sym = self.cur_fasl.symtab[symnum]
+            name = self.cur_fasl.strtab[strnum]
+            sym = Symbol(name.value)
         except IndexError:
-            raise RunError(f'Invalid symbol number for "set": {symnum}')
+            raise RunError(f'Invalid symbol string number for "set": {strnum}')
 
         value = self.s.pop()
         self.symvals[sym] = value
@@ -1000,31 +997,33 @@ class Secd:
         if self.debug: print(f'set {sym} => {value}')
 
     def run_get(self):
-        symnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
+        strnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
 
         try:
-            sym = self.cur_fasl.symtab[symnum]
+            name = self.cur_fasl.strtab[strnum]
+            sym = Symbol(name.value)
         except IndexError:
-            raise RunError(f'Invalid symbol number for "get": {symnum}')
+            raise RunError(f'Invalid symbol string number for "get": {strnum}')
 
         try:
             value = self.symvals[sym]
         except KeyError:
-            raise RunError(f'Attempt to read unset symbol: {sym} ({symnum})')
+            raise RunError(f'Attempt to read unset symbol: {sym}')
 
         self.s.push(value)
-        if self.debug: print(f'get {self.cur_fasl.symtab[symnum]} => {value}')
+        if self.debug: print(f'get {sym} => {value}')
 
     def run_unset(self):
-        symnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
+        strnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
 
         try:
-            sym = self.cur_fasl.symtab[symnum]
+            name = self.cur_fasl.strtab[strnum]
+            sym = Symbol(name.value)
         except IndexError:
-            raise RunError(f'Invalid symbol number for "unset": {symnum}')
+            raise RunError(f'Invalid symbol string number for "unset": {strnum}')
 
         del self.symvals[sym]
-        if self.debug: print(f'unset {self.cur_fasl.symtab[symnum]}')
+        if self.debug: print(f'unset {sym}')
 
     def run_gensym(self):
         short_name = self.s.popx()

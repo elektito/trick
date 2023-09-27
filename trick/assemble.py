@@ -267,33 +267,33 @@ class Assembler:
                 i += 1
                 if not isinstance(sym, Symbol):
                     raise AssembleError(f'Invalid argument for ldstr: {sym}')
-                symnum = fasl.add_symbol(sym)
+                strnum = fasl.add_string(String(sym.name))
                 code += bytes([0x88])
-                code += to_varint_unsigned(symnum)
+                code += to_varint_unsigned(strnum)
             elif instr == 'set':
                 sym = expr[i]
                 i += 1
                 if not isinstance(sym, Symbol):
                     raise AssembleError(f'Invalid argument type for set: {sym}')
-                symnum = fasl.add_symbol(sym)
+                strnum = fasl.add_string(String(sym.name))
                 code += bytes([0x8a])
-                code += to_varint_unsigned(symnum)
+                code += to_varint_unsigned(strnum)
             elif instr == 'get':
                 sym = expr[i]
                 i += 1
                 if not isinstance(sym, Symbol):
                     raise AssembleError(f'Invalid argument type for get: {sym}')
-                symnum = fasl.add_symbol(sym)
+                strnum = fasl.add_string(String(sym.name))
                 code += bytes([0x8b])
-                code += to_varint_unsigned(symnum)
+                code += to_varint_unsigned(strnum)
             elif instr == 'unset':
                 sym = expr[i]
                 i += 1
                 if not isinstance(sym, Symbol):
                     raise AssembleError(f'Invalid argument type for unset: {sym}')
-                symnum = fasl.add_symbol(sym)
+                strnum = fasl.add_string(String(sym.name))
                 code += bytes([0x8c])
-                code += to_varint_unsigned(symnum)
+                code += to_varint_unsigned(strnum)
             elif instr == 'ldcf':
                 value = expr[i]
                 i += 1

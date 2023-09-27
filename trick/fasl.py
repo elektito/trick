@@ -339,7 +339,6 @@ class Fasl:
     def __init__(self, *, filename=None):
         self.filename = filename
         self.strtab = []
-        self.symtab = []
         self.code = b''
         self.sections = []
 
@@ -359,17 +358,6 @@ class Fasl:
 
         return None
 
-    def add_symbol(self, sym: Symbol) -> int:
-        assert isinstance(sym, Symbol)
-        if String(sym.name) not in self.strtab:
-            self.add_string(String(sym.name))
-
-        try:
-            return self.symtab.index(sym)
-        except ValueError:
-            self.symtab.append(sym)
-            return len(self.symtab) - 1
-
     def add_string(self, new_string: String) -> int:
         assert isinstance(new_string, String)
 
@@ -386,10 +374,9 @@ class Fasl:
         # write fasl header
         output.write(FASL_MAGIC)
         output.write(struct.pack(
-            '<BIIII',
+            '<BIII',
             FASL_VERSION,              # version
             len(self.strtab),          # number of string ltierals
-            len(self.symtab),          # number of symbols
             len(self.code),            # code sizes
             len(self.sections),  # number of sections
         ))
@@ -397,14 +384,6 @@ class Fasl:
         # write string literals
         for s in self.strtab:
             output.write(serialize_string(s))
-
-        # write symbols
-        for sym in self.symtab:
-            # can't do `self.strtab.index(String(sym.name))` because String
-            # objects do not implement content-based __eq__ (and we don't want
-            # them to).
-            strnum = [s.value for s in self.strtab].index(sym.name)
-            output.write(struct.pack('<I', strnum))
 
         # write code
         output.write(self.code)
@@ -421,9 +400,9 @@ class Fasl:
         if magic != FASL_MAGIC:
             raise FaslError('Bad magic')
 
-        headers = input.read(17)
-        version, nstrs, nsyms, csize, nsecs = struct.unpack(
-            '<BIIII', headers)
+        headers = input.read(13)
+        version, nstrs, csize, nsecs = struct.unpack(
+            '<BIII', headers)
 
         if version != FASL_VERSION:
             raise FaslError(f'Unsupported version: {version}')
@@ -432,11 +411,6 @@ class Fasl:
             size, = struct.unpack('<I', input.read(4))
             string = input.read(size).decode(STR_ENCODING)
             fasl.strtab.append(String(string))
-
-        for i in range(nsyms):
-            strnum, = struct.unpack('<I', input.read(4))
-            sym = Symbol(fasl.strtab[strnum].value)
-            fasl.symtab.append(sym)
 
         fasl.code = input.read(csize)
 
@@ -559,18 +533,12 @@ def print_dbg_records(fasl: Fasl):
 
 def print_general_info(fasl: Fasl):
     strings = List.from_list_recursive(fasl.strtab)
-    symbols = List.from_list_recursive(fasl.symtab)
 
     print(f'Code size: {len(fasl.code)} byte(s)')
     print()
 
     print(f'{len(strings)} string literal(s):')
     for s in strings:
-        print(f'   {s}')
-    print()
-
-    print(f'{len(symbols)} symbol(s):')
-    for s in symbols:
         print(f'   {s}')
     print()
 
