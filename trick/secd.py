@@ -629,11 +629,8 @@ class Secd:
         if self.debug: print(f'join')
 
     def run_ldf(self):
-        nparams = self.cur_fasl.code[self.c:self.c+4]
-        body_size = self.cur_fasl.code[self.c+4:self.c+8]
-        nparams = int.from_bytes(nparams, byteorder='little', signed=True)
-        body_size = int.from_bytes(body_size, byteorder='little', signed=False)
-        self.c += 8
+        nparams, self.c = from_varint_signed(self.cur_fasl.code, self.c)
+        body_size, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
         if nparams < 0:
             rest_param = True
             nparams = -nparams - 1

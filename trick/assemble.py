@@ -226,10 +226,10 @@ class Assembler:
                 body = expr[i + 1]
                 i += 2
                 code += bytes([0x83])
-                code += nargs.to_bytes(length=4, byteorder='little', signed=True)
+                code += to_varint_signed(nargs)
                 body_code = self._assemble(
                     body, fasl, offset + len(code) + 4, dbg_records)
-                code += len(body_code).to_bytes(length=4, byteorder='little', signed=False)
+                code += to_varint_unsigned(len(body_code))
                 code += body_code
             elif instr == 'st':
                 if not isinstance(expr[i], list) or \
