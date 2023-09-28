@@ -192,11 +192,9 @@ class Secd:
             0x05: self.run_car,
             0x06: self.run_cdr,
             0x07: self.run_join,
-            0x08: self.run_ap,
+            0x08: self.run_apx,
             0x09: self.run_ret,
-            0x0a: self.run_tap,
             0x0b: self.run_dum,
-            0x0c: self.run_rap,
             0x0d: self.run_void,
             0x0f: self.run_halt,
             0x10: self.run_iadd,
@@ -277,6 +275,9 @@ class Secd:
             0x8c: self.run_unset,
             0x8d: self.run_ldcf,
             0x8e: self.run_ldcq,
+            0x8f: self.run_ap,
+            0x90: self.run_tap,
+            0x91: self.run_rap,
         }
 
     def setup_runtime(self):
@@ -495,9 +496,7 @@ class Secd:
                     kind = Bool(False)
                     if e.kind is not None:
                         kind = e.kind
-                    args = List.from_list([msg, kind, continuation])
-                    self.s.push(args)
-                    self.s.push(self.exception_handler)
+                    args = [msg, kind, continuation]
 
                     # add a continuation that would cause the exception to be
                     # re-raised if the handler ever returns. this should NOT
@@ -513,7 +512,7 @@ class Secd:
 
                     # call the handler as a tail call so that current
                     # continuation is not added to d.
-                    self._do_apply('<eh>', tail_call=True)
+                    self._do_apply('<eh>', self.exception_handler, args, tail_call=True)
                 else:
                     raise
 
@@ -659,7 +658,6 @@ class Secd:
                 raise RunError(
                     f'Invalid number of arguments for {desc} (expected '
                     f'at least {proc.nparams}, got {len(args)})')
-            args = args.to_list()
             rest = List.from_list(args[proc.nparams:])
             args = args[:proc.nparams] + [rest]
         else:
@@ -672,17 +670,10 @@ class Secd:
                     f'Invalid number of arguments for {desc} (expected '
                     f'{proc.nparams}, got {len(args)})')
 
-            args = args.to_list()
-
         return args
 
-    def _do_apply(self, name, tail_call=False, dummy_frame=False):
+    def _do_apply(self, name, proc, args, tail_call=False, dummy_frame=False):
         assert not tail_call or not dummy_frame
-
-        proc = self.s.pop(Procedure, name)
-        args = self.s.pop(List, name)
-        if not args.is_proper():
-            raise RunError(f'Argument list not proper: {args}')
 
         args = self.fit_args(proc, args)
 
@@ -726,7 +717,22 @@ class Secd:
                 self.s, self.e, self.c = Stack(), [args] + proc.e, proc.c
 
     def run_ap(self):
-        self._do_apply('ap', tail_call=False)
+        nargs, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
+
+        proc = self.s.pop(Procedure, 'ap')
+        args = []
+        for _ in range(nargs):
+            arg = self.s.pop(instr_name='ap')
+            args.append(arg)
+        self._do_apply('ap', proc, args, tail_call=False)
+
+    def run_apx(self):
+        proc = self.s.pop(Procedure, 'apx')
+        args = self.s.pop(List, 'apx')
+        if not args.is_proper():
+            raise RunError('Improper list passed to apx')
+        args = args.to_list()
+        self._do_apply('apx', proc, args, tail_call=False)
 
     def run_ret(self):
         retvals = self.s.pop_multiple().as_list()
@@ -896,10 +902,24 @@ class Secd:
         if self.debug: print(f'dum')
 
     def run_rap(self):
-        self._do_apply('rap', dummy_frame=True)
+        nargs, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
+
+        proc = self.s.pop(Procedure, 'rap')
+        args = []
+        for _ in range(nargs):
+            arg = self.s.pop(instr_name='rap')
+            args.append(arg)
+        self._do_apply('rap', proc, args, dummy_frame=True)
 
     def run_tap(self):
-        self._do_apply('tap', tail_call=True)
+        nargs, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
+
+        proc = self.s.pop(Procedure, 'tap')
+        args = []
+        for _ in range(nargs):
+            arg = self.s.pop(instr_name='tap')
+            args.append(arg)
+        self._do_apply('tap', proc, args, tail_call=True)
 
     def run_drop(self):
         value = self.s.pop_multiple(instr_name='drop')
@@ -1031,12 +1051,10 @@ class Secd:
     def run_ccc(self): # call/cc
         proc = self.s.pop(Procedure, 'ccc')
         cont = self.create_continuation()
-        args = List.from_list([cont])
+        args = [cont]
         self.d.append(cont)
 
-        self.s.pushx(args)
-        self.s.pushx(proc)
-        self._do_apply('ccc')
+        self._do_apply('ccc', proc, args)
 
     def run_i2ch(self):
         char_code = self.s.pop(Integer, 'i2ch')

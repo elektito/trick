@@ -101,11 +101,9 @@ class Assembler:
                 'car': 0x05,
                 'cdr': 0x06,
                 'join': 0x07,
-                'ap': 0x08,
+                'apx': 0x08,
                 'ret': 0x09,
-                'tap': 0x0a,
                 'dum': 0x0b,
-                'rap': 0x0c,
                 'void': 0x0d,
                 'halt': 0x0f,
                 'iadd': 0x10,
@@ -309,6 +307,21 @@ class Assembler:
                 code += bytes([0x8e])
                 code += to_varint_signed(value.frac.numerator)
                 code += to_varint_unsigned(value.frac.denominator)
+            elif instr == 'ap':
+                nargs = expr[i]
+                i += 1
+                code += bytes([0x8f])
+                code += to_varint_unsigned(nargs)
+            elif instr == 'tap':
+                nargs = expr[i]
+                i += 1
+                code += bytes([0x90])
+                code += to_varint_unsigned(nargs)
+            elif instr == 'rap':
+                nargs = expr[i]
+                i += 1
+                code += bytes([0x91])
+                code += to_varint_unsigned(nargs)
             else:
                 raise AssembleError(f'Unknown instruction: {instr}')
 

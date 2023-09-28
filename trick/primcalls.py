@@ -18,7 +18,7 @@ def asm_code_for_features():
 primcalls = {
     'apply': {
         'nargs': 2,
-        'code': [S('ap')],
+        'code': [S('apx')],
         'exported': False,
     },
     'void': {

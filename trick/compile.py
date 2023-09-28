@@ -188,7 +188,7 @@ class Compiler:
 
     def expand_single_macro(self, name_sym, syminfo: SymbolInfo, args, env, form):
         fasl = Fasl()
-        func_call_code = [S('get'), syminfo.symbol, S('ap')]
+        func_call_code = [S('get'), syminfo.symbol, S('ap'), Integer(len(args))]
         self.assembler.assemble(func_call_code, fasl)
 
         if self.machine is None:
@@ -213,7 +213,8 @@ class Compiler:
         # incorporated in the macro output, they still have any source
         # locations/debug info associated with them.
         self.machine.s.clear()
-        self.machine.s.push(args)
+        for a in reversed(args):
+            self.machine.s.push(a)
 
         try:
             self.machine.execute_fasl(fasl)
@@ -478,7 +479,7 @@ class Compiler:
         body = expr.cdr.cdr
         body_code = self.compile_body(body, new_env, full_form=expr)
         body_code += [S('ret')]
-        if body_code[-2] == S('tap'):
+        if len(body_code) >= 3 and body_code[-3] == S('tap'):
             del body_code[-1]
 
         if rest_param:
@@ -692,10 +693,10 @@ class Compiler:
                 v.src_start = b.cdr.car.src_start
                 v.src_end = b.cdr.car.src_end
 
-        secd_code = [S('dum'), S('nil')]
+        secd_code = [S('dum')]
         for v in reversed(values.to_list()):
             new_env = env.with_new_frame(vars)
-            secd_code += self.compile_form(v, new_env, tail=False) + [S('cons')]
+            secd_code += self.compile_form(v, new_env, tail=False)
 
         # ((lambda . ( params . body )) . args)
         lambda_call = Pair(S('#$lambda'), Pair(vars, body))
@@ -704,7 +705,7 @@ class Compiler:
         lambda_call.src_end = expr.src_end
 
         secd_code += self.compile_form(lambda_call, env, tail=False)
-        secd_code += [S('rap')]
+        secd_code += [S('rap'), Integer(len(values))]
 
         return secd_code
 
@@ -737,16 +738,15 @@ class Compiler:
             set_vars_code += [S('st'), local_desc]
 
         secd_code = [
-            S('nil'),
             S('ldf'), Integer(0),
             set_vars_code + body_code + [S('ret')],
-            S('ap'),
+            S('ap'), Integer(0),
         ]
 
         return secd_code
 
     def compile_func_call(self, expr, env, tail: bool):
-        secd_code = [S('nil')]
+        secd_code = []
 
         # compile function before arguments, even though we need it later, so
         # that if there's an undefined error here, it's raised before any
@@ -759,14 +759,14 @@ class Compiler:
         # at the end of compilation.
         func_code = self.compile_form(expr[0], env, tail=False)
 
-        for arg in reversed(expr.to_list()[1:]):
+        args = expr.to_list()[1:]
+        for arg in reversed(args):
             secd_code += self.compile_form(arg, env, tail=False)
-            secd_code += [S('cons')]
         secd_code += func_code
         if tail:
-            secd_code += [S('tap')]
+            secd_code += [S('tap'), Integer(len(args))]
         else:
-            secd_code += [S('ap')]
+            secd_code += [S('ap'), Integer(len(args))]
         return secd_code
 
     def compile_set(self, expr, env, tail='unused'):
