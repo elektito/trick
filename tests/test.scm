@@ -1402,6 +1402,7 @@ and still a comment
                 '(54 0 37 -3 245 19))
            #t)))
 (eq? 100 (call/cc (lambda (k) 100)))
+(procedure? (call/cc (lambda (k) k)))
 
 
 ;; make sure primitive functions are available as normal functions
