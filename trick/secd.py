@@ -13,7 +13,7 @@ from .exceptions import RunError
 from .fasl import DbgInfoDefineRecord, DbgInfoExprRecord, Fasl
 from .snippet import show_snippet
 from .machinetypes import (
-    Bool, Bytevector, Char, Complex, Float, Integer, List, Nil, Number, Pair, Port, Rational, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
+    Bool, Bytevector, Char, Complex, Float, Integer, List, Nil, Number, OpaqueBox, Pair, Port, Rational, String, Symbol, Procedure, Continuation, TrickType, Values, Vector, Void, WrappedValue,
 )
 from .utils import from_varint_signed, from_varint_unsigned, init_stdlib
 
@@ -987,6 +987,8 @@ class Secd:
             result = self.intern('void')
         elif isinstance(v, WrappedValue):
             result = v.type_id
+        elif isinstance(v, OpaqueBox):
+            result = self.intern('opaque')
         else:
             raise RunError(f'Unknown type: {v}')
         self.s.pushx(result)
