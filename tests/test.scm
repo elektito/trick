@@ -1385,6 +1385,27 @@ and still a comment
   (and (= x 100)
        (= y 200)))
 
+;; make sure multiple values are properly accepted and ignored in various places
+
+(begin
+  (values)
+  (values 1 2 3)
+  #t)
+
+(begin
+  (if #t (values 1 2 3) (values 4 5 6))
+  #t)
+
+(begin
+  (if #f (values 1 2 3) (values 4 5 6))
+  #t)
+
+(begin
+  (let ()
+    (values 1 2 3)
+    (values 4 5 6))
+  #t)
+
 ;; call/cc tests
 ;;
 ;; some tests adapted from chibi scheme test suite. see:
