@@ -865,9 +865,9 @@ class Procedure(TrickType):
 
     def accepts_argument_count(self, n: int):
         if self.rest_param:
-            return n == self.nparams
-        else:
             return n >= self.nparams
+        else:
+            return n == self.nparams
 
     def __repr__(self):
         if self.rest_param:
