@@ -23,11 +23,11 @@ Python 3.9 or later is required. There is no other dependency.
 In order to get a REPL, simply run `./trick.sh`. In order to compile a source
 file named 'foo.scm' into a FASL file that can be run by the VM run `./trick.sh
 -c foo.scm`. This creates a files named `foo.fasl`. Now you can run the file by
-running `./trick.py run foo.fasl`.
+running `./trick.sh run foo.fasl`.
 
 ## Known Issues
 
- - `equal?` does not correctly with circular lists.
+ - `equal?` does not work correctly with circular lists.
  - `map` does not work correctly with circular lists.
 
 [1]: https://en.wikipedia.org/wiki/SECD_machine
