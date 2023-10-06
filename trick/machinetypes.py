@@ -877,7 +877,7 @@ class Procedure(TrickType):
 
 
 class Continuation(Procedure):
-    def __init__(self, s, e, c, d, fasl, *, kind=None):
+    def __init__(self, s, e, c, d, fasl):
         self.fasl = fasl
         self.s = s.copy()
         self.e = e
@@ -889,8 +889,6 @@ class Continuation(Procedure):
 
         self.src_start = None
         self.src_end = None
-
-        self.kind = kind
 
     def __repr__(self):
         return f'#<continuation>'

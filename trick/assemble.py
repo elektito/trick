@@ -209,9 +209,26 @@ class Assembler:
                     offset + len(code) + 8 + len(true_body),
                     dbg_records)
 
-                code += len(true_body).to_bytes(length=4, byteorder='little', signed=False)
-                code += len(false_body).to_bytes(length=4, byteorder='little', signed=False)
+                # first add the length of "true body". if condition is false,
+                # the vm would skip this amount of code to reach the "false
+                # body". the "+ 4" here is needed because we add four bytes at
+                # the end of the true body, as the argument to the "join"
+                # instruction.
+                code += (len(true_body) + 4).to_bytes(length=4, byteorder='little', signed=False)
+
+                # now comes the "true body" itself
                 code += true_body
+
+                # then we add the length of the false body. the true body should
+                # end with a "join" instruction, and this will be immediately
+                # after that. the join instruction would read this amount and
+                # skips the false body.
+                code += len(false_body).to_bytes(length=4, byteorder='little', signed=False)
+
+                # finally the false body. there should be no "join" at the end
+                # of this one, since execution would just continue afterwards
+                # (our secd machine doesn't push anything onto the dump when
+                # executing "sel")
                 code += false_body
 
                 i += 2

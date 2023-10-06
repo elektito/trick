@@ -409,21 +409,16 @@ class Secd:
                 print(f'=[{i}]= <system continuation>')
                 continue
 
-            # exclude continuations created by the "sel" instruction (for the
-            # "if" primitive). these are not what one usually considers as part
-            # of the stack trace.
-            if cont.kind != 'sel':
-                self.print_stack_frame(i, cont.fasl, cont.c - 1)
-                i += 1
+            self.print_stack_frame(i, cont.fasl, cont.c - 1)
+            i += 1
 
-    def create_continuation(self, offset: int = 0, e=None, kind=None):
+    def create_continuation(self, offset: int = 0, e=None):
         return Continuation(
             self.s,
             self.e if e is None else e,
             self.c + offset,
             self.d,
-            self.cur_fasl,
-            kind=kind)
+            self.cur_fasl)
 
     def resume_continuation(self, cont: Continuation, retvals: list):
         if isinstance(cont, SystemContinuation):
@@ -609,22 +604,22 @@ class Secd:
         true_len = int.from_bytes(true_len, byteorder='little', signed=False)
         self.c += 4
 
-        false_len = self.cur_fasl.code[self.c:self.c+4]
-        false_len = int.from_bytes(false_len, byteorder='little', signed=False)
-        self.c += 4
-
         cond = self.s.pop()
-        self.d.append(self.create_continuation(
-            offset=true_len + false_len,
-            kind='sel'))
         if cond == Bool(False):
             self.c += true_len
 
         if self.debug: print(f'sel cond={cond}')
 
     def run_join(self):
-        retval = self.s.pop_multiple(instr_name='join').as_list()
-        self.resume_continuation(self.d.pop(), retvals=retval)
+        # our join instruction is actually a simple forward jump which is put
+        # here by the assembler so that we can skip the "true body" when
+        # condition is false.
+        false_len = self.cur_fasl.code[self.c:self.c+4]
+        false_len = int.from_bytes(false_len, byteorder='little', signed=False)
+        self.c += 4
+
+        self.c += false_len
+
         if self.debug: print(f'join')
 
     def run_ldf(self):

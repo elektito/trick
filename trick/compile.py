@@ -318,10 +318,16 @@ class Compiler:
 
         cond_code = self.compile_form(expr[1], env, tail=False)
         true_code = self.compile_form(expr[2], env, tail) + [S('join')]
+
+        # the false body in our incarnation of the secd machine is actually a
+        # simple jump, and we don't need a jump at the end of the false body,
+        # because execution should just continue after it (sel adds nothing to
+        # the dump so we don't need to pop it either).
         if len(expr) == 4:
-            false_code = self.compile_form(expr[3], env, tail) + [S('join')]
+            false_code = self.compile_form(expr[3], env, tail)
         else:
-            false_code = [S('void'), S('join')]
+            false_code = [S('void')]
+
         return cond_code + [S('sel')] + [true_code] + [false_code]
 
     def compile_body(self, body, env: LocalEnvironment, full_form):
