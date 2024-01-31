@@ -22,7 +22,7 @@ Python 3.9 or later is required. There is no other dependency.
 
 In order to get a REPL, simply run `./trick.sh`. In order to compile a source
 file named 'foo.scm' into a FASL file that can be run by the VM run `./trick.sh
--c foo.scm`. This creates a files named `foo.fasl`. Now you can run the file by
+-c foo.scm`. This creates a file named `foo.fasl`. Now you can run the file by
 running `./trick.sh run foo.fasl`.
 
 ## Known Issues
