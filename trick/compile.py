@@ -291,7 +291,7 @@ class Compiler:
             raise self._compile_error(f'Duplicate definition for: {name}')
         env.add_define(name, VariableKind.UNHYGIENIC_MACRO)
 
-        code = self.compile_form(lambda_form, env)
+        code = self.compile_form(lambda_form, env, tail=False)
         code += [S('set'), info.symbol, S('void')]
 
         return code, name
@@ -1011,7 +1011,7 @@ class Compiler:
             if context == 'toplevel':
                 include_code = self.compile_toplevel_form(begin_form, env)
             elif context == 'local':
-                include_code = self.compile_form(begin_form, env)
+                include_code = self.compile_form(begin_form, env, tail=False)
             elif context == 'library':
                 include_code = self.compile_toplevel_form(begin_form, env)
             elif context == 'library-declarations':
