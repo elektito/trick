@@ -455,7 +455,7 @@ class Float(Number, float):
         return math.isnan(self)
 
     def get_sign(self) -> int:
-        return math.copysign(1, self)
+        return int(math.copysign(1, self))
 
     def __repr__(self):
         if math.isnan(self):
