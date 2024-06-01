@@ -147,7 +147,7 @@ class Reader:
         self._unread_chars.insert(0, char)
         self.input_idx -= 1
 
-    def _skip_whitespace(self, eof_error=None) -> (None | str):
+    def _skip_whitespace(self, eof_error=None):
         while True:
             cur_char = self._read_one_char(eof_error)
             if not cur_char:
