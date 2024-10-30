@@ -14,7 +14,7 @@ from .importsets import LibraryImportSet
 from .libloader import LibLoader
 from .libname import LibraryName
 from .read import ReadError, read_expr
-from .utils import compile_expr_to_fasl, compile_src_file_to_fasl, init_stdlib, load_fasl_files
+from .utils import compile_expr_to_fasl, compile_src_file_to_fasl, init_stdlib, load_fasl_files, get_all_builtin_fasls
 from .version import __version__
 
 
@@ -92,8 +92,10 @@ def main():
         print(f'Trick Version: v{__version__}')
         sys.exit(0)
 
+    lib_fasls = []
     if not args.no_stdlib:
         init_stdlib()
+        lib_fasls = get_all_builtin_fasls()
 
     if args.compile:
         if not args.output:
@@ -184,7 +186,7 @@ def main():
 
         print(expanded)
     elif args.eval_expr:
-        lib_fasls = load_fasl_files(args.lib)
+        lib_fasls += load_fasl_files(args.lib)
         env = compile.ToplevelEnvironment()
 
         lib_name = LibraryName.create('trick', 'core')
