@@ -29,7 +29,6 @@ running `./trick.sh run foo.fasl`.
 
  - `equal?` does not work correctly with circular lists.
  - `map` does not work correctly with circular lists.
- - The following outputs "oops!" while it shouldn't: `(let ((else #f)) (cond (else (print "oops!"))))`
 
 [1]: https://en.wikipedia.org/wiki/SECD_machine
 [2]: https://small.r7rs.org

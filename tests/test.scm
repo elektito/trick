@@ -170,6 +170,8 @@ and still a comment
 (eq? 3 (unless #f 1 2 3))
 
 (cond (else #t))
+(not (= 10 (let ((else #f))
+             (cond (else 10)))))
 (= 200 (cond ((= 10 20) 50 100)
              ((= 5 5) 80 200)
              ((= 40 40) 300)))

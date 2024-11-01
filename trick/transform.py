@@ -1,7 +1,7 @@
 from .exceptions import CompileError
 from .machinetypes import Bool, Bytevector, Char, Integer, List, Nil, Pair, String, Symbol, TrickType, Vector
 from .serialization import Serializable
-from .symbolinfo import AuxKeywords, SpecialForms
+from .symbolinfo import AuxKeywords, SpecialForms, SymbolKind
 
 
 class _List:
@@ -181,7 +181,7 @@ class SyntaxRulesTransformer(Transformer):
         # use a new gensyms table on each expansion
         self.gensyms = {}
         for pattern, template in self.rules:
-            result, vars = pattern.match(expr)
+            result, vars = pattern.match(expr, env)
             if result:
                 break
         else:
@@ -519,7 +519,7 @@ class Matcher(Serializable):
 class MatchAll(Matcher):
     serialization_id = 1
 
-    def match(self, value):
+    def match(self, value, env):
         return True, {}
 
     def __repr__(self):
@@ -540,8 +540,14 @@ class MatchLiteral(Matcher):
     def __init__(self, literal: Symbol):
         self.literal = literal
 
-    def match(self, value):
+    def match(self, value, env):
         if not isinstance(value, Symbol):
+            return False, {}
+
+        # if the symbol is bound in the current context, it won't match.
+        # e.g. (let ((else #f)) (cond (else 10))) will not result in 10,
+        # but in #<void>.
+        if env.lookup_symbol(value).kind in (SymbolKind.LOCAL, SymbolKind.LOCAL_MACRO):
             return False, {}
 
         return value.short_name == self.literal.short_name, {}
@@ -564,7 +570,7 @@ class MatchVariable(Matcher):
     def __init__(self, variable: Symbol):
         self.variable = variable
 
-    def match(self, value):
+    def match(self, value, env):
         return True, {self.variable: value}
 
     def get_vars(self):
@@ -592,7 +598,7 @@ class MatchList(Matcher):
         self.proper = proper
         self.tail = tail
 
-    def match(self, value):
+    def match(self, value, env):
         if not isinstance(value, List):
             return False, {}
 
@@ -600,7 +606,7 @@ class MatchList(Matcher):
         cur = value
         i = 0
         while isinstance(cur, Pair) and i < len(self.proper):
-            result, p_vars = self.proper[i].match(cur.car)
+            result, p_vars = self.proper[i].match(cur.car, env)
             if not result:
                 return False, {}
             merge_vars(vars, p_vars)
@@ -613,7 +619,7 @@ class MatchList(Matcher):
         if self.tail is None:
             result = isinstance(cur, Nil)
         else:
-            result, p_vars  = self.tail.match(cur)
+            result, p_vars  = self.tail.match(cur, env)
             merge_vars(vars, p_vars)
 
         return result, vars if result else {}
@@ -660,7 +666,7 @@ class MatchListWithEllipsis(Matcher):
         # number of patterns after ellipsis
         self.n_after = len(proper) - repeated_idx - 1
 
-    def match(self, value):
+    def match(self, value, env):
         if not isinstance(value, List):
             return False, {}
 
@@ -676,7 +682,7 @@ class MatchListWithEllipsis(Matcher):
 
         i = 0
         for j, v in enumerate(value_proper):
-            result, p_vars = self.proper[i].match(v)
+            result, p_vars = self.proper[i].match(v, env)
             if not result:
                 return False, {}
             merge_vars(vars, p_vars)
@@ -697,7 +703,7 @@ class MatchListWithEllipsis(Matcher):
                 i += 1
 
         if self.tail is not None:
-            result, tail_vars = self.tail.match(value_tail)
+            result, tail_vars = self.tail.match(value_tail, env)
             if not result:
                 return False, {}
             merge_vars(vars, tail_vars)
@@ -739,13 +745,13 @@ class MatchVector(Matcher):
 
         self.items = items
 
-    def match(self, value):
+    def match(self, value, env):
         if not isinstance(value, Vector):
             return False, {}
 
         vars = {}
         for p, v in zip(self.items, value):
-            result, p_vars = p.match(v)
+            result, p_vars = p.match(v, env)
             if not result:
                 return False, {}
             merge_vars(vars, p_vars)
@@ -784,7 +790,7 @@ class MatchVectorWithEllipsis(Matcher):
         # number of patterns after ellipsis
         self.n_after = len(self.items) - repeated_idx
 
-    def match(self, value):
+    def match(self, value, env):
         if not isinstance(value, Vector):
             return False, {}
 
@@ -794,7 +800,7 @@ class MatchVectorWithEllipsis(Matcher):
 
         i = 0
         for j, v in enumerate(value):
-            result, p_vars = self.items[i].match(v)
+            result, p_vars = self.items[i].match(v, env)
             if not result:
                 return False, {}
             merge_vars(vars, p_vars)
@@ -831,8 +837,8 @@ class MatchRepeated(Matcher):
         assert is_valid_matcher(matcher)
         self.matcher = matcher
 
-    def match(self, value):
-        result, vars = self.matcher.match(value)
+    def match(self, value, env):
+        result, vars = self.matcher.match(value, env)
         output_vars = {}
         if result:
             for name, value in vars.items():
@@ -864,7 +870,7 @@ class MatchConstant(Matcher):
             not isinstance(constant, (List, Vector))
         self.constant = constant
 
-    def match(self, value):
+    def match(self, value, env):
         return equal(value, self.constant), {}
 
     def __repr__(self):
