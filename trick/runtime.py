@@ -404,6 +404,10 @@ class Io(RuntimeModule):
         # there's at least one byte available, but that doesn't mean we can read
         # a whole "character". we'll try to read 1-4 bytes and see if we can
         # decode that into at least one character.
+        #
+        # TODO this is incorrect. say we want to decode b'\xffabc'. this would decode
+        #      it to 'abc', even though that's incorrect. we need to stop decoding when
+        #      we get an error
         data = file.peek(4)
         s = data.decode(STR_ENCODING, errors='ignore')
         return Bool(s != '')
