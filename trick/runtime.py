@@ -440,35 +440,13 @@ class Io(RuntimeModule):
 
     @proc(opcode=0x1b)
     def cpeek(self, port: Port) -> TrickType:
-        if isinstance(port.file, io.StringIO):
-            pos = port.file.tell()
-            c = port.file.read(1)
-            port.file.seek(pos, io.SEEK_SET)
-            return Char(ord(c))
-
-        if isinstance(port.file, io.BufferedReader):
-            file = port.file
-        elif hasattr(port.file, 'buffer') and isinstance(port.file.buffer, io.BufferedReader):
-            file = port.file.buffer
-        elif hasattr(port.file, 'peek'):
-            file = port.file
+        pos = port.file.tell()
+        ch = port.file.read(1)
+        port.file.seek(pos)
+        if ch == '':
+            return Integer(-1)
         else:
-            raise self._file_error(
-                'Cannot peek into the given port because its '
-                'underlying file is not buffered')
-
-        data = b''
-        while True:
-            data += file.peek()
-            if not data:
-                # EOF
-                return Integer(-1)
-
-            s = data.decode(STR_ENCODING, errors='ignore')
-            if s:
-                return Char(ord(s[0]))
-
-            # not enough data to read a whole character. try reading more.
+            return Char(ord(ch))
 
 
 @module(opcode=0x02)
