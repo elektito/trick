@@ -1689,16 +1689,20 @@
                      r))))))
 
 (define (input-port? port)
-  (eq? 'input (#$/io/portdir port)))
+  (and (port? port)
+       (eq? 'input (#$/io/portdir port))))
 
 (define (output-port? port)
-  (eq? 'output (#$/io/portdir port)))
+  (and (port? port)
+       (eq? 'output (#$/io/portdir port))))
 
 (define (textual-port? port)
-  (eq? 'text (#$/io/portmode port)))
+  (and (port? port)
+       (eq? 'text (#$/io/portmode port))))
 
 (define (binary-port? port)
-  (eq? 'binary (#$/io/portmode port)))
+  (and (port? port)
+       (eq? 'binary (#$/io/portmode port))))
 
 (define (close-input-port port)
   (unless (input-port? port)
