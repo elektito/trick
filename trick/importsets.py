@@ -46,6 +46,10 @@ class ImportSet(Serializable):
             base_set = ImportSet.parse(desc[1])
             identifiers = desc.cdr.cdr
             for identifier in identifiers:
+                if not isinstance(identifier, Symbol):
+                    raise ImportSetParseError(
+                        f'import "only" item is not an identifier: {identifier}',
+                        form=identifier)
                 if base_set.lookup(identifier) is None:
                     raise ImportSetParseError(
                         f'Identifier {identifier} not exported by import set: {desc[1]}',
@@ -59,6 +63,10 @@ class ImportSet(Serializable):
             base_set = ImportSet.parse(desc[1])
             identifiers = desc.cdr.cdr
             for identifier in identifiers:
+                if not isinstance(identifier, Symbol):
+                    raise ImportSetParseError(
+                        f'import "except" item is not an identifier: {identifier}',
+                        form=identifier)
                 if base_set.lookup(identifier) is None:
                     raise ImportSetParseError(
                         f'Identifier {identifier} not exported by import set: {desc[1]}',
