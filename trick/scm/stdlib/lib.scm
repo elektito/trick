@@ -27,9 +27,9 @@
   (import (trick))
   (include-library-declarations "scheme-char-exports.scm"))
 
-;; (define-library (scheme complex)
-;;   (import (trick))
-;;   (include-library-declarations "scheme-complex-exports.scm"))
+(define-library (scheme complex)
+  (import (trick))
+  (include-library-declarations "scheme-complex-exports.scm"))
 
 (define-library (scheme cxr)
   (import (trick))
