@@ -164,6 +164,50 @@ class Stack:
         self.s = []
 
 
+class Frame:
+    def __init__(self, data=None):
+        self.data = data
+
+    def __getitem__(self, index):
+        if self.data is None:
+            raise RunError('Reading from dummy frame')
+        return self.data[index]
+
+    def __setitem__(self, index, value):
+        if self.data is None:
+            raise RunError('Writing to dummy frame')
+        self.data[index] = value
+
+    def __len__(self):
+        if self.data is None:
+            raise RunError('Reading dummy frame')
+        return len(self.data)
+
+    def append(self, item):
+        if self.data is None:
+            raise RunError('Writing to dummy frame')
+        self.data.append(item)
+
+    def is_dummy(self):
+        return self.data is None
+
+    def __str__(self):
+        if self.is_dummy():
+            return '<dummy-frame>'
+        else:
+            return str(self.data)
+
+    def __repr__(self):
+        if self.is_dummy():
+            return '<dummy-frame>'
+        else:
+            return repr(self.data)
+
+    @staticmethod
+    def dummy() -> 'Frame':
+        return Frame(None)
+
+
 class Secd:
     def __init__(self, fasls=None):
         self.s = Stack()
@@ -171,7 +215,7 @@ class Secd:
         self.c = 0
         self.d = []
         self.halt_code = None
-        self.dummy_frame = object()
+        self.dummy_frame = Frame.dummy()
         self.debug = False
         self.symvals = {}
         self.cur_fasl: (Fasl | None) = None
@@ -577,7 +621,7 @@ class Secd:
         if frame_idx >= len(self.e):
             raise RunError(f'Invalid frame number: {frame_idx} (nframes: {len(self.e)})')
         frame = self.e[frame_idx]
-        if frame == self.dummy_frame:
+        if isinstance(frame, Frame) and frame.is_dummy():
             raise RunError('Accessing dummy frame (possible cause: values in letrec bindings reading variables while being evaluated)')
         else:
             if index >= len(frame):
@@ -635,7 +679,7 @@ class Secd:
             nparams=nparams, rest_param=rest_param)
         self.s.pushx(proc)
         self.c += body_size
-        if self.debug: print(f'ldf body_size={body_size}')
+        if self.debug: print(f'ldf nparams={nparams} body_size={body_size} proc.e={proc.e}')
 
     def fit_args(self, proc, args):
         """
@@ -676,7 +720,7 @@ class Secd:
             # code specific to "rap" instruction: replace an already existing
             # dummy frame.
 
-            if proc.e[0] != self.dummy_frame:
+            if not isinstance(proc.e[0], Frame) or not proc.e[0].is_dummy():
                 raise RunError('No dummy frame.')
 
             # note that we don't store e[0] on d, since it contains the dummy
@@ -685,7 +729,7 @@ class Secd:
             self.d.append(self.create_continuation(e=self.e[1:]))
 
             # replace dummy frame with actual frame
-            proc.e[0] = args
+            proc.e[0].data = args
         elif not tail_call:
             self.d.append(self.create_continuation())
         else:
@@ -893,7 +937,7 @@ class Secd:
         if self.debug: print(f'ige {arg1} >= {arg2}')
 
     def run_dum(self):
-        self.e = [self.dummy_frame] + self.e
+        self.e = [Frame.dummy()] + self.e
         if self.debug: print(f'dum')
 
     def run_rap(self):
