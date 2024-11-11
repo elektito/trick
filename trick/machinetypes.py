@@ -1392,6 +1392,9 @@ class WrappedValue(TrickType):
     def __str__(self):
         return f'#<wrapped {self.type_id} {self.value}>'
 
+    def __repr__(self):
+        return str(self)
+
 
 class OpaqueBox(TrickType):
     def __init__(self, value):
