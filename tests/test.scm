@@ -216,6 +216,13 @@ and still a comment
 ;; "join" instruction is correctly generated for the implied "false" branch.
 (eq? (#$void) ((lambda () (if #f 100))))
 
+;; regression test: this used to cause an "access to dummy frame" error.
+;; was fixed two commits ago (see git history!)
+(let ((foo (lambda () #t)))
+  (letrec ((bar (foo))
+           (return (lambda () bar)))
+    (return)))
+
 (eq? 0 (+))
 (eq? 2 (+ 2))
 (eq? 100 (+ 30 70))
