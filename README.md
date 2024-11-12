@@ -12,8 +12,9 @@ The following SRFIs are supported:
 
  - [SRFI 1][3]: List Library
  - [SRFI 8][4]: receive: Binding to multiple values
+ - [SRFI 14][7]: Character-set Library
  - [SRFI 48][6]: Intermediate format strings
- - [SRFI 69][6]: Basic hash tables
+ - [SRFI 69][8]: Basic hash tables
  - [SRFI 151][5]: Bitwise Operations 
 
 ## Requirements
@@ -38,3 +39,5 @@ running `./trick.sh run foo.fasl`.
 [4]: https://srfi.schemers.org/srfi-8/srfi-8.html
 [5]: https://srfi.schemers.org/srfi-151/srfi-151.html
 [6]: https://srfi.schemers.org/srfi-48/srfi-48.html
+[7]: https://srfi.schemers.org/srfi-14/srfi-14.html
+[8]: https://srfi.schemers.org/srfi-69/srfi-69.html
