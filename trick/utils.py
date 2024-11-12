@@ -213,11 +213,13 @@ def update_cache():
                            cfg.cache_dir / 'srfi-8.fasl'])
     update_fasl('srfi-151', [cfg.cache_dir / 'stdlib.fasl'])
     update_fasl('srfi-48', [cfg.cache_dir / 'stdlib.fasl'])
+    update_fasl('srfi-69', [cfg.cache_dir / 'stdlib.fasl'])
 
     LibLoader().add_fasl(get_builtin_fasl('stdlib'))
     LibLoader().add_fasl(get_builtin_fasl('srfi-1'))
     LibLoader().add_fasl(get_builtin_fasl('srfi-8'))
     LibLoader().add_fasl(get_builtin_fasl('srfi-48'))
+    LibLoader().add_fasl(get_builtin_fasl('srfi-69'))
     LibLoader().add_fasl(get_builtin_fasl('srfi-151'))
 
 
@@ -261,7 +263,7 @@ def get_builtin_fasl_filename(name: str):
     #  - get_builtin_fasl_filename
     #  - get_all_builtin_fasls
     #  - get_all_builtin_libs
-    if name in ['stdlib', 'srfi-1', 'srfi-8', 'srfi-48', 'srfi-151']:
+    if name in ['stdlib', 'srfi-1', 'srfi-8', 'srfi-48', 'srfi-69', 'srfi-151']:
         return cfg.cache_dir / f'{name}.fasl'
     else:
         raise ValueError(f'Unknown built-in package: {name}')
@@ -279,6 +281,7 @@ def get_all_builtin_fasls():
         get_builtin_fasl('srfi-1'),
         get_builtin_fasl('srfi-8'),
         get_builtin_fasl('srfi-48'),
+        get_builtin_fasl('srfi-69'),
         get_builtin_fasl('srfi-151'),
     ]
 
@@ -307,6 +310,7 @@ def get_all_builtin_libs():
         LibraryName.create('srfi', 1),
         LibraryName.create('srfi', 8),
         LibraryName.create('srfi', 48),
+        LibraryName.create('srfi', 69),
         LibraryName.create('srfi', 151),
     ]
 

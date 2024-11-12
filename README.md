@@ -13,6 +13,7 @@ The following SRFIs are supported:
  - [SRFI 1][3]: List Library
  - [SRFI 8][4]: receive: Binding to multiple values
  - [SRFI 48][6]: Intermediate format strings
+ - [SRFI 69][6]: Basic hash tables
  - [SRFI 151][5]: Bitwise Operations 
 
 ## Requirements
