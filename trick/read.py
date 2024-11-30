@@ -371,6 +371,15 @@ class Reader:
         elif char == '\\': #\ (character literal)
             first_char = self._read_one_char(
                 eof_error='End-of-file while reading character literal')
+
+            # read single character literals here. we used to use
+            # read_token for everything, but it gets confused with the
+            # character literal #\|
+            second_char = self._read_one_char()
+            self._unread_one_char(second_char)
+            if self._is_separator(second_char):
+                return Char(ord(first_char))
+
             desc = self._read_token(first_char)
             if desc in Char.name_to_code:
                 return Char(Char.name_to_code[desc])
