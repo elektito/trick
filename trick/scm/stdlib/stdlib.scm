@@ -771,6 +771,8 @@
             (cons (apply func (mapcar car arg-lists)) acc))))
 
 (define (map func . arg-lists)
+  (when (null? arg-lists)
+    (error "incorrect number of arguments to map"))
   (map1 func arg-lists '()))
 
 ;; adapted from srfi 1
