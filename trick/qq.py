@@ -1,7 +1,7 @@
 from .exceptions import CompileError
 from .libname import LibraryName
 from .machinetypes import List, Nil, Pair, String, Symbol, Vector
-from .symbolinfo import SymbolInfo, SymbolKind
+from .symbolinfo import SymbolInfo, SymbolKind, AuxKeywords, SpecialForms
 
 
 libtrick = LibraryName.create('trick')
@@ -49,12 +49,19 @@ class QuasiquoteError(CompileError):
 class Quasiquote:
     def __init__(self, *, simplify=True):
         self._simplify_enabled = simplify
+        self._env = None
 
-    def process(self, form):
+    def process(self, form, env):
         assert isinstance(form, Pair)
         assert len(form) == 2
-        assert form.car == Symbol('quasiquote')
+        # Check for both regular and renamed quasiquote symbols (handle hygiene)
+        assert isinstance(form.car, Symbol)
+        info = form.car.info if form.car.info else env.lookup_symbol(form.car)
+        assert info.is_special(SpecialForms.QUASIQUOTE)
         form = form.cdr.car
+
+        # Store environment for use by helper methods
+        self._env = env
 
         result = self._process(form, 1)
         if self._simplify_enabled:
@@ -173,16 +180,25 @@ class Quasiquote:
         return not isinstance(form, Pair)
 
     def _is_unquote(self, form):
-        # FIXME incorrect; what if "unquote" is renamed?
-        return isinstance(form, Pair) and car(form) == Symbol('unquote')
+        # Handle both regular and renamed unquote symbols (hygiene-safe)
+        if not isinstance(form, Pair) or not isinstance(car(form), Symbol):
+            return False
+        info = car(form).info if car(form).info else self._env.lookup_symbol(car(form))
+        return info.is_aux(AuxKeywords.UNQUOTE)
 
     def _is_unquote_splicing(self, form):
-        # FIXME incorrect; what if "unquote-splicing" is renamed?
-        return isinstance(form, Pair) and car(form) == Symbol('unquote-splicing')
+        # Handle both regular and renamed unquote-splicing symbols (hygiene-safe)
+        if not isinstance(form, Pair) or not isinstance(car(form), Symbol):
+            return False
+        info = car(form).info if car(form).info else self._env.lookup_symbol(car(form))
+        return info.is_aux(AuxKeywords.UNQUOTE_SPLICING)
 
     def _is_quasiquote(self, form):
-        # FIXME incorrect; what if "unquote-splicing" is renamed?
-        return isinstance(form, Pair) and car(form) == Symbol('quasiquote')
+        # Handle both regular and renamed quasiquote symbols (hygiene-safe)
+        if not isinstance(form, Pair) or not isinstance(car(form), Symbol):
+            return False
+        info = car(form).info if car(form).info else self._env.lookup_symbol(car(form))
+        return info.is_special(SpecialForms.QUASIQUOTE)
 
     def _is_quote_nil(self, form):
         # '()
@@ -201,12 +217,20 @@ class Quasiquote:
             (isinstance(x, Pair) and x.car == QQ_QUOTE)
 
     def _is_splicing_frob(self, x):
-        # FIXME what if "unquote-splicing" is renamed?
-        return isinstance(x, Pair) and x.car == Symbol('unquote-splicing')
+        # Handle both regular and renamed unquote-splicing symbols (hygiene-safe)
+        if not isinstance(x, Pair) or not isinstance(x.car, Symbol):
+            return False
+        info = x.car.info if x.car.info else self._env.lookup_symbol(x.car)
+        return info.is_aux(AuxKeywords.UNQUOTE_SPLICING)
 
     def _is_frob(self, x):
-        # FIXME what if "unquotee" and/or "unquote-splicing" is renamed?
-        return isinstance(x, Pair) and x.car in [Symbol('unquote'), Symbol('unquote-splicing'), Symbol('quasiquote')]
+        # Handle both regular and renamed quasi/unquote symbols (hygiene-safe)
+        if not isinstance(x, Pair) or not isinstance(x.car, Symbol):
+            return False
+        info = x.car.info if x.car.info else self._env.lookup_symbol(x.car)
+        return (info.is_aux(AuxKeywords.UNQUOTE) or
+                info.is_aux(AuxKeywords.UNQUOTE_SPLICING) or
+                info.is_special(SpecialForms.QUASIQUOTE))
 
     def _reversed(self, ls: (Pair | Nil), acc: List = Nil()):
         if isinstance(ls, Nil):

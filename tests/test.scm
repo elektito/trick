@@ -1080,6 +1080,74 @@ and still a comment
 (equal? '(1 `(2 . ,3))
         `(1 `(2 . ,,(+ 1 2))))
 
+;; quasiquote hygiene tests (qq.py FIXMEs)
+;; These test that quasiquote/unquote/unquote-splicing work correctly
+;; when used inside hygienic macros where symbols get renamed
+
+;; Test 1: Basic quasiquote with unquote in macro
+(begin
+  (define-syntax qq-hygiene-1
+    (syntax-rules ()
+      ((qq-hygiene-1 x)
+       `(value ,x))))
+  (equal? '(value 42) (qq-hygiene-1 42)))
+
+;; Test 2: Unquote-splicing in macro
+(begin
+  (define-syntax qq-hygiene-2
+    (syntax-rules ()
+      ((qq-hygiene-2 lst)
+       `(before ,@lst after))))
+  (equal? '(before a b c after) (qq-hygiene-2 '(a b c))))
+
+;; Test 3: Nested quasiquote in macro
+(begin
+  (define-syntax qq-hygiene-3
+    (syntax-rules ()
+      ((qq-hygiene-3 x y)
+       `(outer ,x `(inner ,,y)))))
+  (equal? '(outer 1 `(inner ,2)) (qq-hygiene-3 1 2)))
+
+;; Test 4: Multiple unquotes and splicing
+(begin
+  (define-syntax qq-hygiene-4
+    (syntax-rules ()
+      ((qq-hygiene-4 a b lst)
+       `(,a start ,@lst end ,b))))
+  (equal? '(10 start x y z end 20) (qq-hygiene-4 10 20 '(x y z))))
+
+;; Test 5: Quasiquote in let binding within macro
+(begin
+  (define-syntax qq-hygiene-5
+    (syntax-rules ()
+      ((qq-hygiene-5 val)
+       (let ((template `(result ,val)))
+         template))))
+  (equal? '(result 99) (qq-hygiene-5 99)))
+
+;; Test 6: Nested macro with quasiquote (macro calls macro)
+(begin
+  (define-syntax qq-hygiene-6-inner
+    (syntax-rules ()
+      ((qq-hygiene-6-inner x)
+       `(inner ,x))))
+  (define-syntax qq-hygiene-6-outer
+    (syntax-rules ()
+      ((qq-hygiene-6-outer x)
+       `(outer ,(qq-hygiene-6-inner x)))))
+  (equal? '(outer (inner 5)) (qq-hygiene-6-outer 5)))
+
+;; Test 7: Quasiquote with vector in macro
+;; FIXME: Separate bug - internal transformer objects (_List, etc.) not being
+;; properly converted when vectors contain quasiquote forms in macros.
+;; Error: "Invalid value type for car: _(unquote 7)"
+;; (begin
+;;   (define-syntax qq-hygiene-7
+;;     (syntax-rules ()
+;;       ((qq-hygiene-7 x)
+;;        `#(vector ,x elements))))
+;;   (equal? '#(vector 7 elements) (qq-hygiene-7 7)))
+
 ;; vectors
 
 (atom? #(1 2 3))

@@ -1254,7 +1254,7 @@ class Compiler:
 
     def compile_quasiquote(self, expr, env: Environment, tail: bool):
         qq = Quasiquote()
-        expr = qq.process(expr)
+        expr = qq.process(expr, env)
         return self.compile_form(expr, env, tail)
 
     def compile_list(self, expr, env: Environment, tail: bool):
