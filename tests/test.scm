@@ -1290,6 +1290,25 @@ and still a comment
 (equal? '(15 27)
         (map + '(1 2) '(4 5 6) '(10 20 30)))
 
+;; Map with circular list tests
+;; R7RS: "The lists can be circular, but it is an error if all of them
+;; are circular"
+
+;; Test 1: map with circular + finite list (should work - finite terminates)
+(let ((c (list 1 2)))
+  (set-cdr! (cdr c) c)  ; circular: (1 2 1 2 ...)
+  (equal? '(11 22 31) (map + c '(10 20 30))))
+
+;; Test 2: map with finite + circular list (should work)
+(let ((c (list 100 200)))
+  (set-cdr! (cdr c) c)
+  (equal? '(101 202 103) (map + '(1 2 3) c)))
+
+;; Test 3: map with 2 finite + 1 circular (should work)
+(let ((c (list 1000 2000)))
+  (set-cdr! (cdr c) c)
+  (equal? '(1110 2220) (map + '(100 200) '(10 20) c)))
+
 ;; for-each (unlike map) is guaranteed to apply the function from left to right,
 ;; so we test it differently.
 (let ((ls '()))

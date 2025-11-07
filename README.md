@@ -28,10 +28,6 @@ file named 'foo.scm' into a FASL file that can be run by the VM run `./trick.sh
 -c foo.scm`. This creates a file named `foo.fasl`. Now you can run the file by
 running `./trick.sh run foo.fasl`.
 
-## Known Issues
-
- - `map` does not work correctly with circular lists.
-
 [1]: https://en.wikipedia.org/wiki/SECD_machine
 [2]: https://small.r7rs.org
 [3]: https://srfi.schemers.org/srfi-1/srfi-1.html
