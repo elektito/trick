@@ -1138,15 +1138,12 @@ and still a comment
   (equal? '(outer (inner 5)) (qq-hygiene-6-outer 5)))
 
 ;; Test 7: Quasiquote with vector in macro
-;; FIXME: Separate bug - internal transformer objects (_List, etc.) not being
-;; properly converted when vectors contain quasiquote forms in macros.
-;; Error: "Invalid value type for car: _(unquote 7)"
-;; (begin
-;;   (define-syntax qq-hygiene-7
-;;     (syntax-rules ()
-;;       ((qq-hygiene-7 x)
-;;        `#(vector ,x elements))))
-;;   (equal? '#(vector 7 elements) (qq-hygiene-7 7)))
+(begin
+  (define-syntax qq-hygiene-7
+    (syntax-rules ()
+      ((qq-hygiene-7 x)
+       `#(vector ,x elements))))
+  (equal? '#(vector 7 elements) (qq-hygiene-7 7)))
 
 ;; vectors
 

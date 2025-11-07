@@ -241,6 +241,23 @@ class SyntaxRulesTransformer(Transformer):
             gensym.src_end = expansion.symbol.src_end
             gensym.transform_env = self.env
             return gensym
+        elif isinstance(expansion, _Vector):
+            items = []
+            for i in expansion.items:
+                if isinstance(i, _SplicedList):
+                    # convert _SplicedList to a _List, recurse on that
+                    # first to make sure any _SplicedList inside that is
+                    # expanded, then add the results to current results.
+                    i = _List(i.items, src_start=None, src_end=None)
+                    i = self.fix_up(i, env)
+                    items.extend(i.proper)
+                else:
+                    items.append(self.fix_up(i, env))
+            return _Vector(
+                items=items,
+                src_start=expansion.src_start,
+                src_end=expansion.src_end)
+
         elif isinstance(expansion, Vector):
             items = []
             for i in expansion:
@@ -252,7 +269,13 @@ class SyntaxRulesTransformer(Transformer):
                     i = self.fix_up(i, env)
                     items.extend(i.proper)
                 else:
-                    items.append(self.fix_up(i, env))
+                    fixed = self.fix_up(i, env)
+                    # If fix_up returns internal transformer objects, convert them
+                    if isinstance(fixed, _List):
+                        fixed = fixed.to_trick_list(recursive=True)
+                    elif isinstance(fixed, _Vector):
+                        fixed = fixed.to_trick_vector(recursive=True)
+                    items.append(fixed)
             result = Vector(items)
             result.src_start = expansion.src_start
             result.src_end = expansion.src_end
