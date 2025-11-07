@@ -808,11 +808,13 @@
    ((obj list compare) (_member obj list compare))))
 
 (define (_equal? x y recursed)
-  (cond ((memq x recursed) ; if already checked this exact object
-         #t)               ; don't compare it again
-        ((memq y recursed) ; same goes for y
-         #t)
-        ((eq? x y)
+  ;; Check if we're already comparing this exact (x . y) pair (cycle detection)
+  (cond ((eq? x y) #t)
+        ((let check-pair ((r recursed))
+           (cond ((null? r) #f)
+                 ((and (eq? x (caar r)) (eq? y (cdar r))) #t)
+                 (else (check-pair (cdr r)))))
+         ;; We're comparing this pair already - we're in a cycle, assume equal
          #t)
         ((and (number? x) (number? y))
          (= x y))
@@ -820,14 +822,16 @@
          #f)
         ((null? x) #t)
         ((vector? x)
-         (set! recursed (cons x (cons y recursed)))
-         (all? (vector->list (vector-map (lambda (a b)
-                                           (_equal? a b recursed))
-                                         x y))))
+         ;; Add (x . y) pair to recursed before recursing
+         (let ((new-recursed (cons (cons x y) recursed)))
+           (all? (vector->list (vector-map (lambda (a b)
+                                             (_equal? a b new-recursed))
+                                           x y)))))
         ((pair? x)
-         (set! recursed (cons x (cons y recursed)))
-         (and (_equal? (car x) (car y) recursed)
-              (_equal? (cdr x) (cdr y) recursed)))
+         ;; Add (x . y) pair to recursed before recursing
+         (let ((new-recursed (cons (cons x y) recursed)))
+           (and (_equal? (car x) (car y) new-recursed)
+                (_equal? (cdr x) (cdr y) new-recursed))))
         ((string? x) (string=? x y))
         ((bytevector? x)
          (let/cc return

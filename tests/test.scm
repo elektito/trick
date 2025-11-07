@@ -2801,9 +2801,62 @@ and still a comment
 
 (equal? '(0 1 2 3) (list-tabulate 4 values))
 
-;; uncomment this when equal? is fixed to work correctly with circular lists
-;;(equal? '#0=(z q #0#)
-;;        (circular-list 'z 'q))
+;; Circular list tests for equal?
+;; Test 1: Basic circular list equality
+(equal? '#0=(z q . #0#)
+        (circular-list 'z 'q))
+
+;; Test 2: Different circular lists with different elements
+(let ((a (list 1 2))
+      (b (list 1 3)))
+  (set-cdr! (cdr a) a)  ; a = #0=(1 2 . #0#)
+  (set-cdr! (cdr b) b)  ; b = #1=(1 3 . #1#)
+  (not (equal? a b)))   ; Should be #f (different)
+
+;; Test 3: Same circular list structure
+(let ((c (list 1 2))
+      (d (list 1 2)))
+  (set-cdr! (cdr c) c)  ; c = #0=(1 2 . #0#)
+  (set-cdr! (cdr d) d)  ; d = #1=(1 2 . #1#)
+  (equal? c d))         ; Should be #t (same structure)
+
+;; Test 4: Circular vs non-circular (should be different)
+(let ((e (list 1 2 1 2))
+      (f (list 1 2)))
+  (set-cdr! (cdr f) f)  ; f = circular
+  (not (equal? e f)))   ; Should be #f (different)
+
+;; Test 5: Self-referencing at different positions
+(let ((g (list 1 2 3))
+      (h (list 1 2 3)))
+  (set-cdr! (cddr g) g)     ; g = #0=(1 2 3 . #0#)
+  (set-cdr! (cddr h) (cdr h))  ; h = (1 . #0=(2 3 . #0#))
+  (not (equal? g h)))       ; Should be #f (different structures)
+
+;; Test 6: Self-reference in car
+(let ((self-car (cons 'dummy '()))
+      (self-car2 (cons 'dummy '())))
+  (set-car! self-car self-car)
+  (set-car! self-car2 self-car2)
+  (equal? self-car self-car2))  ; Should be #t
+
+;; Test 7: Complex circular structure
+(let ((complex1 (list 1 2))
+      (complex1-inner (list 3 4))
+      (complex2 (list 1 2))
+      (complex2-inner (list 3 4)))
+  (set-cdr! (cdr complex1) complex1-inner)
+  (set-cdr! (cdr complex1-inner) complex1)
+  (set-cdr! (cdr complex2) complex2-inner)
+  (set-cdr! (cdr complex2-inner) complex2)
+  (equal? complex1 complex2))  ; Should be #t (same structure)
+
+;; Test 8: Circular vectors with equal?
+(let ((v1 (vector 1 2 'placeholder))
+      (v2 (vector 1 2 'placeholder)))
+  (vector-set! v1 2 v1)
+  (vector-set! v2 2 v2)
+  (equal? v1 v2))  ; Should be #t
 
 (equal? '(0 1 2 3 4) (iota 5))
 (all? (map approx= '(0 -0.1 -0.2 -0.3 -0.4) (iota 5 0 -0.1)))

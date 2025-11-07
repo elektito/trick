@@ -30,7 +30,6 @@ running `./trick.sh run foo.fasl`.
 
 ## Known Issues
 
- - `equal?` does not work correctly with circular lists.
  - `map` does not work correctly with circular lists.
 
 [1]: https://en.wikipedia.org/wiki/SECD_machine
