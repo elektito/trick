@@ -601,7 +601,7 @@ class Secd:
     def run_ldstr(self):
         strnum, self.c = from_varint_unsigned(self.cur_fasl.code, self.c)
         s = self.cur_fasl.strtab[strnum]
-        self.s.push(s)
+        self.s.pushx(s)
         if self.debug: print(f'ldstr {s}')
 
     def run_ldsym(self):
@@ -611,7 +611,7 @@ class Secd:
             s = Symbol(name.value)
         except IndexError:
             raise RunError(f'Invalid symbol string index: {strnum} (strtab size: {len(self.cur_fasl.strtab)})')
-        self.s.push(s)
+        self.s.pushx(s)
         if self.debug: print(f'ldsym {s}')
 
     def run_ld(self):
@@ -628,7 +628,7 @@ class Secd:
                 raise RunError(f'Invalid variable index: {index} (frame size: {len(frame)})')
             value = frame[index]
 
-        self.s.push(value)
+        self.s.pushx(value)
         if self.debug: print(f'ld [{frame_idx}, {index}] -- frame={frame} value={value}')
 
     def run_st(self):
@@ -1068,7 +1068,7 @@ class Secd:
         except KeyError:
             raise RunError(f'Attempt to read unset symbol: {sym}')
 
-        self.s.push(value)
+        self.s.pushx(value)
         if self.debug: print(f'get {sym} => {value}')
 
     def run_unset(self):
