@@ -69,6 +69,10 @@ def main():
         '--dbg-info', '-g', action='store_true', default=False,
         help='Enable adding debug info to FASL.')
 
+    parser.add_argument(
+        '--opt-level', '-O', type=int, default=1,
+        help='Optimization level (0 to disable). Defaults to 1.')
+
     subparsers = parser.add_subparsers(help='Trick commands')
 
     compile_parser = subparsers.add_parser('compile')
@@ -106,7 +110,8 @@ def main():
             compile_src_file_to_fasl(
                 args.compile, args.output, args.lib,
                 include_paths=args.include_path,
-                dbg_info=args.dbg_info)
+                dbg_info=args.dbg_info,
+                opt_level=args.opt_level)
         except compile.CompileError as e:
             if e.source and e.source.filename:
                 print(f'Compile error in {e.source.filename}: {e}')
@@ -116,7 +121,7 @@ def main():
             sys.exit(1)
     elif args.compile_expr:
         lib_fasls = load_fasl_files(args.lib)
-        compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
+        compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info, opt_level=args.opt_level)
 
         env = compile.ToplevelEnvironment()
 
@@ -153,7 +158,7 @@ def main():
         lib_name = LibraryName.create('trick')
         env.add_import(LibraryImportSet(lib_name, lazy=False))
 
-        compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
+        compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info, opt_level=args.opt_level)
         try:
             expanded = compiler.macro_expand(form, env)
         except compile.CompileError as e:
@@ -177,7 +182,7 @@ def main():
         lib_name = LibraryName.create('trick')
         env.add_import(LibraryImportSet(lib_name, lazy=False))
 
-        compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info)
+        compiler = compile.Compiler(lib_fasls, debug_info=args.dbg_info, opt_level=args.opt_level)
         try:
             expanded = compiler.macro_expand_full(form, env)
         except compile.CompileError as e:
@@ -202,7 +207,7 @@ def main():
             sys.exit(1)
 
         try:
-            expr_fasl = compile_expr_to_fasl(expr, lib_fasls, env=env)
+            expr_fasl = compile_expr_to_fasl(expr, lib_fasls, env=env, opt_level=args.opt_level)
         except compile.CompileError as e:
             print(f'Compile error: {e}')
             sys.exit(1)

@@ -74,6 +74,10 @@ def main():
         help='Specify which tests to run by number. Ranges, and comma '
         'separated values are also accepted.')
 
+    parser.add_argument(
+        '--opt-level', '-O', type=int, default=1,
+        help='Optimization level (0 to disable). Defaults to 1.')
+
     args = parser.parse_args()
 
     init_stdlib()
@@ -123,7 +127,7 @@ def main():
             print(f'[{i}] Running: {expr} ', end='', flush=True)
 
         try:
-            expr_fasl = compile_expr_to_fasl(expr, libs, env=env)
+            expr_fasl = compile_expr_to_fasl(expr, libs, env=env, opt_level=args.opt_level)
         except CompileError as e:
             errors.append((i, expr, e))
             if args.verbose:

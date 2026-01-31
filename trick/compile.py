@@ -18,6 +18,7 @@ from .qq import Quasiquote
 from .read import Reader, ReadError
 from .machinetypes import Bool, Bytevector, Char, Complex, Float, Integer, List, Nil, Pair, Rational, Symbol, String, Vector
 from .assemble import Assembler
+from .optimize import Optimizer
 from .secd import Secd
 from .symbolinfo import SpecialForms, SymbolInfo, SymbolKind
 from .transform import SyntaxRulesTransformer, TransformError, UninitializedTransformer
@@ -69,12 +70,13 @@ class SourceFile:
 
 
 class Compiler:
-    def __init__(self, libs: list[Fasl]=None, debug_info=False):
+    def __init__(self, libs: list[Fasl]=None, debug_info=False, opt_level=1):
         if libs is None:
             libs = []
 
         self.lib_fasls = libs
         self.debug_info = debug_info
+        self.opt_level = opt_level
         self.include_paths = []
         self.defined_libs = []
         self.dependency_libs = set()
@@ -1667,6 +1669,9 @@ class Compiler:
         # unit
         self.dependency_libs -= set(lib.name for lib in self.defined_libs)
 
+        if self.opt_level > 0:
+            code = Optimizer().optimize(code)
+
         program = Program(
             code=code,
             defined_libs=self.defined_libs,
@@ -1693,6 +1698,10 @@ def configure_argparse(parser: argparse.ArgumentParser):
         '--dbg-info', '-g', action='store_true', default=False,
         help='Add debug info symbols to the compiler output.')
 
+    parser.add_argument(
+        '--opt-level', '-O', type=int, default=1,
+        help='Optimization level (0 to disable). Defaults to 1.')
+
     parser.set_defaults(func=main)
 
 
@@ -1702,7 +1711,7 @@ def main(args):
         with open(lib, 'rb') as f:
             lib_fasls.append(Fasl.load(f, lib))
 
-    compiler = Compiler(lib_fasls, debug_info=args.dbg_info)
+    compiler = Compiler(lib_fasls, debug_info=args.dbg_info, opt_level=args.opt_level)
 
     if args.input == '-':
         text = sys.stdin.read()

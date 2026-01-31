@@ -44,7 +44,7 @@ def assoc(item, alist):
 
 
 def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
-                             include_paths=None, dbg_info=False):
+                             include_paths=None, dbg_info=False, opt_level=1):
     from .compile import Compiler
     from .assemble import Assembler
     from .fasl import Fasl
@@ -54,7 +54,7 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
         with open(lib, 'rb') as f:
                 lib_fasls.append(Fasl.load(f, lib))
 
-    compiler = Compiler(lib_fasls, debug_info=dbg_info)
+    compiler = Compiler(lib_fasls, debug_info=dbg_info, opt_level=opt_level)
     if include_paths:
         compiler.include_paths = include_paths
 
@@ -69,7 +69,7 @@ def compile_src_file_to_fasl(input_filename, output_filename, libs=[], *,
         fasl.dump(f)
 
 
-def compile_expr_to_fasl(expr, lib_fasls=None, env=None):
+def compile_expr_to_fasl(expr, lib_fasls=None, env=None, opt_level=1):
     from .compile import Compiler, ToplevelEnvironment
     from .assemble import Assembler
     from .fasl import Fasl
@@ -77,7 +77,7 @@ def compile_expr_to_fasl(expr, lib_fasls=None, env=None):
     lib_fasls = lib_fasls or []
     env = env or ToplevelEnvironment()
 
-    compiler = Compiler(lib_fasls)
+    compiler = Compiler(lib_fasls, opt_level=opt_level)
 
     fasl = Fasl()
     asm_code = compiler.compile_toplevel_form(expr, env)
