@@ -1,6 +1,7 @@
 import unittest
 from trick.compile import Compiler
 from trick.machinetypes import Symbol
+from trick.optimize import Optimizer
 from trick.utils import init_stdlib
 
 def S(s):
@@ -83,6 +84,15 @@ class TestOptimization(unittest.TestCase):
                 break
         
         self.assertTrue(found_true_drop)
+
+class TestOptimizerTruncation(unittest.TestCase):
+    def test_truncated_stream_raises(self):
+        # ldc requires 1 argument. A stream ending immediately after it
+        # must raise rather than silently emitting incomplete code.
+        opt = Optimizer()
+        with self.assertRaises(ValueError):
+            opt.optimize([S('ldc')])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -119,11 +119,12 @@ class Optimizer:
 
             # Default copy
             nargs = self.get_arg_count(name)
+            if i + nargs >= len(code):
+                raise ValueError(f'truncated instruction {name!r}: expected {nargs} args')
             new_code.append(instr)
             for _ in range(nargs):
                 i += 1
-                if i < len(code):
-                    new_code.append(code[i])
+                new_code.append(code[i])
             i += 1
 
         return new_code
