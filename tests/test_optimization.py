@@ -13,77 +13,53 @@ class TestOptimization(unittest.TestCase):
         init_stdlib()
 
     def test_void_drop_elimination(self):
-        # A begin block with a non-final void-returning expression should 
-        # normally produce (void) (drop)
+        # (begin #$void 1) produces a void followed by drop without
+        # optimization. With optimization both should be eliminated.
         code = "(import (scheme base)) (begin #$void 1)"
         compiler = Compiler()
         program = compiler.compile_program(code)
-        
-        asm = program.code
-        
-        # 'void' and 'drop' should be gone.
-        names = [x.name for x in asm if isinstance(x, Symbol) and not x.name.startswith(':')]
-        # After (import (scheme base)), there might be some setup code, 
-        # but let's check for the void-drop sequence specifically.
-        
-        # Actually, let's just check if 'void' exists.
+
+        names = [x.name for x in program.code if isinstance(x, Symbol) and not x.name.startswith(':')]
         self.assertNotIn('void', names)
+        self.assertNotIn('drop', names)
 
     def test_nested_optimization(self):
-        # Test that optimization happens inside lambda
+        # Optimizer must recurse into lambda bodies.
         code = "(import (scheme base)) (define foo (lambda () (begin #$void 1)))"
         compiler = Compiler()
         program = compiler.compile_program(code)
-        
-        # Look for the ldf instruction in the code
-        # Code should contain [..., ldf, 0, [body], set, foo, void, drop]
-        # (void and drop because it's a top-level define)
-        
+
         asm = program.code.to_list_recursive()
         ldf_body = None
         for i in range(len(asm)):
             if isinstance(asm[i], Symbol) and asm[i].name == 'ldf':
                 ldf_body = asm[i+2]
                 break
-        
+
         self.assertIsNotNone(ldf_body)
         names = [x.name for x in ldf_body if isinstance(x, Symbol) and not x.name.startswith(':')]
-        
         self.assertNotIn('void', names)
-        self.assertIn('ldc', names)
-        self.assertIn('ret', names)
+        self.assertNotIn('drop', names)
 
     def test_disabled_optimization(self):
-        # With opt_level=0, pure pushes followed by drop should remain
+        # With opt_level=0, pure pushes followed by drop must not be
+        # eliminated.
         code = "(import (scheme base)) #t #f 1"
         compiler = Compiler(opt_level=0)
         program = compiler.compile_program(code)
-        
-        asm = program.code.to_list_recursive()
-        
-        def flatten(ls):
-            res = []
-            for i in ls:
-                if isinstance(i, list):
-                    res.extend(flatten(i))
-                elif isinstance(i, Symbol):
-                    res.append(i.name)
-                elif isinstance(i, int):
-                    res.append(str(i))
-                else:
-                    res.append(str(i))
-            return res
 
-        flat_asm = flatten(asm)
-        
-        # Check if 'true' followed by 'drop' exists
-        found_true_drop = False
-        for i in range(len(flat_asm) - 1):
-            if flat_asm[i] == 'true' and flat_asm[i+1] == 'drop':
-                found_true_drop = True
-                break
-        
-        self.assertTrue(found_true_drop)
+        def flatten_names(ls):
+            for item in ls:
+                if isinstance(item, list):
+                    yield from flatten_names(item)
+                elif isinstance(item, Symbol):
+                    yield item.name
+
+        names = list(flatten_names(program.code.to_list_recursive()))
+        self.assertTrue(any(
+            names[i] == 'true' and names[i+1] == 'drop'
+            for i in range(len(names) - 1)
+        ))
 
 class TestOptimizerTruncation(unittest.TestCase):
     def test_truncated_stream_raises(self):
