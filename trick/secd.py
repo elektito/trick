@@ -121,10 +121,20 @@ class Stack:
         return value
 
     def topx(self):
-        return self.s[-1]
+        # Fast read without Values-normalization or type checking. Still
+        # guards the empty stack.
+        try:
+            return self.s[-1]
+        except IndexError:
+            raise RunError('Attempting to read from an empty stack')
 
     def popx(self):
-        return self.s.pop()
+        # Fast pop without Values-normalization or type checking. Still
+        # guards the empty stack.
+        try:
+            return self.s.pop()
+        except IndexError:
+            raise RunError('Attempting to pop from an empty stack')
 
     def push_multiple(self, values):
         assert isinstance(values, list)
