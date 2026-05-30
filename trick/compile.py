@@ -1283,7 +1283,6 @@ class Compiler:
                 SpecialForms.LETREC: self.compile_letrec,
                 SpecialForms.LETREC_STAR: self.compile_letrec_star,
                 SpecialForms.LET_SYNTAX: self.compile_let_syntax,
-                SpecialForms.LETREC: self.compile_letrec,
                 SpecialForms.LETREC_SYNTAX: self.compile_letrec_syntax,
                 SpecialForms.QUOTE: self.compile_quote,
                 SpecialForms.INCLUDE: self.compile_include_local,
