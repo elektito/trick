@@ -495,7 +495,7 @@ class Complex(Number):
 
     def __init__(self, real, imag):
         assert isinstance(real, (Float, Rational, Integer))
-        assert isinstance(real, (Float, Rational, Integer))
+        assert isinstance(imag, (Float, Rational, Integer))
         self.real = real.to_specific()
         self.imag = imag.to_specific()
 
