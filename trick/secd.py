@@ -1432,7 +1432,7 @@ class Secd:
         if self.debug: print(f'creal {result}')
 
     def run_cimag(self):
-        n = self.s.pop(Number, 'creal')
+        n = self.s.pop(Number, 'cimag')
         if isinstance(n, Complex):
             result = n.imag
         else:
