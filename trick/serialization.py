@@ -8,6 +8,7 @@ class SerializationError(Exception):
 
 
 class Serializable:
+    __slots__ = ()
     serialization_id = None
 
     def dump(self, output):

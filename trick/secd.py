@@ -175,6 +175,8 @@ class Stack:
 
 
 class Frame:
+    __slots__ = ('data',)
+
     def __init__(self, data=None):
         self.data = data
 

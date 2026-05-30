@@ -8,6 +8,12 @@ from .utils import STR_ENCODING
 
 
 class TrickType(Serializable):
+    # __slots__ must stay empty: Integer(Number, int) and Float(Number, float) inherit
+    # from CPython built-in types (solid bases). If any class in their chain has
+    # non-empty __slots__, CPython raises "multiple bases have instance lay-out conflict".
+    # src_start/src_end are therefore declared in each concrete subclass individually.
+    __slots__ = ()
+
     @staticmethod
     def _get_serializable_subclasses():
         return [
@@ -47,6 +53,7 @@ class Reference:
 
 
 class Void(TrickType):
+    __slots__ = ('src_start', 'src_end')
     serialization_id = 1
     _instance = None
 
@@ -74,6 +81,8 @@ class Void(TrickType):
 
 
 class Number(TrickType):
+    __slots__ = ()
+
     @staticmethod
     def from_python_number(n):
         if isinstance(n, int):
@@ -343,6 +352,7 @@ class Number(TrickType):
 
 
 class Rational(Number):
+    __slots__ = ('frac', 'src_start', 'src_end')
     serialization_id = 2
     exact = True
 
@@ -352,6 +362,8 @@ class Rational(Number):
             self.frac = Fraction(frac)
         else:
             self.frac = frac
+        self.src_start = None
+        self.src_end = None
 
     def is_infinite(self):
         return False
@@ -376,6 +388,7 @@ class Rational(Number):
 
 
 class Integer(Number, int):
+    # Cannot add __slots__ to subtypes of int (variable-size built-in); instances keep __dict__
     serialization_id = 3
     exact = True
 
@@ -439,6 +452,7 @@ class Integer(Number, int):
 
 
 class Float(Number, float):
+    # Cannot add __slots__ to subtypes of float (variable-size built-in); instances keep __dict__
     serialization_id = 4
     exact = False
 
@@ -491,6 +505,7 @@ class Float(Number, float):
 
 
 class Complex(Number):
+    __slots__ = ('real', 'imag', 'src_start', 'src_end')
     serialization_id = 5
 
     def __init__(self, real, imag):
@@ -498,6 +513,8 @@ class Complex(Number):
         assert isinstance(imag, (Float, Rational, Integer))
         self.real = real.to_specific()
         self.imag = imag.to_specific()
+        self.src_start = None
+        self.src_end = None
 
     def is_infinite(self):
         return self.real == float('inf') or \
@@ -562,6 +579,7 @@ class Complex(Number):
 
 
 class Symbol(TrickType):
+    __slots__ = ('name', 'short_name', 'src_start', 'src_end', 'info', 'original', 'transform_env')
     serialization_id = 5
     gensym_number = 0
 
@@ -691,6 +709,7 @@ class Symbol(TrickType):
 
 
 class Bool(TrickType):
+    __slots__ = ('value', 'src_start', 'src_end')
     serialization_id = 6
 
     def __init__(self, value: bool):
@@ -732,6 +751,7 @@ class Bool(TrickType):
 
 
 class Char(TrickType):
+    __slots__ = ('char_code', 'src_start', 'src_end')
     serialization_id = 7
 
     name_to_code = {
@@ -798,6 +818,7 @@ class Char(TrickType):
 
 
 class String(TrickType):
+    __slots__ = ('value', 'src_start', 'src_end')
     serialization_id = 8
 
     def __init__(self, value: str):
@@ -853,6 +874,8 @@ class String(TrickType):
 
 
 class Procedure(TrickType):
+    __slots__ = ('fasl', 'c', 'e', 'nparams', 'rest_param', 'src_start', 'src_end')
+
     def __init__(self, c, e, fasl, *, nparams: int, rest_param: bool):
         self.fasl = fasl
         self.c = c
@@ -877,6 +900,8 @@ class Procedure(TrickType):
 
 
 class Continuation(Procedure):
+    __slots__ = ('s', 'd')
+
     def __init__(self, s, e, c, d, fasl):
         self.fasl = fasl
         self.s = s.copy()
@@ -895,6 +920,8 @@ class Continuation(Procedure):
 
 
 class List(TrickType):
+    __slots__ = ('src_start', 'src_end')
+
     def __init__(self):
         self.src_start = None
         self.src_end = None
@@ -924,6 +951,7 @@ class List(TrickType):
 
 
 class Nil(List):
+    __slots__ = ()
     serialization_id = 9
     _instance = None
 
@@ -978,6 +1006,7 @@ class Nil(List):
 
 
 class Pair(List):
+    __slots__ = ('car', 'cdr')
     serialization_id = 10
 
     class Iterator:
@@ -1225,6 +1254,8 @@ class Pair(List):
 
 
 class Values(TrickType):
+    __slots__ = ('_values', 'src_start', 'src_end')
+
     def __init__(self, values):
         assert isinstance(values, list)
         self._values = values
@@ -1249,6 +1280,7 @@ class Values(TrickType):
 
 
 class Vector(TrickType):
+    __slots__ = ('_elements', 'src_start', 'src_end')
     serialization_id = 11
 
     class Iterator:
@@ -1309,6 +1341,7 @@ class Vector(TrickType):
 
 
 class Bytevector(TrickType):
+    __slots__ = ('bytes', 'src_start', 'src_end')
     serialization_id = 12
 
     class Iterator:
@@ -1356,6 +1389,8 @@ class Bytevector(TrickType):
 
 
 class Port(TrickType):
+    __slots__ = ('file', 'mode', 'dir', 'filename')
+
     def __init__(self, file, mode: str, dir: str, *, filename=None):
         assert mode in ['text', 'binary']
         assert dir in ['input', 'output']
@@ -1385,6 +1420,8 @@ class Port(TrickType):
 
 
 class WrappedValue(TrickType):
+    __slots__ = ('value', 'type_id')
+
     def __init__(self, value: TrickType, type_id: Symbol):
         self.value = value
         self.type_id = type_id
@@ -1397,6 +1434,8 @@ class WrappedValue(TrickType):
 
 
 class OpaqueBox(TrickType):
+    __slots__ = ('value',)
+
     def __init__(self, value):
         self.value = value
 
