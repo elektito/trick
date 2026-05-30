@@ -164,7 +164,6 @@ class Compiler:
     def macro_expand_full(self, form, env):
         while isinstance(form, Pair) and \
               len(form) > 0 and \
-              len(form) > 0 and \
               isinstance(form[0], Symbol):
             name_sym = form[0]
             info = env.lookup_symbol(name_sym)
