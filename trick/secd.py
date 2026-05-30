@@ -969,8 +969,13 @@ class Secd:
         if self.debug: print(f'xp')
 
     def run_dup(self):
-        self.s.pushx(self.s.topx())
-        if self.debug: print(f'dup {self.s.topx()}')
+        # topx, not top: dup copies the raw top of stack as-is. (As of
+        # this moment, it only runs after mkvec/mkbvec, so the top is
+        # never a Values; topx keeps the generic "duplicate whatever is
+        # there" contract and is a touch cheaper.)
+        value = self.s.topx()
+        self.s.pushx(value)
+        if self.debug: print(f'dup {value}')
 
     def run_true(self):
         self.s.pushx(Bool(True))
