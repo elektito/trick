@@ -217,7 +217,6 @@ and still a comment
 (eq? (#$void) ((lambda () (if #f 100))))
 
 ;; regression test: this used to cause an "access to dummy frame" error.
-;; was fixed two commits ago (see git history!)
 (let ((foo (lambda () #t)))
   (letrec ((bar (foo))
            (return (lambda () bar)))
