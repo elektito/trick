@@ -96,10 +96,10 @@ class SymbolInfo:
 
         self.symbol = symbol
         self.kind = kind
-        self.primcall_nargs = primcall_nargs
-        self.primcall_code = primcall_code
-        self.local_frame_idx = local_frame_idx
-        self.local_var_idx = local_var_idx
+        self.primcall_nargs: int | None = primcall_nargs
+        self.primcall_code: list | None = primcall_code
+        self.local_frame_idx: int | None = local_frame_idx
+        self.local_var_idx: int | None = local_var_idx
         self.special_type = special_type
         self.aux_type = aux_type
         self.transformer = transformer

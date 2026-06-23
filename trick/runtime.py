@@ -25,8 +25,8 @@ _proc_methods = []
 # these are supposed to be set by the runner at run time. the first should
 # contain the name of the program being run, the second the arguments meant to
 # be passed to the program.
-program_name = None
-program_args = None
+program_name: str | None = None
+program_args: list | None = None
 
 # these are suppoesd to be set by the repl when we're running inside a repl.
 repl_machine = None
@@ -578,23 +578,19 @@ class Str(RuntimeModule):
 
     @proc(opcode=0x05)
     def cmp(self, s1: String, s2: String, options: Integer) -> Integer:
-        case_insensitive = False
+        str1 = s1.value
+        str2 = s2.value
+
         if options != 0:
-            case_insensitive = True
+            str1 = str1.casefold()
+            str2 = str2.casefold()
 
-        s1 = s1.value
-        s2 = s2.value
-
-        if case_insensitive:
-            s1 = s1.casefold()
-            s2 = s2.casefold()
-
-        if s1 == s2:
-            result = 0
-        elif s1 < s2:
+        if str1 < str2:
             result = -1
-        elif s1 > s2:
+        elif str1 > str2:
             result = 1
+        else:
+            result = 0
 
         return Integer(result)
 
@@ -663,16 +659,16 @@ class Read(RuntimeModule):
     @proc(opcode=0x02)
     def parsenum(self, s: String, radix: Integer) -> TrickType:
         sval = s.value
-        radix = int(radix)
+        r = int(radix)
 
         if sval[:2].lower() not in ['#x', '#o', '#d', '#b']:
-            if radix == 2:
+            if r == 2:
                 sval = '#b' + sval
-            elif radix == 8:
+            elif r == 8:
                 sval = '#o' + sval
-            elif radix == 10:
+            elif r == 10:
                 pass
-            elif radix == 16:
+            elif r == 16:
                 sval = '#x' + sval
 
         file = io.StringIO(sval)

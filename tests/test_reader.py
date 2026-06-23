@@ -1,7 +1,7 @@
 import io
 import unittest
 
-from trick.machinetypes import Integer, Nil, Pair, Symbol, List, String
+from trick.machinetypes import Integer, Nil, Pair, Symbol, List, String, TrickType
 from trick.read import ReadError, Reader
 
 i0 = Integer(0)
@@ -64,8 +64,9 @@ class TestReader(unittest.TestCase):
         r = Reader(file)
         return r.read()
 
-    def _test(self, text, expected):
+    def _test(self, text, expected) -> TrickType:
         value = self._read(text)
+        assert value is not None
         self.assertEqual(expected, value)
         return value
 

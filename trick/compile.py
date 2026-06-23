@@ -70,7 +70,7 @@ class SourceFile:
 
 
 class Compiler:
-    def __init__(self, libs: list[Fasl]=None, debug_info=False, opt_level=1):
+    def __init__(self, libs: list[Fasl] | None = None, debug_info=False, opt_level=1):
         if libs is None:
             libs = []
 
@@ -181,6 +181,7 @@ class Compiler:
 
         rest = form.cdr
         while rest != Nil():
+            assert isinstance(rest, Pair)
             if isinstance(rest.car, Pair):
                 rest.car = self.macro_expand_full(rest.car, env)
             rest = rest.cdr
@@ -514,6 +515,7 @@ class Compiler:
             # in the same order as the call to the primitive itself pushes its
             # arguments, then performs the same instructions the primitive
             # itself would perform, and then returns of course.
+            assert info.primcall_nargs is not None and info.primcall_code is not None
             func_code = []
             for i in range(info.primcall_nargs - 1, -1, -1):
                 func_code += [S('ld'), [Integer(0), Integer(i)]]
@@ -905,6 +907,7 @@ class Compiler:
         return self.compile_literal(expr[1], env)
 
     def compile_primcall(self, expr, env, info: SymbolInfo):
+        assert info.primcall_nargs is not None and info.primcall_code is not None
         if len(expr) != info.primcall_nargs + 1:
             raise self._compile_error(
                 f'Invalid number of arguments for "{expr[0]}" '

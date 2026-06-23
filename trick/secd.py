@@ -230,7 +230,7 @@ class Secd:
         self.dummy_frame = Frame.dummy()
         self.debug = False
         self.symvals = {}
-        self.cur_fasl: (Fasl | None) = None
+        self.cur_fasl: Fasl = Fasl()
         self.exception_handler = None
 
         self.setup_instructions()
@@ -568,7 +568,6 @@ class Secd:
                     raise
 
     def intern(self, name):
-        assert self.cur_fasl is not None
         return Symbol(name)
 
     def find_procedure_name(self, procedure):

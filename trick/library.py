@@ -193,6 +193,7 @@ class Library(ToplevelEnvironment, Serializable):
                     assert var is not None
                     assert isinstance(var.transformer, Transformer)
                     transformer = var.transformer
+                assert e.kind is not None
                 return SymbolInfo(
                     symbol=e.internal,
                     kind=e.kind.to_symbol_kind(),
@@ -327,6 +328,7 @@ class CoreLibrary(Library):
             desc = primcalls.get(sym.name)
             found = desc and desc['exported']
         if found:
+            assert desc is not None
             return SymbolInfo(
                 symbol=sym,
                 kind=SymbolKind.PRIMCALL,

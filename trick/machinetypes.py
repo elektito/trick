@@ -1,6 +1,7 @@
 import math
 from fractions import Fraction
 import sys
+from typing import Iterator
 from uuid import uuid4
 
 from .serialization import Serializable
@@ -109,7 +110,18 @@ class Number(TrickType):
 
         return n
 
+    exact: bool
+
     def to_python_number(self):
+        raise NotImplementedError
+
+    def get_sign(self) -> int:
+        raise NotImplementedError
+
+    def is_nan(self) -> bool:
+        raise NotImplementedError
+
+    def is_infinite(self) -> bool:
         raise NotImplementedError
 
     def to_complex(self):
@@ -199,6 +211,9 @@ class Number(TrickType):
     def __abs__(self):
         raise NotImplementedError
 
+    def __neg__(self) -> 'Number':
+        raise NotImplementedError
+
     def __add__(self, other):
         if isinstance(self, Complex) or isinstance(other, Complex):
             n1 = self.to_complex()
@@ -210,7 +225,7 @@ class Number(TrickType):
         else:
             n1 = self.to_python_number()
             n2 = other
-            if isinstance(other, TrickType):
+            if isinstance(other, Number):
                 n2 = other.to_python_number()
 
             result = n1 + n2
@@ -228,7 +243,7 @@ class Number(TrickType):
         else:
             n1 = self.to_python_number()
             n2 = other
-            if isinstance(other, TrickType):
+            if isinstance(other, Number):
                 n2 = other.to_python_number()
 
             result = n1 - n2
@@ -254,7 +269,7 @@ class Number(TrickType):
         else:
             n1 = self.to_python_number()
             n2 = other
-            if isinstance(other, TrickType):
+            if isinstance(other, Number):
                 n2 = other.to_python_number()
 
             result = n1 * n2
@@ -302,7 +317,7 @@ class Number(TrickType):
 
             n1 = self.to_python_number()
             n2 = other
-            if isinstance(other, TrickType):
+            if isinstance(other, Number):
                 n2 = other.to_python_number()
 
             if isinstance(n1, int) and isinstance(n2, int):
@@ -955,6 +970,12 @@ class List(TrickType):
     def split_improper_tail(self):
         raise NotImplementedError
 
+    def is_proper(self) -> bool:
+        raise NotImplementedError
+
+    def __iter__(self) -> Iterator[TrickType]:
+        raise NotImplementedError
+
 
 class Nil(List):
     __slots__ = ()
@@ -974,10 +995,10 @@ class Nil(List):
     def __repr__(self):
         return '<Nil>'
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[TrickType]:
         return self
 
-    def __next__(self):
+    def __next__(self) -> TrickType:
         raise StopIteration
 
     def __len__(self):
@@ -1016,13 +1037,17 @@ class Pair(List):
     serialization_id = 10
 
     class Iterator:
-        def __init__(self, start):
-            self.cur = start
+        def __init__(self, start: 'Pair'):
+            self.cur: TrickType = start
 
-        def __next__(self):
+        def __iter__(self) -> 'Pair.Iterator':
+            return self
+
+        def __next__(self) -> TrickType:
             if self.cur == Nil():
                 raise StopIteration
 
+            assert isinstance(self.cur, Pair)
             value = self.cur.car
             self.cur = self.cur.cdr
             return value
@@ -1070,7 +1095,7 @@ class Pair(List):
 
         return length
 
-    def __iter__(self):
+    def __iter__(self) -> 'Pair.Iterator':
         if not self.is_proper():
             raise ValueError('Cannot iterate over an improper list')
         return Pair.Iterator(self)
@@ -1250,10 +1275,12 @@ class Pair(List):
         tail = cls._load_optional(TrickType, input)
         ls = Pair.from_list(proper)
         if tail is not None:
-            cur = ls
+            cur: TrickType = ls
+            prev: Pair | None = None
             while isinstance(cur, Pair):
                 prev = cur
                 cur = cur.cdr
+            assert isinstance(prev, Pair), 'improper list with empty proper part'
             prev.cdr = tail
         return ls
 
@@ -1290,11 +1317,14 @@ class Vector(TrickType):
     serialization_id = 11
 
     class Iterator:
-        def __init__(self, vector):
+        def __init__(self, vector: 'Vector'):
             self._vector = vector
             self._i = 0
 
-        def __next__(self):
+        def __iter__(self) -> 'Vector.Iterator':
+            return self
+
+        def __next__(self) -> TrickType:
             if self._i >= len(self._vector):
                 raise StopIteration
 
@@ -1307,7 +1337,7 @@ class Vector(TrickType):
         self.src_start = None
         self.src_end = None
 
-    def __iter__(self):
+    def __iter__(self) -> 'Vector.Iterator':
         return Vector.Iterator(self)
 
     def __len__(self):
@@ -1353,11 +1383,14 @@ class Bytevector(TrickType):
     serialization_id = 12
 
     class Iterator:
-        def __init__(self, bvector):
+        def __init__(self, bvector: 'Bytevector'):
             self._bvector = bvector
             self._i = 0
 
-        def __next__(self):
+        def __iter__(self) -> 'Bytevector.Iterator':
+            return self
+
+        def __next__(self) -> Integer:
             if self._i >= len(self._bvector):
                 raise StopIteration
 
@@ -1368,7 +1401,7 @@ class Bytevector(TrickType):
     def __init__(self, elements: list[Integer]):
         self.bytes = bytes(elements)
 
-    def __iter__(self):
+    def __iter__(self) -> 'Bytevector.Iterator':
         return Bytevector.Iterator(self)
 
     def __getitem__(self, idx: int):

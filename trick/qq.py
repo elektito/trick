@@ -1,3 +1,4 @@
+from .env import Environment
 from .exceptions import CompileError
 from .libname import LibraryName
 from .machinetypes import List, Nil, Pair, String, Symbol, Vector
@@ -49,7 +50,7 @@ class QuasiquoteError(CompileError):
 class Quasiquote:
     def __init__(self, *, simplify=True):
         self._simplify_enabled = simplify
-        self._env = None
+        self._env: Environment | None = None
 
     def process(self, form, env):
         assert isinstance(form, Pair)
