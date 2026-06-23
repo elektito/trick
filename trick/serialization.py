@@ -41,8 +41,8 @@ class Serializable:
             raise SerializationError(
                 f'Class {subclass.__name__} does not implement _load')
 
-    @staticmethod
-    def _load(input):
+    @classmethod
+    def _load(cls, input):
         raise NotImplementedError
 
     @classmethod
