@@ -570,8 +570,17 @@ class MatchLiteral(Matcher):
         # if the symbol is bound in the current context, it won't match.
         # e.g. (let ((else #f)) (cond (else 10))) will not result in 10,
         # but in #<void>.
-        if env.lookup_symbol(value).kind in (SymbolKind.LOCAL, SymbolKind.LOCAL_MACRO):
+        value_info = env.lookup_symbol(value)
+        if value_info.kind in (SymbolKind.LOCAL, SymbolKind.LOCAL_MACRO):
             return False, {}
+
+        # Compare by binding: two symbols with the same aux_type are the
+        # same identifier even if renamed on import. For exapmle,
+        # (import (rename (scheme base) (else my-else))) makes my-else
+        # match the literal `else` in cond's syntax-rules.
+        literal_info = env.lookup_symbol(self.literal)
+        if value_info.kind == SymbolKind.AUX and literal_info.kind == SymbolKind.AUX:
+            return value_info.aux_type == literal_info.aux_type, {}
 
         return value.short_name == self.literal.short_name, {}
 
