@@ -14,6 +14,12 @@ class TrickType(Serializable):
     # src_start/src_end are therefore declared in each concrete subclass individually.
     __slots__ = ()
 
+    # Linter hint only. Every concrete subclass stores these in its own
+    # __slots__ (or __dict__ for Integer/Float which can't use
+    # __slots__).
+    src_start: object
+    src_end: object
+
     @classmethod
     def _get_serializable_subclasses(cls):
         return [
@@ -1298,6 +1304,8 @@ class Vector(TrickType):
 
     def __init__(self, elements):
         self._elements = [i for i in elements]
+        self.src_start = None
+        self.src_end = None
 
     def __iter__(self):
         return Vector.Iterator(self)

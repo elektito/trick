@@ -48,8 +48,9 @@ class _List:
                     i = i.to_trick_vector(recursive=True)
             cur = Pair(i, cur)
 
-        cur.src_start = self.src_start
-        cur.src_end = self.src_end
+        if isinstance(cur, TrickType):
+            cur.src_start = self.src_start
+            cur.src_end = self.src_end
 
         return cur
 
