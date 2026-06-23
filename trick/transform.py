@@ -220,6 +220,25 @@ class SyntaxRulesTransformer(Transformer):
         error = ' '.join(str(i) for i in form.cdr)
         raise TransformError(f'Syntax Error: {error}')
 
+    def _check_ellipsis_vars_in_template(self, template, ellipsis_vars, depth=0):
+        if isinstance(template, VariableTemplate):
+            if template.variable in ellipsis_vars and depth == 0:
+                raise TransformError(
+                    f'Pattern variable "{template.variable}" requires an ellipsis '
+                    f'in the template because it was bound with "..." in the pattern.',
+                    form=template.variable)
+        elif isinstance(template, RepeatedTemplate):
+            self._check_ellipsis_vars_in_template(
+                template.template, ellipsis_vars, depth + 1)
+        elif isinstance(template, ListTemplate):
+            for t in template.proper:
+                self._check_ellipsis_vars_in_template(t, ellipsis_vars, depth)
+            if template.tail is not None:
+                self._check_ellipsis_vars_in_template(
+                    template.tail, ellipsis_vars, depth)
+        elif isinstance(template, VectorTemplate):
+            for t in template.items:
+                self._check_ellipsis_vars_in_template(t, ellipsis_vars, depth)
 
     def fix_up(self, expansion, env):
         if isinstance(expansion, _UserSymbol):
@@ -358,9 +377,11 @@ class SyntaxRulesTransformer(Transformer):
             pattern.proper[0] = MatchAll()
 
             variables = pattern.get_vars()
+            ellipsis_vars = pattern.get_ellipsis_vars()
 
             self.check_for_duplicate_variables(variables)
             template = self.compile_template(template, variables)
+            self._check_ellipsis_vars_in_template(template, ellipsis_vars)
             self.rules.append((pattern, template))
 
     def compile_template(self, template, variables, no_ellipses=False):
@@ -524,6 +545,9 @@ class Matcher(Serializable):
     def get_vars(self):
         return []
 
+    def get_ellipsis_vars(self) -> set:
+        return set()
+
     @classmethod
     def _get_serializable_subclasses(cls):
         return [
@@ -664,6 +688,14 @@ class MatchList(Matcher):
             vars += self.tail.get_vars()
         return vars
 
+    def get_ellipsis_vars(self) -> set:
+        result = set()
+        for p in self.proper:
+            result |= p.get_ellipsis_vars()
+        if self.tail:
+            result |= self.tail.get_ellipsis_vars()
+        return result
+
     def __repr__(self):
         if self.tail:
             return f'<MatchList {self.proper} . {self.tail}>'
@@ -750,6 +782,14 @@ class MatchListWithEllipsis(Matcher):
             vars += self.tail.get_vars()
         return vars
 
+    def get_ellipsis_vars(self) -> set:
+        result = set()
+        for p in self.proper:
+            result |= p.get_ellipsis_vars()
+        if self.tail:
+            result |= self.tail.get_ellipsis_vars()
+        return result
+
     def __repr__(self):
         if self.tail:
             return f'<MatchList... {self.proper} . {self.tail}>'
@@ -795,6 +835,12 @@ class MatchVector(Matcher):
         for p in self.items:
             vars += p.get_vars()
         return vars
+
+    def get_ellipsis_vars(self) -> set:
+        result = set()
+        for p in self.items:
+            result |= p.get_ellipsis_vars()
+        return result
 
     def __repr__(self):
         return f'<MatchVector {self.items}>'
@@ -848,6 +894,12 @@ class MatchVectorWithEllipsis(Matcher):
             vars += p.get_vars()
         return vars
 
+    def get_ellipsis_vars(self) -> set:
+        result = set()
+        for p in self.items:
+            result |= p.get_ellipsis_vars()
+        return result
+
     def __repr__(self):
         return f'<MatchVector... {self.items}>'
 
@@ -882,6 +934,9 @@ class MatchRepeated(Matcher):
 
     def get_vars(self):
         return self.matcher.get_vars()
+
+    def get_ellipsis_vars(self) -> set:
+        return set(self.matcher.get_vars())
 
     def __repr__(self):
         return f'<MatchRepeated {self.matcher}>'
@@ -968,6 +1023,15 @@ class VariableTemplate(Template):
 
     def expand(self, vars):
         value = vars[self.variable]
+
+        # normally caught at define-syntax time by
+        # _check_ellipsis_vars_in_template. so this shouldn't be
+        # necessary but we'll put it here for safety.
+        if isinstance(value, list):
+            raise TransformError(
+                f'Pattern variable "{self.variable}" used without an ellipsis '
+                f'in the template, but was bound with "..." in the pattern.')
+
         return self.convert_to_user_env(value)
 
     def convert_to_user_env(self, value):
