@@ -134,8 +134,8 @@ class Transformer(Serializable):
     def transform(self, expr, env):
         raise NotImplementedError
 
-    @staticmethod
-    def _get_serializable_subclasses():
+    @classmethod
+    def _get_serializable_subclasses(cls):
         return [
             SyntaxRulesTransformer,
         ]
@@ -524,8 +524,8 @@ class Matcher(Serializable):
     def get_vars(self):
         return []
 
-    @staticmethod
-    def _get_serializable_subclasses():
+    @classmethod
+    def _get_serializable_subclasses(cls):
         return [
             MatchAll,
             MatchLiteral,
@@ -923,8 +923,8 @@ class Template(Serializable):
     def get_vars(self) -> list[Symbol]:
         raise NotImplementedError
 
-    @staticmethod
-    def _get_serializable_subclasses():
+    @classmethod
+    def _get_serializable_subclasses(cls):
         return [
             ConstantTemplate,
             VariableTemplate,

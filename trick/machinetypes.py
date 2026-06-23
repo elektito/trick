@@ -14,8 +14,8 @@ class TrickType(Serializable):
     # src_start/src_end are therefore declared in each concrete subclass individually.
     __slots__ = ()
 
-    @staticmethod
-    def _get_serializable_subclasses():
+    @classmethod
+    def _get_serializable_subclasses(cls):
         return [
             Void,
             Integer,

@@ -21,8 +21,8 @@ class ImportSet(Serializable):
     def underlying_lib(self) -> LibraryName:
         raise NotImplementedError
 
-    @staticmethod
-    def _get_serializable_subclasses():
+    @classmethod
+    def _get_serializable_subclasses(cls):
         return [
             LibraryImportSet,
             OnlyImportSet,
